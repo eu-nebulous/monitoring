@@ -1,0 +1,16 @@
+
+  ______ __  __  _____    _____            _             _
+ |  ____|  \/  |/ ____|  / ____|          | |           | |
+ | |__  | \  / | (___   | |     ___  _ __ | |_ _ __ ___ | |
+ |  __| | |\/| |\___ \  | |    / _ \| '_ \| __| '__/ _ \| |
+ | |____| |  | |____) | | |___| (_) | | | | |_| | | (_) | |
+ |______|_|  |_|_____/   \_____\___/|_| |_|\__|_|  \___/|_|
+
+ :: EMS Control ::                        (@project.version@)
+ :: Spring Boot ::                       ${spring-boot.formatted-version}
+ :: Java (TM)   ::                        (${java.version})
+ :: Build Num.  :: @buildNumber@
+ :: Build Date  :: @timestamp@
+ :: SCM Branch  :: @scmBranch@
+ :: Image Tag   :: @docker.image.name@:@docker.image.tag@
+ :: Description :: @build.description@

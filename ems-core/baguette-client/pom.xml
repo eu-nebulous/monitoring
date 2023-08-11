@@ -1,0 +1,175 @@
+<!--
+  ~ Copyright (C) 2017-2023 Institute of Communication and Computer Systems (imu.iccs.gr)
+  ~
+  ~ This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+  ~ Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+  ~ If a copy of the MPL was not distributed with this file, you can obtain one at
+  ~ https://www.mozilla.org/en-US/MPL/2.0/
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>gr.iccs.imu.ems</groupId>
+        <artifactId>ems-core</artifactId>
+		<version>${revision}</version>
+	</parent>
+
+	<artifactId>baguette-client</artifactId>
+	<name>EMS - Baguette Client</name>
+
+	<properties>
+		<atomix.version>3.1.12</atomix.version>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>gr.iccs.imu.ems</groupId>
+			<artifactId>broker-cep</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>gr.iccs.imu.ems</groupId>
+			<artifactId>broker-client</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>gr.iccs.imu.ems</groupId>
+			<artifactId>common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<!-- Spring-Boot dependencies -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ulisesbocchio</groupId>
+			<artifactId>jasypt-spring-boot-starter</artifactId>
+			<version>${jasypt.starter.version}</version>
+		</dependency>
+
+		<!-- https://mvnrepository.com/artifact/org.apache.sshd/apache-sshd -->
+		<dependency>
+			<groupId>org.apache.sshd</groupId>
+			<artifactId>apache-sshd</artifactId>
+			<version>${apache-sshd.version}</version>
+			<type>pom</type>
+			<exclusions>
+				<exclusion> 
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-jdk14</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.springframework</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.sshd</groupId>
+			<artifactId>sshd-scp</artifactId>
+			<version>${apache-sshd.version}</version>
+		</dependency>
+
+		<!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Atomix dependencies -->
+		<dependency>
+			<groupId>io.atomix</groupId>
+			<artifactId>atomix</artifactId>
+			<version>${atomix.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>io.atomix</groupId>
+			<artifactId>atomix-raft</artifactId>
+			<version>${atomix.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.atomix</groupId>
+			<artifactId>atomix-primary-backup</artifactId>
+			<version>${atomix.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.atomix</groupId>
+			<artifactId>atomix-gossip</artifactId>
+			<version>${atomix.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.atomix</groupId>
+			<artifactId>atomix-storage</artifactId>
+			<version>${atomix.version}</version>
+		</dependency>
+
+		<!-- https://mvnrepository.com/artifact/com.google.guava/guava -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<version>1.6.0</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>exec</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<mainClass>gr.iccs.imu.ems.baguette.client.BaguetteClient</mainClass>
+					<executable>maven</executable>
+				</configuration>
+			</plugin>
+
+			<!-- Assembly Maven plugin (https://maven.apache.org/plugin-developers/cookbook/generate-assembly.html) -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<configuration>
+					<descriptors>
+						<descriptor>src/main/assembly/baguette-client-installation-package.xml</descriptor>
+					</descriptors>
+					<finalName>baguette-client</finalName>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+		</plugins>
+	</build>
+	
+</project>

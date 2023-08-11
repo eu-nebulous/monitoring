@@ -1,0 +1,33 @@
+#
+# Copyright (C) 2017-2022 Institute of Communication and Computer Systems (imu.iccs.gr)
+#
+# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+# Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+# If a copy of the MPL was not distributed with this file, you can obtain one at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+
+#
+#  Instructions Set executed when Baguette client is not installed
+#  (in the case of Resource-Limited nodes)
+#
+
+---
+os: LINUX
+description: EMS client SKIP installation instruction set
+condition: >-
+  ${SKIP_BAGUETTE_INSTALLATION:-false}                                ||
+  '${OS_ARCHITECTURE:-x}'.startsWith('arm')                           ||
+  ${CPU_PROCESSORS:-0} <= ${BAGUETTE_INSTALLATION_MIN_PROCESSORS:-0}  || 
+  ${RAM_AVAILABLE_KB:-0} <= ${BAGUETTE_INSTALLATION_MIN_RAM:-0}       ||
+  ${DISK_FREE_KB:-0} <= ${BAGUETTE_INSTALLATION_MIN_DISK_FREE:-0}
+instructions:
+  - description: 'DEBUG: Print node pre-registration VARIABLES'
+    taskType: PRINT_VARS
+  - description: Set __EMS_CLIENT_INSTALL__ variable
+    taskType: SET_VARS
+    variables:
+      __EMS_CLIENT_INSTALL__: SKIPPED
+  - description: Log SKIP installation
+    taskType: LOG
+    message: EMS client installation SKIPPED at Node

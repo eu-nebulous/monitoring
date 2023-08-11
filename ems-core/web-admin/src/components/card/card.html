@@ -1,0 +1,40 @@
+            <div v-bind:class="['card', `${classes??''}`]" v-bind:style="style">
+              <div class="card-header" v-if="header && header.trim()!=='' || $slots.header">
+                <slot name="header">
+                  <div v-if="icon" class="float-left" style="width: 20px;">
+                    <i :class="icon"></i>
+                  </div>
+                  <h5 class="card-title m-0">{{header}}</h5>
+                </slot>
+                <div class="card-tools">
+                    <slot name="tools"></slot>
+                    <button v-if="hasRefresh" type="button" class="btn btn-tool" data-toggle="tooltip" title="Refresh" @click="doRefresh();">
+                        <i class="fas fa-sync"></i></button>
+                    <button v-if="hasCollapse" type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Collapse">
+                        <i class="fas fa-minus"></i></button>
+                    <button v-if="hasMaximize" type="button" class="btn btn-tool" data-card-widget="maximize" data-toggle="tooltip" title="Maximize">
+                        <i class="fas fa-expand"></i></button>
+                    <button v-if="hasRemove" type="button" class="btn btn-tool" data-card-widget="remove" data-toggle="tooltip" title="Remove">
+                        <i class="fas fa-times"></i></button>
+                </div>
+              </div>
+              <!-- /.card-header-->
+              <div :class="['card-body', `${bodyClasses}`]">
+                <slot name="title">
+                  <h5 class="card-title">{{title}}</h5>
+                </slot>
+
+                <p class="card-text">
+                  <slot></slot>
+                </p>
+                <a v-for="l in links" :href="l.url" :target="l.target" class="card-link">{{l.text}}</a>
+                <slot name="extra"></slot>
+              </div>
+              <!-- /.card-body -->
+              <div class="card-footer" v-if="footer && footer.trim()!=='' || $slots.footer  ">
+                <slot name="footer">
+                  {{footer}}
+                </slot>
+              </div>
+              <!-- /.card-footer-->
+            </div><!-- /.card -->

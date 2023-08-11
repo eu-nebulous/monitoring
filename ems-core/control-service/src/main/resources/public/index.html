@@ -1,0 +1,442 @@
+<!--
+  ~ Copyright (C) 2017-2023 Institute of Communication and Computer Systems (imu.iccs.gr)
+  ~
+  ~ This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+  ~ Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+  ~ If a copy of the MPL was not distributed with this file, you can obtain one at
+  ~ https://www.mozilla.org/en-US/MPL/2.0/
+  -->
+<html>
+<head>
+    <script><!--
+		function sendCommand(fid) {
+			console.log('sendCommand: fid='+fid);
+			var baseUrl= document.getElementById("fld-base-url").value;
+			var client = document.getElementById("cmd-"+fid+"-client").value;
+			var command  = document.getElementById("cmd-"+fid+"-command").value;
+			var url = baseUrl+'/client/command/'+client+'/'+command;
+			console.log('sendCommand: url='+url);
+			
+			var xmlhttp = new XMLHttpRequest();
+			xmlhttp.onreadystatechange = function() {
+				var html = '<i>Command '+command+'<i>: ';
+				if (this.readyState == 4 && this.status == 200) {
+					console.log(this.responseText);
+					html += this.responseText==='OK'
+							? '<span style="color:green; font-weight:normal; background-color:lightgreen; padding:3px;">OK</span>' 
+							: '<span style="color:darkred; font-style:italic; background-color:pink; padding:3px;">'+this.responseText+'</span>';
+				} else {
+					html += '<span style="color:yellow; font-weight:bold; background-color:red; padding:3px;">ready-state='+this.readyState+', status='+this.status+' '+this.statusText+'</span>'
+				}
+				document.getElementById("c-span-"+fid+"-result").innerHTML = html;
+			};
+			xmlhttp.open("GET", url, true);
+			xmlhttp.send();
+			console.log('sendCommand: done');
+		}
+		
+		function sendEvent(fid) {
+			console.log('sendEvent: fid='+fid);
+			var baseUrl= document.getElementById("fld-base-url").value;
+			var sensor = document.getElementById("fld-"+fid+"-sensor").value;
+			var client = document.getElementById("fld-"+fid+"-client").value;
+			var value  = document.getElementById("fld-"+fid+"-value").value;
+			var url = baseUrl+'/event/send/'+client+'/'+sensor+'/'+value;
+			console.log('sendEvent: url='+url);
+			
+			var xmlhttp = new XMLHttpRequest();
+			xmlhttp.onreadystatechange = function() {
+				var html = '<i>Value '+value+'<i>: ';
+				if (this.readyState == 4 && this.status == 200) {
+					console.log(this.responseText);
+					html += this.responseText==='OK'
+							? '<span style="color:green; font-weight:normal; background-color:lightgreen; padding:3px;">OK</span>' 
+							: '<span style="color:darkred; font-style:italic; background-color:pink; padding:3px;">'+this.responseText+'</span>';
+				} else {
+					html += '<span style="color:yellow; font-weight:bold; background-color:red; padding:3px;">ready-state='+this.readyState+', status='+this.status+' '+this.statusText+'</span>'
+				}
+				document.getElementById("span-"+fid+"-result").innerHTML = html;
+			};
+			xmlhttp.open("GET", url, true);
+			xmlhttp.send();
+			console.log('sendEvent: done');
+		}
+		
+		function generator(fid, start) {
+			console.log('generation: fid='+fid);
+			var baseUrl = document.getElementById("fld-base-url").value;
+			var sensor  = document.getElementById("g-fld-"+fid+"-sensor").value;
+			var client  = document.getElementById("g-fld-"+fid+"-client").value;
+			var interval= document.getElementById("g-fld-"+fid+"-interval").value;
+			var lValue  = document.getElementById("g-fld-"+fid+"-lower-value").value;
+			var uValue  = document.getElementById("g-fld-"+fid+"-upper-value").value;
+			if (start)
+				var url = baseUrl+'/event/generate-start/'+client+'/'+sensor+'/'+interval+'/'+lValue+'/'+uValue;
+			else
+				var url = baseUrl+'/event/generate-stop/'+client+'/'+sensor;
+			console.log('generation: url='+url);
+			
+			var xmlhttp = new XMLHttpRequest();
+			xmlhttp.onreadystatechange = function() {
+				var html = start?'<i>Start:</i> ':'<i>Stop:</i> ';
+				if (this.readyState == 4 && this.status == 200) {
+					console.log(this.responseText);
+					html += this.responseText==='OK'
+							? '<span style="color:green; font-weight:normal; background-color:lightgreen; padding:3px;">OK</span>' 
+							: '<span style="color:darkred; font-style:italic; background-color:pink; padding:3px;">'+this.responseText+'</span>';
+				} else {
+					html += '<span style="color:yellow; font-weight:bold; background-color:red; padding:3px;">ready-state='+this.readyState+', status='+this.status+' '+this.statusText+'</span>'
+				}
+				document.getElementById("g-span-"+fid+"-result").innerHTML = html;
+			};
+			xmlhttp.open("GET", url, true);
+			xmlhttp.send();
+			console.log('generation: done');
+		}
+	//-->
+    </script>
+</head>
+<body>
+    <h1>EMS - Event Generation and Publish</h1>
+
+    <table>
+        <tr align="center">
+            <th><h3>Settings</h3></th>
+        </tr>
+        <tr>
+            <td>
+                <!-- Event Publishing - BEGIN -->
+                <table width="*">
+                    <tr>
+                        <th align="right"><em>Base URL:</em></th>
+                        <td><input id="fld-base-url" name="fld-base-url" value="http://localhost:8111" size="50"/></td>
+                    </tr>
+                </table>
+                <!-- Event Publishing - END -->
+            </td>
+        </tr>
+
+        <tr align="center" bgcolor="lightgray">
+            <th><h3>Send Commands to Clients</h3></th>
+        </tr>
+        <tr>
+            <td align="center">
+                <h3><a target="_blank" href="/client/list">[List]</a>
+                    <a target="_blank" href="/client/list/map">[Map]</a></h3>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <!-- Client Commands - BEGIN -->
+                <table>
+                    <thead>
+                    <th><em>Client</em></th>
+                    <th><em>Command</em></th>
+                    <th><em>Actions</em></th>
+                    <th><em>Result</em></th>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><input id="cmd-1-client" name="cmd-1-client" value="*"/></td>
+                        <td><input id="cmd-1-command" name="cmd-1-command" value="GET-ID"/></td>
+                        <td>
+                            <button id="cmd-1-send" onClick="sendCommand('1');">Send</button>
+                        </td>
+                        <td><span id="c-span-1-result"/></td>
+                    </tr>
+                    <tr>
+                        <td><input id="cmd-2-client" name="cmd-2-client" value="*"/></td>
+                        <td><input id="cmd-2-command" name="cmd-2-command" value="GET-ACTIVE-GROUPING"/></td>
+                        <td>
+                            <button id="cmd-2-send" onClick="sendCommand('2');">Send</button>
+                        </td>
+                        <td><span id="c-span-2-result"/></td>
+                    </tr>
+                    <tr>
+                        <td><input id="cmd-3-client" name="cmd-3-client" value="*"/></td>
+                        <td><input id="cmd-3-command" name="cmd-3-command" value="GET-GROUPING-CONFIG PER_INSTANCE"/></td>
+                        <td>
+                            <button id="cmd-3-send" onClick="sendCommand('3');">Send</button>
+                        </td>
+                        <td><span id="c-span-3-result"/></td>
+                    </tr>
+                    <tr>
+                        <td><input id="cmd-4-client" name="cmd-4-client" value="*"/></td>
+                        <td><input id="cmd-4-command" name="cmd-4-command" value="CLUSTER-TEST START"/></td>
+                        <td>
+                            <button id="cmd-4-send" onClick="sendCommand('4');">Send</button>
+                        </td>
+                        <td><span id="c-span-4-result"/></td>
+                    </tr>
+                    <tr>
+                        <td><input id="cmd-5-client" name="cmd-5-client" value="*"/></td>
+                        <td><input id="cmd-5-command" name="cmd-5-command" value="CLUSTER-EXEC broker list"/></td>
+                        <td>
+                            <button id="cmd-5-send" onClick="sendCommand('5');">Send</button>
+                        </td>
+                        <td><span id="c-span-5-result"/></td>
+                    </tr>
+                    </tbody>
+                </table>
+                <!-- Client Commands - END -->
+            </td>
+        </tr>
+
+        <tr align="center" bgcolor="lightgray">
+            <th><h3>Event Publishing</h3></th>
+        </tr>
+        <tr>
+            <td>
+                <!-- Event Publishing - BEGIN -->
+                <table>
+                    <thead>
+                    <th><em>Sesnor</em></th>
+                    <th><em>Client</em></th>
+                    <th><em>Value</em></th>
+                    <th><em>Actions</em></th>
+                    <th><em>Result</em></th>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><input id="fld-1-sensor" name="fld-1-sensor" value="My_SENSOR"/></td>
+                        <td><input id="fld-1-client" name="fld-1-client" value="*"/></td>
+                        <td><input id="fld-1-value" name="fld-1-value" value="444"/></td>
+                        <td>
+                            <button id="bt-1-send" onClick="sendEvent('1');">Send</button>
+                        </td>
+                        <td><span id="span-1-result"/></td>
+                    </tr>
+                    <tr>
+                        <td><input id="fld-2-sensor" name="fld-1-sensor" value="My_SENSOR_2"/></td>
+                        <td><input id="fld-2-client" name="fld-1-client" value="*"/></td>
+                        <td><input id="fld-2-value" name="fld-1-value" value="444"/></td>
+                        <td>
+                            <button id="bt-2-send" onClick="sendEvent('2');">Send</button>
+                        </td>
+                        <td><span id="span-2-result"/></td>
+                    </tr>
+                    <tr>
+                        <td><input id="fld-3-sensor" name="fld-1-sensor" value=""/></td>
+                        <td><input id="fld-3-client" name="fld-1-client" value=""/></td>
+                        <td><input id="fld-3-value" name="fld-1-value" value=""/></td>
+                        <td>
+                            <button id="bt-3-send" onClick="sendEvent('3');">Send</button>
+                        </td>
+                        <td><span id="span-3-result"/></td>
+                    </tr>
+                    <tr>
+                        <td><input id="fld-4-sensor" name="fld-1-sensor" value=""/></td>
+                        <td><input id="fld-4-client" name="fld-1-client" value=""/></td>
+                        <td><input id="fld-4-value" name="fld-1-value" value=""/></td>
+                        <td>
+                            <button id="bt-4-send" onClick="sendEvent('4');">Send</button>
+                        </td>
+                        <td><span id="span-4-result"/></td>
+                    </tr>
+                    <tr>
+                        <td><input id="fld-5-sensor" name="fld-1-sensor" value=""/></td>
+                        <td><input id="fld-5-client" name="fld-1-client" value=""/></td>
+                        <td><input id="fld-5-value" name="fld-1-value" value=""/></td>
+                        <td>
+                            <button id="bt-5-send" onClick="sendEvent('5');">Send</button>
+                        </td>
+                        <td><span id="span-5-result"/></td>
+                    </tr>
+                    </tbody>
+                </table>
+                <!-- Event Publishing - END -->
+            </td>
+        </tr>
+
+        <tr align="center" bgcolor="lightgray">
+            <th><h3>Event Generation</h3></th>
+        </tr>
+        <tr>
+            <td>
+                <!-- Event Generation - BEGIN -->
+                <table>
+                    <thead>
+                    <th><em>Sensor</em></th>
+                    <th><em>Client</em></th>
+                    <th><em>Interval</em></th>
+                    <th><em>Lower Value</em></th>
+                    <th><em>Upper Value</em></th>
+                    <th><em>Actions</em></th>
+                    <th><em>Result</em></th>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><input id="g-fld-1-sensor" name="fld-1-sensor" value="My_SENSOR"/></td>
+                        <td><input id="g-fld-1-client" name="fld-1-client" value="*"/></td>
+                        <td><input id="g-fld-1-interval" name="fld-1-interval" value="1000"/></td>
+                        <td><input id="g-fld-1-lower-value" name="fld-1-lower-value" value="100"/></td>
+                        <td><input id="g-fld-1-upper-value" name="fld-1-upper-value" value="500"/></td>
+                        <td>
+                            <button id="g-bt-1-start" onClick="generator('1', true);">Start</button>
+                            <button id="g-bt-1-stop" onClick="generator('1', false);">Stop</button>
+                        </td>
+                        <td><span id="g-span-1-result"/></td>
+                    </tr>
+                    <tr>
+                        <td><input id="g-fld-2-sensor" name="fld-1-sensor" value="My_SENSOR_2"/></td>
+                        <td><input id="g-fld-2-client" name="fld-1-client" value="*"/></td>
+                        <td><input id="g-fld-2-interval" name="fld-1-interval" value="5000"/></td>
+                        <td><input id="g-fld-2-lower-value" name="fld-1-lower-value" value="100"/></td>
+                        <td><input id="g-fld-2-upper-value" name="fld-1-upper-value" value="500"/></td>
+                        <td>
+                            <button id="g-bt-2-start" onClick="generator('2', true);">Start</button>
+                            <button id="g-bt-2-stop" onClick="generator('2', false);">Stop</button>
+                        </td>
+                        <td><span id="g-span-2-result"/></td>
+                    </tr>
+                    <tr>
+                        <td><input id="g-fld-3-sensor" name="fld-1-sensor" value=""/></td>
+                        <td><input id="g-fld-3-client" name="fld-1-client" value=""/></td>
+                        <td><input id="g-fld-3-interval" name="fld-1-interval" value=""/></td>
+                        <td><input id="g-fld-3-lower-value" name="fld-1-lower-value" value=""/></td>
+                        <td><input id="g-fld-3-upper-value" name="fld-1-upper-value" value=""/></td>
+                        <td>
+                            <button id="g-bt-3-start" onClick="generator('3', true);">Start</button>
+                            <button id="g-bt-3-stop" onClick="generator('3', false);">Stop</button>
+                        </td>
+                        <td><span id="g-span-3-result"/></td>
+                    </tr>
+                    <tr>
+                        <td><input id="g-fld-4-sensor" name="fld-1-sensor" value=""/></td>
+                        <td><input id="g-fld-4-client" name="fld-1-client" value=""/></td>
+                        <td><input id="g-fld-4-interval" name="fld-1-interval" value=""/></td>
+                        <td><input id="g-fld-4-lower-value" name="fld-1-lower-value" value=""/></td>
+                        <td><input id="g-fld-4-upper-value" name="fld-1-upper-value" value=""/></td>
+                        <td>
+                            <button id="g-bt-4-start" onClick="generator('4', true);">Start</button>
+                            <button id="g-bt-4-stop" onClick="generator('4', false);">Stop</button>
+                        </td>
+                        <td><span id="g-span-4-result"/></td>
+                    </tr>
+                    <tr>
+                        <td><input id="g-fld-5-sensor" name="fld-1-sensor" value=""/></td>
+                        <td><input id="g-fld-5-client" name="fld-1-client" value=""/></td>
+                        <td><input id="g-fld-5-interval" name="fld-1-interval" value=""/></td>
+                        <td><input id="g-fld-5-lower-value" name="fld-1-lower-value" value=""/></td>
+                        <td><input id="g-fld-5-upper-value" name="fld-1-upper-value" value=""/></td>
+                        <td>
+                            <button id="g-bt-5-start" onClick="generator('5', true);">Start</button>
+                            <button id="g-bt-5-stop" onClick="generator('5', false);">Stop</button>
+                        </td>
+                        <td><span id="g-span-5-result"/></td>
+                    </tr>
+                    </tbody>
+                </table>
+                <!-- Event Generation - END -->
+            </td>
+        </tr>
+
+        <tr align="center" bgcolor="lightgray">
+            <th><h3>Live Metrics:</h3></th>
+        </tr>
+        <tr>
+            <td>
+                <button onClick="liveMetricsStart()">Start</button>
+                <button onClick="liveMetricsStop()">Stop</button>
+                <button onClick="liveMetricsGet()">Get</button>
+                <div id="live-metrics-div"></div>
+                <style>
+                            .lastUpdate {
+                                color: lightgray;
+                                font-style: italics;
+                                font-size: small;
+                            }
+
+                    </style>
+                <script>
+                            var liveMetricsEventSource = null;
+
+                            function liveMetricsStart() {
+                                if (liveMetricsEventSource!=null) return;
+                                liveMetricsEventSource = new EventSource("/info/metrics/stream?interval=2");
+                                liveMetricsEventSource.onopen = (e) => console.log('live-metrics: open: ', e);
+                                liveMetricsEventSource.onerror = (e) => console.log('live-metrics: error: ', e);
+                                liveMetricsEventSource.onmessage = (e) => console.log('live-metrics: data: ', e.data);
+                                liveMetricsEventSource.addEventListener("ems-metrics-event", (e) => {
+                                        console.log('ems-metrics-event: ', e.data);
+                                        var data = JSON.parse(e.data);
+                                        document.getElementById("live-metrics-div").innerHTML =
+                                                makeUL(data) +
+                                                '<span class="lastUpdate">Last Update: ' + new Date().toLocaleString() + '</span>';
+                                });
+                            }
+
+                            function liveMetricsStop() {
+                                if (liveMetricsEventSource==null) return;
+                                liveMetricsEventSource.close();
+                                liveMetricsEventSource = null;
+                            }
+
+                            function liveMetricsGet() {
+                                var xhr = new XMLHttpRequest();
+                                xhr.open("GET", "/info/metrics/get", true);
+                                xhr.onreadystatechange = function() {
+                                    if (xhr.readyState==4) {
+                                        var data = JSON.parse(this.responseText);
+                                        console.log('data', data);
+                                        document.getElementById("live-metrics-div").innerHTML =
+                                                makeUL(data) +
+                                                '<span class="lastUpdate">Last Update: ' + new Date().toLocaleString() + '</span>';
+                                    }
+                                };
+                                xhr.send();
+                            }
+
+                            function makeUL(data) {
+                                if (data==null) return null;
+                                var r = '<ul>\n';
+                                for (let [key, value] of Object.entries(data)) {
+                                    if (typeof(value)==='object') value = makeUL(value);
+                                    r += '<li><b>'+key+':</b> ';
+                                    r += value+'</li>\n';
+                                }
+                                r += '</ul>';
+                                return r;
+                            }
+
+                    </script>
+            </td>
+        </tr>
+
+        <tr align="center">
+            <th><h3>Statistics:</h3></th>
+        </tr>
+        <tr>
+            <td>
+                <ul>
+                    <li><a target="_blank" href="/info/metrics/get">EMS server statistics</a></li>
+                    <li><a target="_blank" href="/info/client-metrics/get/*">Clients statistics</a></li>
+                    <br/>
+                    <li><a target="_blank" href="/info/metrics/clear">Clear EMS server statistics</a></li>
+                    <li><a target="_blank" href="/info/client-metrics/clear/*">Clear clients statistics</a></li>
+                </ul>
+            </td>
+        </tr>
+
+        <tr align="center" bgcolor="lightgray">
+            <th><h3>Downloads:</h3></th>
+        </tr>
+        <tr>
+            <td>
+                <ul>
+                    <li><a target="_blank" href="/logs/ems.log">ems.log</a></li>
+                    <li><a target="_blank" href="/logs/_TC.json">_TC.json</a></li>
+                    <br/>
+                    <li><a href="/resources/broker-client.jar">Broker Client JAR</a></li>
+                    <li><a href="/resources/client.sh">Broker Client BASH</a></li>
+                    <!--<li><a href="/resources/gr.iccs.imu.ems.brokerclient.properties">Broker Client properties</a></li>-->
+                    <br/>
+                    <li><a href="/resources/baguette-client.tgz">Baguette Client TGZ</a></li>
+                    <li><a href="/resources/baguette-client.tgz.md5">Baguette Client MD5</a></li>
+                </ul>
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>

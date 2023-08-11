@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (C) 2017-2023 Institute of Communication and Computer Systems (imu.iccs.gr)
+  ~
+  ~ This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+  ~ Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+  ~ If a copy of the MPL was not distributed with this file, you can obtain one at
+  ~ https://www.mozilla.org/en-US/MPL/2.0/
+  -->
+
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/base.xml"/>
+
+    <!-- NOTE: Use this appender for simpler logging messages (only level and message) during development -->
+    <!-- Change ref="CONSOLE" to ref="STDOUT" in the logger entries -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%-5level] %msg%n</pattern>
+            <!--<pattern>BC> %msg%n</pattern>-->
+        </encoder>
+    </appender>
+
+    <logger name="root" level="ERROR">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+    <logger name="org.springframework" level="INFO">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+    <logger name="gr.iccs.imu.ems" level="INFO" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+    <logger name="gr.iccs.imu.ems.baguette" level="INFO" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+    <logger name="gr.iccs.imu.ems.brokercep" level="INFO" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+</configuration>

@@ -1,0 +1,246 @@
+#
+# Copyright (C) 2017-2023 Institute of Communication and Computer Systems (imu.iccs.gr)
+#
+# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+# Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+# If a copy of the MPL was not distributed with this file, you can obtain one at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+
+################################################################################
+###                     EMS - Baguette Client properties                     ###
+################################################################################
+
+#password-encoder-class: password.gr.iccs.imu.ems.util.AsterisksPasswordEncoder
+#password-encoder-class: password.gr.iccs.imu.ems.util.IdentityPasswordEncoder
+#password-encoder-class: password.gr.iccs.imu.ems.util.PresentPasswordEncoder
+
+# Baguette Client configuration
+
+auth-timeout: 60000
+exec-timeout: 120000
+#retry-period: 60000
+exit-command-allowed: false
+#kill-delay: 10
+
+IP_SETTING: ${IP_SETTING}
+EMS_CLIENT_ADDRESS: ${${IP_SETTING}}
+
+node-properties:
+  node-id: ${NODE_CLIENT_ID}
+  public-ip: ${NODE_ADDRESS}
+  private-ip: ${NODE_ADDRESS}
+  instance: ${NODE_ADDRESS}
+  host: ${NODE_ADDRESS}
+  zone: ${zone-id}
+  region: ${zone-id}
+  cloud: ${provider}
+
+# -----------------------------------------------------------------------------
+# Client Id and Baguette Server credentials
+# -----------------------------------------------------------------------------
+
+client-id: ${BAGUETTE_CLIENT_ID}
+
+#server-address: ${BAGUETTE_SERVER_HOSTNAME}
+server-address: ${BAGUETTE_SERVER_ADDRESS}
+server-port: ${BAGUETTE_SERVER_PORT}
+server-pubkey: ${BAGUETTE_SERVER_PUBKEY}
+server-fingerprint: ${BAGUETTE_SERVER_PUBKEY_FINGERPRINT}
+
+server-username: ${BAGUETTE_SERVER_USERNAME}
+server-password: ${BAGUETTE_SERVER_PASSWORD}
+
+# -----------------------------------------------------------------------------
+# Client-side Self-healing settings
+# -----------------------------------------------------------------------------
+
+#self.healing:
+#  enabled: true
+#  recovery:
+#    file:
+#      baguette: conf/baguette.json
+#      netdata: conf/netdata.json
+#    delay: 10000
+#    retry-delay: 60000
+#    max-retries: 3
+
+# -----------------------------------------------------------------------------
+# Collectors settings
+# -----------------------------------------------------------------------------
+
+#collector-classes: netdata.collector.gr.iccs.imu.ems.baguette.client.NetdataCollector
+
+collector:
+  netdata:
+    enable: true
+    delay: 10000
+    url: http://127.0.0.1:19999/api/v1/allmetrics?format=json
+    urlOfNodesWithoutClient: http://%s:19999/api/v1/allmetrics?format=json
+    #create-topic: true
+    #allowed-topics: netdata__system__cpu__user:an_alias
+    allowed-topics: ${COLLECTOR_ALLOWED_TOPICS}
+    error-limit: 3
+    pause-period: 60
+  prometheus:
+    enable: true
+    delay: 10000
+    url: http://127.0.0.1:9090/metrics
+    urlOfNodesWithoutClient: http://%s:9090/metrics
+    #create-topic: true
+    #allowed-topics: system__cpu__user:an_alias
+    allowed-topics: ${COLLECTOR_ALLOWED_TOPICS}
+    error-limit: 3
+    pause-period: 60
+    #
+    #allowedTags: []
+    #allowTagsInDestinationName: true
+    #destinationNameFormatter: '${metricName}_${method}'
+    #addTagsAsEventProperties: true
+    #addTagsInEventPayload: true
+    #throwExceptionWhenExcessiveCharsOccur: true
+
+# -----------------------------------------------------------------------------
+# Cluster settings
+# -----------------------------------------------------------------------------
+
+cluster:
+  #cluster-id: cluster
+  #local-node.id: local-node
+  #local-node.address: localhost:1234
+  #local-node.properties:
+  #  name: value
+  #member-addresses: [localhost:3456, localhost:5678]
+
+  #useSwim: false
+  #failureTimeout: 5000
+  testInterval: 5000
+
+  log-enabled: true
+  out-enabled: true
+
+  join-on-init: true
+  election-on-join: false
+  #usePBInMg: true
+  #usePBInPg: true
+  #mgName: system
+  #pgName: data
+
+  tls:
+    enabled: true
+    #keystore: ${EMS_CONFIG_DIR}/cluster.jks
+    #keystore-password: atomix
+    #truststore: ${EMS_CONFIG_DIR}/cluster.jks
+    #truststore-password: atomix
+    keystore-dir: conf
+
+  score:
+    formula: 20*cpu/32+80*ram/(256*1024)
+    default-score: 0
+    default-args:
+      cpu: 1
+      ram: 128
+    #throw-exception: false
+
+
+################################################################################
+###                       EMS - Broker-CEP properties                        ###
+################################################################################
+
+BROKER_URL_PROPERTIES: transport.daemon=true&transport.trace=false&transport.useKeepAlive=true&transport.useInactivityMonitor=false&transport.needClientAuth=${CLIENT_AUTH_REQUIRED}&transport.verifyHostName=true&transport.connectionTimeout=0&transport.keepAlive=true
+CLIENT_AUTH_REQUIRED: false
+CLIENT_URL_PROPERTIES: daemon=true&trace=false&useInactivityMonitor=false&connectionTimeout=0&keepAlive=true
+
+brokercep:
+  # Broker ports and protocol
+  broker-name: broker
+  broker-port: 61617
+  broker-protocol: ssl
+  #management-connector-port: 1088
+  #bypass-local-broker: true   # Don't use in EMS server
+
+  # Broker connectors
+  broker-url:
+    - ${brokercep.broker-protocol}://0.0.0.0:${brokercep.broker-port}?${BROKER_URL_PROPERTIES}
+    - tcp://127.0.0.1:61616?${BROKER_URL_PROPERTIES}
+
+  # Broker URLs for (EMS) consumer and clients
+  broker-url-for-consumer: tcp://127.0.0.1:61616?${CLIENT_URL_PROPERTIES}
+  broker-url-for-clients: ${brokercep.broker-protocol}://${EMS_CLIENT_ADDRESS}:${brokercep.broker-port}?${CLIENT_URL_PROPERTIES}
+  # Must be a public IP address
+
+  ssl:
+    # Key store settings
+    keystore-file: ${EMS_CONFIG_DIR}/client-broker-keystore.p12
+    keystore-type: PKCS12
+    keystore-password: 'ENC(ISMbn01HVPbtRPkqm2Lslg==)'  # melodic
+
+    # Trust store settings
+    truststore-file: ${EMS_CONFIG_DIR}/client-broker-truststore.p12
+    truststore-type: PKCS12
+    truststore-password: 'ENC(ISMbn01HVPbtRPkqm2Lslg==)'  # melodic
+
+    # Certificate settings
+    certificate-file: ${EMS_CONFIG_DIR}/client-broker.crt
+
+    # key generation settings
+    key-entry-generate: IF-IP-CHANGED
+    key-entry-name: ${EMS_CLIENT_ADDRESS}
+    key-entry-dname: 'CN=${EMS_CLIENT_ADDRESS},OU=Information Management Unit (IMU),O=Institute of Communication and Computer Systems (ICCS),L=Athens,ST=Attika,C=GR'
+    key-entry-ext-san: 'dns:localhost,ip:127.0.0.1,ip:${DEFAULT_IP},ip:${PUBLIC_IP}'
+
+  # Authentication and Authorization settings
+  authentication-enabled: true
+  #additional-broker-credentials: aaa/111, bbb/222, morphemic/morphemic
+  additional-broker-credentials: 'ENC(axeJUxNHajYfBffUwvuT3kwTgLTpRliDMz/ZQ9hROZ3BNOv0Idw72NJsawzIZRuZ)'
+  authorization-enabled: false
+
+  # Broker instance settings
+  broker-persistence-enabled: false
+  broker-using-jmx: true
+  broker-advisory-support-enabled: true
+  broker-using-shutdown-hook: false
+
+  #broker-enable-statistics: true
+  #broker-populate-jmsx-user-id: true
+
+  # Message interceptors
+  message-interceptors:
+    - destination: '>'
+      className: 'interceptor.broker.gr.iccs.imu.ems.brokercep.SequentialCompositeInterceptor'
+      params:
+        - '#SourceAddressMessageUpdateInterceptor'
+        - '#MessageForwarderInterceptor'
+        - '#NodePropertiesMessageUpdateInterceptor'
+
+  message-interceptors-specs:
+    SourceAddressMessageUpdateInterceptor:
+      className: interceptor.broker.gr.iccs.imu.ems.brokercep.SourceAddressMessageUpdateInterceptor
+    MessageForwarderInterceptor:
+      className: interceptor.broker.gr.iccs.imu.ems.brokercep.MessageForwarderInterceptor
+    NodePropertiesMessageUpdateInterceptor:
+      className: interceptor.broker.gr.iccs.imu.ems.brokercep.NodePropertiesMessageUpdateInterceptor
+
+  # Message forward destinations (MessageForwarderInterceptor must be included in 'message-interceptors' property)
+  #message-forward-destinations:
+  #  - connection-string: tcp://localhost:51515
+  #    username: AAA
+  #    password: 111
+  #  - connection-string: tcp://localhost:41414
+  #    username: AAA
+  #    password: 111
+
+  # Advisory watcher
+  enable-advisory-watcher: true
+
+  # Memory usage limit
+  usage:
+    memory:
+      jvm-heap-percentage: 20
+      #size: 134217728
+
+  # Event forward settings
+  #maxEventForwardRetries: -1
+  #maxEventForwardDuration: -1
+
+################################################################################

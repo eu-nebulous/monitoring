@@ -1,0 +1,52 @@
+{
+  "os": "LINUX",
+  "description": "Starting Netdata and Baguette agents at VM node",
+  "condition": "! ${SKIP_START:-false}",
+  "instructions": [
+    {
+      "description": "Launch EMS client",
+      "taskType": "CMD",
+      "command": "${BAGUETTE_CLIENT_BASE_DIR}/bin/run.sh",
+      "executable": false,
+      "exitCode": 0,
+      "match": false,
+      "retries": 5
+    },
+    {
+      "description": "Check if Netdata is already running",
+      "taskType": "CHECK",
+      /*"command": "[[ $(( `ps -ef |grep /usr/sbin/netdata |grep -v grep |wc -l`+1 )) -gt 1 ]] && exit 1 || exit 0",*/
+      "command": "[[ $(ps -e -o pid,comm,cgroup |grep netdata |grep -v grep |grep -v docker |grep -v lxc |wc -l) -gt 0 ]] && exit 1 || exit 0",
+      "executable": false,
+      "exitCode": 1,
+      "match": true,
+      "message": "Netdata is already running"
+    },
+    {
+      "description": "Copy Netdata Prometheus plugin configuration to node's /tmp directory",
+      "taskType": "FILE",
+      "localFileName": "${EMS_CONFIG_DIR}/baguette-client-install/netdata/go.d/prometheus.conf",
+      "fileName": "/tmp",
+      "executable": false,
+      "exitCode": 0,
+      "match": false
+    },
+    {
+      "description": "Move prometheus config from /tmp to /etc/netdata/go.d/ directory",
+      "taskType": "CMD",
+      "command": "echo ${NODE_SSH_PASSWORD} | sudo -- sh -c 'mkdir -p /etc/netdata/go.d/ && mv -f /tmp/prometheus.conf /etc/netdata/go.d/' ",
+      "executable": false,
+      "exitCode": 0,
+      "match": false
+    },
+    {
+      "description": "Launch Netdata",
+      "taskType": "CMD",
+      "command": "echo ${NODE_SSH_PASSWORD} | sudo -S -- sh -c '/opt/netdata/bin/netdata || /usr/sbin/netdata || netdata' ",
+      "executable": false,
+      "exitCode": 0,
+      "match": false,
+      "retries": 5
+    }
+  ]
+}

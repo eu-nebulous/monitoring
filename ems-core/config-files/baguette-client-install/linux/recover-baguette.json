@@ -1,0 +1,24 @@
+{
+  "os": "LINUX",
+  "description": "Restarting Baguette agent at VM node",
+  "instructions": [
+    {
+      "description": "Killing previous EMS client process",
+      "taskType": "CMD",
+      "command": "${BAGUETTE_CLIENT_BASE_DIR}/bin/kill.sh",
+      "executable": false,
+      "exitCode": 0,
+      "match": false,
+      "retries": 5
+    },
+    {
+      "description": "Starting new EMS client process",
+      "taskType": "CMD",
+      "command": "${BAGUETTE_CLIENT_BASE_DIR}/bin/run.sh",
+      "executable": false,
+      "exitCode": 0,
+      "match": false,
+      "retries": 5
+    }
+  ]
+}

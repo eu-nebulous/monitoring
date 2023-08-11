@@ -1,0 +1,8 @@
+java.version=@java.version@
+maven.version=@maven.version@
+project.name=@project.parent.name@
+project.version=@project.version@
+project.build.sourceEncoding=@project.build.sourceEncoding@
+buildNumber=@buildNumber@
+maven.build.timestamp=@maven.build.timestamp@
+timestamp=@timestamp@

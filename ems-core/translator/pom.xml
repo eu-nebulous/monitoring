@@ -1,0 +1,74 @@
+<!--
+  ~ Copyright (C) 2017-2023 Institute of Communication and Computer Systems (imu.iccs.gr)
+  ~
+  ~ This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+  ~ Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+  ~ If a copy of the MPL was not distributed with this file, you can obtain one at
+  ~ https://www.mozilla.org/en-US/MPL/2.0/
+  -->
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>gr.iccs.imu.ems</groupId>
+        <artifactId>ems-core</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>translator</artifactId>
+    <name>EMS - Translator</name>
+
+    <properties>
+        <!-- Dependencies versions -->
+        <jgrapht.version>1.5.2</jgrapht.version>
+        <graphviz-java.version>0.18.1</graphviz-java.version>
+    </properties>
+
+    <dependencies>
+        <!-- EMS dependencies -->
+        <dependency>
+            <groupId>gr.iccs.imu.ems</groupId>
+            <artifactId>broker-cep</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Spring-boot dependencies -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
+
+        <!-- Lombok project -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- JGraphT graph library (https://jgrapht.org/) -->
+        <dependency>
+            <groupId>org.jgrapht</groupId>
+            <artifactId>jgrapht-core</artifactId>
+            <version>${jgrapht.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jgrapht</groupId>
+            <artifactId>jgrapht-io</artifactId>
+            <version>${jgrapht.version}</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/guru.nidi/graphviz-java -->
+        <!-- See also: https://github.com/nidi3/graphviz-java -->
+        <dependency>
+            <groupId>guru.nidi</groupId>
+            <artifactId>graphviz-java-all-j2v8</artifactId>
+            <version>${graphviz-java.version}</version>
+        </dependency>
+    </dependencies>
+
+</project>

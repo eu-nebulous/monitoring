@@ -1,0 +1,69 @@
+{
+  "os": "LINUX",
+  "description": "Detect node features (OS, architecture, cores, RAM, disk etc)",
+  "condition": "! ${SKIP_DETECTION:-false}",
+  "instructions": [
+    {
+      "description": "Detecting target node type...",
+      "taskType": "LOG",
+      "message": "Detecting target node type..."
+    },
+    {
+      "description": "Copying detection script to node...",
+      "taskType": "COPY",
+      "fileName": "/tmp/detect.sh",
+      "localFileName": "bin/detect.sh",
+      "executable": false,
+      "exitCode": 0,
+      "match": false
+    },
+    {
+      "description": "Make detection script executable",
+      "taskType": "CMD",
+      "command": "chmod +x /tmp/detect.sh ",
+      "executable": false,
+      "exitCode": 0,
+      "match": false
+    },
+    {
+      "description": "Run detection script",
+      "taskType": "CMD",
+      /*"command": "if [ ! -e /tmp/detect.txt ]; then /tmp/detect.sh &> /tmp/detect.txt; fi",*/
+      "command": "/tmp/detect.sh &> /tmp/detect.txt",
+      "executable": false,
+      "exitCode": 0,
+      "match": false
+    },
+    {
+      "description": "Copying detection results back to EMS server...",
+      "taskType": "DOWNLOAD",
+      "fileName": "/tmp/detect.txt",
+      "localFileName": "logs/detect.${NODE_ADDRESS}--${TIMESTAMP-FILE}.txt",
+      "executable": false,
+      "exitCode": 0,
+      "match": false,
+      "patterns": {
+        "CPU_SOCKETS":        "^\\s*CPU_SOCKETS\\s*[=:]\\s*(.*)\\s*",
+        "CPU_CORES":          "^\\s*CPU_CORES\\s*[=:]\\s*(.*)\\s*",
+        "CPU_PROCESSORS":     "^\\s*CPU_PROCESSORS\\s*[=:]\\s*(.*)\\s*",
+        "RAM_TOTAL_KB":       "^\\s*RAM_TOTAL_KB\\s*[=:]\\s*(.*)\\s*",
+        "RAM_AVAILABLE_KB":   "^\\s*RAM_AVAILABLE_KB\\s*[=:]\\s*(.*)\\s*",
+        "RAM_FREE_KB":        "^\\s*RAM_FREE_KB\\s*[=:]\\s*(.*)\\s*",
+        "RAM_USED_KB":        "^\\s*RAM_USED_KB\\s*[=:]\\s*(.*)\\s*",
+        "RAM_UTILIZATION":    "^\\s*RAM_UTILIZATION\\s*[=:]\\s*(.*)\\s*",
+        "DISK_TOTAL_KB":      "^\\s*DISK_TOTAL_KB\\s*[=:]\\s*(.*)\\s*",
+        "DISK_FREE_KB":       "^\\s*DISK_FREE_KB\\s*[=:]\\s*(.*)\\s*",
+        "DISK_USED_KB":       "^\\s*DISK_USED_KB\\s*[=:]\\s*(.*)\\s*",
+        "DISK_UTILIZATION":   "^\\s*DISK_UTILIZATION\\s*[=:]\\s*(.*)\\s*",
+        "OS_ARCHITECTURE":    "^\\s*OS_ARCHITECTURE\\s*[=:]\\s*(.*)\\s*",
+        "OS_KERNEL":          "^\\s*OS_KERNEL\\s*[=:]\\s*(.*)\\s*",
+        "OS_KERNEL_RELEASE":  "^\\s*OS_KERNEL_RELEASE\\s*[=:]\\s*(.*)\\s*"
+      }
+    },
+    {
+      "description": "Detection results...",
+      "taskType": "LOG",
+      "message": "Detection results:\n    CPU_SOCKETS=${CPU_SOCKETS:-na}\n    CPU_CORES=${CPU_CORES:-na}\n    CPU_PROCESSORS=${CPU_PROCESSORS:-na}\n    RAM_TOTAL_KB=${RAM_TOTAL_KB:-na}\n    RAM_AVAILABLE_KB=${RAM_AVAILABLE_KB:-na}\n    RAM_FREE_KB=${RAM_FREE_KB:-na}\n    RAM_USED_KB=${RAM_USED_KB:-na}\n    RAM_UTILIZATION=${RAM_UTILIZATION:-na}\n    DISK_TOTAL_KB=${DISK_TOTAL_KB:-na}\n    DISK_FREE_KB=${DISK_FREE_KB:-na}\n    DISK_USED_KB=${DISK_USED_KB:-na}\n    DISK_UTILIZATION=${DISK_UTILIZATION:-na}\n    OS_ARCHITECTURE=${OS_ARCHITECTURE:-na}\n    OS_KERNEL=${OS_KERNEL:-na}\n    OS_KERNEL_RELEASE=${OS_KERNEL_RELEASE:-na}"
+    }
+  ]
+}

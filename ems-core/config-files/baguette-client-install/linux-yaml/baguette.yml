@@ -1,0 +1,133 @@
+#
+# Copyright (C) 2017-2022 Institute of Communication and Computer Systems (imu.iccs.gr)
+#
+# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+# Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+# If a copy of the MPL was not distributed with this file, you can obtain one at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+
+#
+#  Instructions Set for installing Baguette (ems) client in a node
+#
+
+---
+os: LINUX
+description: EMS client installation instruction set at VM node
+condition: >-
+  ! ${SKIP_BAGUETTE_INSTALLATION:-false}                            &&
+  ! '${OS_ARCHITECTURE:-x}'.startsWith('arm')                       &&
+  ${CPU_PROCESSORS:-0} > ${BAGUETTE_INSTALLATION_MIN_PROCESSORS:-0} && 
+  ${RAM_AVAILABLE_KB:-0} > ${BAGUETTE_INSTALLATION_MIN_RAM:-0}      &&
+  ${DISK_FREE_KB:-0} > ${BAGUETTE_INSTALLATION_MIN_DISK_FREE:-0}
+instructions:
+  - description: 'DEBUG: Print node pre-registration VARIABLES'
+    taskType: PRINT_VARS
+  - description: Check if 'java' is installed at Node
+    taskType: CHECK
+    command: '${BAGUETTE_CLIENT_BASE_DIR}/jre8/bin/java -version'
+    executable: false
+    exitCode: 0
+    match: false
+    message: Java is not installed at Node
+  - description: Check if EMS client is already installed at Node
+    taskType: CHECK
+    command: '[[ -f ${BAGUETTE_CLIENT_BASE_DIR}/conf/ok.txt ]] && exit 99'
+    executable: false
+    exitCode: 99
+    match: true
+    message: EMS client is already installed at Node
+  - description: '-- LIST ${BAGUETTE_CLIENT_BASE_DIR}/.. BEFORE --'
+    taskType: CMD
+    command: 'ls -l ${BAGUETTE_CLIENT_BASE_DIR}/.. '
+    executable: false
+    exitCode: 0
+    match: false
+  - description: Log EMS client installation start
+    taskType: LOG
+    message: Starting EMS client installation at Node
+  - description: Upload EMS client installation package
+    taskType: COPY
+    fileName: /tmp/baguette-client.tgz
+    localFileName: '${EMS_PUBLIC_DIR}/resources/baguette-client.tgz'
+    executable: false
+    exitCode: 0
+    match: false
+  - description: Upload installation package MD5 checksum
+    taskType: COPY
+    fileName: /tmp/baguette-client.tgz.md5
+    localFileName: '${EMS_PUBLIC_DIR}/resources/baguette-client.tgz.md5'
+    executable: false
+    exitCode: 0
+    match: false
+  - description: Check MD5 checksum of installation package
+    taskType: CHECK
+    command: >-
+      [[ `cat /tmp/baguette-client.tgz.md5` != `md5sum /tmp/baguette-client.tgz | cut -d ' ' -f 1 ` ]] && exit 99
+    executable: false
+    exitCode: 99
+    match: true
+  - description: Extract installation package to target folder
+    taskType: CMD
+    command: >-
+      ${ROOT_CMD} tar zxvf /tmp/baguette-client.tgz -C ${BAGUETTE_CLIENT_BASE_DIR}/../
+    executable: false
+    exitCode: 0
+    match: false
+    executionTimeout: 120000
+  - description: Change files and folders ownership
+    taskType: CMD
+    command: '${ROOT_CMD} chown -R ${NODE_SSH_USERNAME} ${BAGUETTE_CLIENT_BASE_DIR}'
+    executable: false
+    exitCode: 0
+    match: false
+  - description: Touch files
+    taskType: CMD
+    command: 'touch ${BAGUETTE_CLIENT_BASE_DIR}/logs/output.txt'
+    executable: false
+    exitCode: 0
+    match: false
+  - description: Create conf directory
+    taskType: CMD
+    command: 'mkdir ${BAGUETTE_CLIENT_BASE_DIR}/conf/'
+    executable: false
+    exitCode: 0
+    match: false
+  - description: Copy-and-process configuration to target
+    taskType: FILE
+    localFileName: '${EMS_CONFIG_DIR}/baguette-client/'
+    fileName: '${BAGUETTE_CLIENT_BASE_DIR}'
+    executable: false
+    exitCode: 0
+    match: false
+  - description: Clean installation package from /tmp
+    taskType: CMD
+    command: rm -f /tmp/baguette-client.tgz*
+    executable: false
+    exitCode: 0
+    match: false
+  - description: Write success file
+    taskType: CMD
+    command: 'echo SUCCESS >> ${BAGUETTE_CLIENT_BASE_DIR}/conf/ok.txt'
+    executable: false
+    exitCode: 0
+    match: false
+  - description: '-- LIST ${BAGUETTE_CLIENT_BASE_DIR}/.. AFTER --'
+    taskType: CMD
+    command: 'ls -l ${BAGUETTE_CLIENT_BASE_DIR}/.. '
+    executable: false
+    exitCode: 0
+    match: false
+  - description: '-- LIST baguette-client FILES --'
+    taskType: CMD
+    command: 'ls -l ${BAGUETTE_CLIENT_BASE_DIR} '
+    executable: false
+    exitCode: 0
+    match: false
+  - description: Set __EMS_CLIENT_INSTALL__ variable
+    taskType: SET_VARS
+    variables:
+      __EMS_CLIENT_INSTALL__: INSTALLED
+  - description: Log installation end
+    taskType: LOG
+    message: EMS client installation completed at Node

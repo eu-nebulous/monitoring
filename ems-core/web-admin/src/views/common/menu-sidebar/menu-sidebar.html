@@ -1,0 +1,156 @@
+
+<!-- Main Sidebar Container -->
+<aside class="main-sidebar sidebar-dark-primary elevation-4">
+  <!-- Brand Logo -->
+  <a href="#" class="brand-link">
+    <img src="@/assets/img/ems-logo-192x192.png"
+         alt="EMS Logo"
+         class="brand-image img-circle elevation-3"
+         style="opacity: .8">
+    <span class="brand-text font-weight-normal" style="color:yellow">EMS Web Admin</span>
+  </a>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+
+    <!-- Sidebar Menu -->
+    <nav class="mt-2">
+      <ul class="nav nav-pills nav-sidebar nav-child-indent flex-column" data-widget="treeview" role="menu" data-accordion="false">
+        <!-- Add icons to the links using the .nav-icon class
+             with font-awesome or any other icon font library -->
+
+        <li class="nav-item has-treeview">
+          <a href="#" class="nav-link active">
+            <i class="nav-icon fas fa-tachometer-alt"></i>
+            <p>
+              Dashboard
+            </p>
+          </a>
+        </li>
+
+        <li class="nav-item has-treeview">
+          <a href="#" class="nav-link">
+            <i class="nav-icon fas fa-download"></i>
+            <p>
+              Downloads
+              <i class="right fas fa-angle-left"></i>
+            </p>
+          </a>
+          <ul class="nav nav-treeview">
+            <li class="nav-item">
+              <a href="/resources/broker-client.jar" class="nav-link" target="_new">
+                <i class="fas fa-file-archive nav-icon"></i>
+                <p>
+                  Broker Client
+                  <i class="fas right fa-arrow-alt-circle-down"></i>
+                </p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="/resources/client.bat" class="nav-link" target="_new">
+                <i class="fas fa fa-terminal nav-icon"></i>
+                <p>
+                  Broker Client .bat
+                  <i class="fas right fa-arrow-alt-circle-down"></i>
+                </p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="/resources/client.sh" class="nav-link" target="_new">
+                <i class="fas fa fa-terminal nav-icon"></i>
+                <p>
+                  Broker Client .sh
+                  <i class="fas right fa-arrow-alt-circle-down"></i>
+                </p>
+              </a>
+            </li>
+
+            <div class="dropdown-divider"></div>
+
+            <li class="nav-item">
+              <a href="/resources/baguette-client.tgz" class="nav-link" target="_new">
+                <i class="fas fa-file-archive nav-icon"></i>
+                <p>
+                  Baguette Client
+                  <i class="fas right fa-arrow-alt-circle-down"></i>
+                </p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="/resources/baguette-client.tgz.md5" class="nav-link" target="_new">
+                <i class="fas fa fa-font nav-icon"></i>
+                <p>
+                  Baguette Client MD5
+                  <i class="fas right fa-arrow-alt-circle-down"></i>
+                </p>
+              </a>
+            </li>
+          </ul>
+        </li>
+
+        <li class="nav-item has-treeview menu-close">
+          <a href="#" class="nav-link">
+            <i class="nav-icon fas fa-th-list"></i>
+            <p>
+              Logs and Exports
+              <i class="fas fa-angle-left right"></i>
+            </p>
+          </a>
+          <ul class="nav nav-treeview">
+            <li class="nav-item">
+              <a href="/logs/ems.log" class="nav-link" target="_new">
+                <i class="fas fa-list-alt nav-icon"></i>
+                <p>
+                  EMS Server Logs
+                  <i class="fas right fa-share-square"></i>
+                </p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="#" class="nav-link disabled text-muted" target="_new">
+                <i class="fas fa fa-folder-open nav-icon"></i>
+                <p>
+                  Old EMS Server logs
+                  <i class="fas right fa-share-square"></i>
+                </p>
+              </a>
+            </li>
+
+            <div class="dropdown-divider"></div>
+
+            <li class="nav-item">
+              <a href="/logs/_TC.json" class="nav-link" target="_new">
+                <i class="fas fa-project-diagram nav-icon"></i>
+                <p>
+                  Translation context
+                  <i class="fas right fa-share-square"></i>
+                </p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="#" class="nav-link disabled text-muted" target="_new">
+                <i class="fas fa-file-image nav-icon"></i>
+                <p>
+                  DAG as SVG
+                  <i class="fas right fa-share-square"></i>
+                </p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="#" class="nav-link disabled text-muted" target="_new">
+                <i class="fas fa-file-image nav-icon"></i>
+                <p>
+                  DAG as PNG
+                  <i class="fas right fa-share-square"></i>
+                </p>
+              </a>
+            </li>
+          </ul>
+        </li>
+
+      </ul>
+    </nav>
+    <!-- /.sidebar-menu -->
+  </div>
+  <!-- /.sidebar -->
+</aside>

@@ -1,0 +1,13 @@
+            <div :class="['info-box', `${classes}`]" :style="style">
+                <span v-bind:class="['info-box-icon', `${bg_class}`]"><i v-bind:class="[`${icon_classes}`]"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text">{{message}}</span>
+                    <span class="info-box-number">{{text_before}}{{value ?? text_default}}{{text_after}}</span>
+                </div>
+                <!-- /.info-box-content -->
+                <div class="overlay" v-if="loading"><!-- Loading (delete this node to remove the loading spinner)-->
+                    <i class="fas fa-2x fa-sync-alt fa-refresh fa-spin"></i>
+                </div>
+                <!-- end loading -->
+            </div>
+            <!-- /.info-box -->

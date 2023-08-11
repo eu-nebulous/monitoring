@@ -1,0 +1,73 @@
+/*
+ * Copyright (C) 2017-2023 Institute of Communication and Computer Systems (imu.iccs.gr)
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+ * Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+ * If a copy of the MPL was not distributed with this file, you can obtain one at
+ * https://www.mozilla.org/en-US/MPL/2.0/
+ */
+
+package gr.iccs.imu.ems.translate;
+
+import gr.iccs.imu.ems.translate.camel.CamelToEplTranslator;
+import gr.iccs.imu.ems.translate.camel.properties.CamelToEplTranslatorProperties;
+import gr.iccs.imu.ems.translate.camel.properties.RuleTemplateProperties;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+/*
+ * Run the 'TranslatorApplication' from command line
+ *
+ * 1) Compile application and retrieve dependencies:
+ *      mvn clean package
+ *      mvn dependency:copy-dependencies
+ *
+ * 2) Start CDO server and set its address (+ other settings) in CDO client config:
+ *      File: eu.paasage.mddb.cdo.client.properties
+ *      Property: host
+ *
+ * 3) Set environment variables:
+ *      PAASAGE_CONFIG_DIR=....
+ *      EMS_CONFIG_DIR=....
+ *      SPRING_CONFIG_LOCATION=classpath:rule-templates.yml,file:${EMS_CONFIG_DIR}/ems-server.yml
+ *
+ * 4) Run the application:
+ *    Windows:
+ *      java -cp target\classes;target\dependency\* gr.iccs.imu.ems.translate.TranslatorApplication ...<<MODEL_NAME>>...
+ *    Linux:
+ *      java -cp target/classes:target/dependency/* gr.iccs.imu.ems.translate.TranslatorApplication ...<<MODEL_NAME>>...
+ */
+@Slf4j
+@SpringBootApplication
+public class TranslatorApplication implements CommandLineRunner {
+
+    private static boolean standalone = false;
+    @Autowired
+    private CamelToEplTranslator translator;
+    @Autowired
+    private CamelToEplTranslatorProperties properties;
+    @Autowired
+    private RuleTemplateProperties ruleTemplates;
+
+    public static void main(String[] args) {
+        standalone = true;
+        SpringApplication.run(TranslatorApplication.class, args);
+    }
+
+    @Override
+    public void run(String... args) {
+        if (!standalone) return;    // Execute only if called by 'main()'
+
+        log.info("Testing CAMEL-to-EPL Translator");
+        log.info("Args: {}", java.util.Arrays.asList(args));
+        log.info("Properties: {}", properties);
+        log.info("Rule Templates: {}", ruleTemplates);
+
+        String camelModelPath = (args.length > 0 && !args[0].trim().isEmpty()) ? args[0].trim() : "/camel-model";
+        log.info("Camel-model: {}", camelModelPath);
+        translator.translate(camelModelPath);
+    }
+}

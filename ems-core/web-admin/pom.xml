@@ -1,0 +1,178 @@
+<!--
+  ~ Copyright (C) 2017-2023 Institute of Communication and Computer Systems (imu.iccs.gr)
+  ~
+  ~ This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+  ~ Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+  ~ If a copy of the MPL was not distributed with this file, you can obtain one at
+  ~ https://www.mozilla.org/en-US/MPL/2.0/
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>gr.iccs.imu.ems</groupId>
+        <artifactId>ems-core</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>web-admin</artifactId>
+    <packaging>pom</packaging>
+    <name>EMS - Web Admin</name>
+
+    <properties>
+        <node.version>v14.17.3</node.version>
+    </properties>
+
+    <profiles>
+        <profile>
+            <id>build-web-admin</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+                <file>
+                    <missing>../.dev-skip-build-web-admin</missing>
+                </file>
+            </activation>
+            <build>
+                <plugins>
+
+                    <!-- Remove previous files from /public_resources -->
+                    <plugin>
+                        <artifactId>maven-clean-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>remove-dist</id>
+                                <phase>clean</phase>
+                                <goals>
+                                    <goal>clean</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <filesets>
+                                <fileset>
+                                    <directory>${project.basedir}/dist</directory>
+                                    <includes>
+                                        <include>**/*</include>
+                                    </includes>
+                                    <followSymlinks>false</followSymlinks>
+                                </fileset>
+                                <fileset>
+                                    <directory>${project.basedir}</directory>
+                                    <includes>
+                                        <include>.env</include>
+                                    </includes>
+                                    <followSymlinks>false</followSymlinks>
+                                </fileset>
+                            </filesets>
+                        </configuration>
+                    </plugin>
+
+                    <!--<plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>buildnumber-maven-plugin</artifactId>
+                        <configuration>
+                            &lt;!&ndash;<buildNumberPropertyName>buildNumber</buildNumberPropertyName>
+                            <doCheck>false</doCheck>
+                            <doUpdate>false</doUpdate>
+                            <format>{0,number,integer}</format>
+                            <items>
+                                <item>buildNumber</item>
+                            </items>&ndash;&gt;
+                            <timestampFormat>{0,date,yyyy-MM-dd HH:mm:ss'Z'}</timestampFormat>
+                            <revisionOnScmFailure>${project.version}</revisionOnScmFailure>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>io.github.michaldo</groupId>
+                        <artifactId>nashorn-maven-plugin</artifactId>
+                        <version>0.0.2</version>
+                        <executions>
+                            <execution>
+                                <phase>generate-resources</phase>
+                                <goals>
+                                    <goal>eval</goal>
+                                </goals>
+                                <configuration>
+                                    <script>
+                                        $project.buildNumber = "${buildNumber}";
+                                    </script>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>-->
+
+                    <!-- Copy and filter .env file -->
+                    <plugin>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <version>3.2.0</version>
+                        <executions>
+                            <execution>
+                                <id>create-env-file</id>
+                                <phase>generate-resources</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${project.basedir}</outputDirectory>
+                                    <resources>
+                                        <resource>
+                                            <directory>${project.basedir}/src/resources</directory>
+                                            <filtering>true</filtering>
+                                        </resource>
+                                    </resources>
+                                    <encoding>UTF-8</encoding>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <plugin>
+                        <!-- See: https://www.futurespace.es/en/crear-un-proyecto-spring-boot-vue-js/ -->
+                        <groupId>com.github.eirslett</groupId>
+                        <artifactId>frontend-maven-plugin</artifactId>
+                        <version>1.13.4</version>
+                        <executions>
+                            <!-- Install our node and npm version to run npm/node scripts-->
+                            <execution>
+                                <id>install node and npm</id>
+                                <goals>
+                                    <goal>install-node-and-npm</goal>
+                                </goals>
+                                <configuration>
+                                    <nodeVersion>${node.version}</nodeVersion>
+                                </configuration>
+                            </execution>
+                            <!-- Install all project dependencies -->
+                            <execution>
+                                <id>npm install</id>
+                                <goals>
+                                    <goal>npm</goal>
+                                </goals>
+                                <!-- optional: default phase is "generate-resources" -->
+                                <phase>generate-resources</phase>
+                                <!-- Optional configuration which provides for running any npm command -->
+                                <configuration>
+                                    <arguments>install</arguments>
+                                </configuration>
+                            </execution>
+                            <!-- Build and minify static files -->
+                            <execution>
+                                <id>npm run build</id>
+                                <goals>
+                                    <goal>npm</goal>
+                                </goals>
+                                <configuration>
+                                    <arguments>run build</arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+</project>

@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (C) 2017-2023 Institute of Communication and Computer Systems (imu.iccs.gr)
+  ~
+  ~ This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+  ~ Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+  ~ If a copy of the MPL was not distributed with this file, you can obtain one at
+  ~ https://www.mozilla.org/en-US/MPL/2.0/
+-->
+<assembly
+    xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="
+        http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2
+        http://maven.apache.org/xsd/assembly-1.1.2.xsd"
+>
+    <id>installation-package</id>
+    <formats>
+        <format>tgz</format>
+    </formats>
+    <fileSets>
+        <fileSet>
+            <outputDirectory></outputDirectory>
+            <directory>${project.basedir}</directory>
+            <includes>
+                <include>README*</include>
+                <include>LICENSE*</include>
+                <include>INSTALLATION*</include>
+            </includes>
+            <lineEnding>unix</lineEnding>
+        </fileSet>
+        <fileSet>
+            <outputDirectory>bin</outputDirectory>
+            <directory>bin</directory>
+            <includes>
+                <include>*</include>
+            </includes>
+            <lineEnding>unix</lineEnding>
+            <fileMode>0755</fileMode>
+        </fileSet>
+        <!--<fileSet>
+            <outputDirectory>conf</outputDirectory>
+            <directory>conf</directory>
+            <includes>
+                <include>*</include>
+            </includes>
+            <lineEnding>unix</lineEnding>
+        </fileSet>-->
+        <fileSet>
+            <outputDirectory>logs</outputDirectory>
+            <directory>logs</directory>
+            <includes>
+                <include>*</include>
+            </includes>
+            <lineEnding>unix</lineEnding>
+        </fileSet>
+        <fileSet>
+            <outputDirectory>jars</outputDirectory>
+            <directory>${project.build.directory}</directory>
+            <includes>
+                <include>*.jar</include>
+            </includes>
+        </fileSet>
+        <fileSet>
+            <outputDirectory>jars/broker-client</outputDirectory>
+            <directory>${project.parent.basedir}/broker-client/target</directory>
+            <includes>
+                <include>broker-client-jar-with-dependencies.jar</include>
+            </includes>
+        </fileSet>
+        <!--<fileSet>
+            <outputDirectory>bin</outputDirectory>
+            <directory>${project.parent.basedir}/broker-client</directory>
+            <includes>
+                <include>client.*</include>
+            </includes>
+            <lineEnding>unix</lineEnding>
+            <fileMode>0755</fileMode>
+        </fileSet>-->
+        <fileSet>
+            <outputDirectory>bin</outputDirectory>
+            <directory>${project.parent.basedir}/bin</directory>
+            <includes>
+                <include>sysmon.*</include>
+            </includes>
+            <lineEnding>unix</lineEnding>
+            <fileMode>0755</fileMode>
+        </fileSet>
+    </fileSets>
+    <!-- use this section if you want to package dependencies -->
+    <dependencySets>
+        <dependencySet>
+            <outputDirectory>jars</outputDirectory>
+            <excludes>
+                <exclude>*:pom</exclude>
+            </excludes>
+            <useStrictFiltering>true</useStrictFiltering>
+            <useProjectArtifact>false</useProjectArtifact>
+            <scope>runtime</scope>
+        </dependencySet>
+    </dependencySets>
+</assembly>

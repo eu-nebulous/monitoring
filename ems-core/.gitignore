@@ -1,0 +1,10 @@
+.idea
+broker-client/*.js
+config-files/*.p12
+config-files/*.crt
+public_resources/**
+tcnative*
+ems.log
+server.pem
+.dev-*
+.flattened-pom.xml

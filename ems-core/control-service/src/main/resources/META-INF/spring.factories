@@ -1,0 +1,1 @@
+org.springframework.boot.env.EnvironmentPostProcessor=gr.iccs.imu.ems.util.NetUtilPostProcessor

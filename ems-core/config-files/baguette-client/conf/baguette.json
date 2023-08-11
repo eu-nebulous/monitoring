@@ -1,0 +1,16 @@
+[{
+  "name": "Initial wait...",
+  "command": "pwd",
+  "waitBefore": 0,
+  "waitAfter": 5000
+}, {
+  "name": "Sending baguette client kill command...",
+  "command": "${BAGUETTE_CLIENT_BASE_DIR}/bin/kill.sh",
+  "waitBefore": 0,
+  "waitAfter": 2000
+}, {
+  "name": "Sending baguette client start command...",
+  "command": "${BAGUETTE_CLIENT_BASE_DIR}/bin/run.sh",
+  "waitBefore": 0,
+  "waitAfter": 10000
+}]

@@ -1,0 +1,79 @@
+#
+# Copyright (C) 2017-2022 Institute of Communication and Computer Systems (imu.iccs.gr)
+#
+# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+# Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+# If a copy of the MPL was not distributed with this file, you can obtain one at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+
+#
+#  Instructions Set for installing JRE
+#
+
+---
+os: LINUX
+description: JRE 8u282 installation instruction set at VM node
+condition: >-
+  ! ${SKIP_JRE_INSTALLATION:-false}                                 &&
+  ! '${OS_ARCHITECTURE:-x}'.startsWith('arm')                       &&
+  ${CPU_PROCESSORS:-0} > ${BAGUETTE_INSTALLATION_MIN_PROCESSORS:-0} &&
+  ${RAM_AVAILABLE_KB:-0} > ${BAGUETTE_INSTALLATION_MIN_RAM:-0}      &&
+  ${DISK_FREE_KB:-0} > ${BAGUETTE_INSTALLATION_MIN_DISK_FREE:-0}
+instructions:
+  - description: Check if JRE 8u282 is already installed at Node
+    taskType: CHECK
+    command: '[[ -f ${BAGUETTE_CLIENT_BASE_DIR}/jre8/bin/java ]] && exit 99'
+    executable: false
+    exitCode: 99
+    match: true
+    message: JRE 8u282 is already installed at Node
+  - description: Install JRE 8u282...
+    taskType: LOG
+    message: Install JRE 8u282...
+  - description: Mkdir Baguette Client installation folder
+    taskType: CMD
+    command: '${ROOT_CMD} mkdir -p ${BAGUETTE_CLIENT_BASE_DIR} '
+    executable: false
+    exitCode: 0
+    match: false
+    executionTimeout: 120000
+#  - description: Download JRE package
+#    taskType: CMD
+#    command: >-
+#      curl -k ${DOWNLOAD_URL}/resources/zulu8.52.0.23-ca-jre8.0.282-linux_x64.tar.gz --output /tmp/jre8.282.tar.gz
+#    executable: false
+#    exitCode: 0
+#    match: false
+  - description: Copy JRE package
+    taskType: COPY
+    fileName: /tmp/jre8.282.tar.gz
+    localFileName: '${EMS_PUBLIC_DIR}/resources/${JRE8_LINUX_X64_PACKAGE}'
+    executable: false
+    exitCode: 0
+    match: false
+  - description: Extract JRE package into installation folder
+    taskType: CMD
+    command: '${ROOT_CMD} tar zxvf /tmp/jre8.282.tar.gz -C ${BAGUETTE_CLIENT_BASE_DIR}'
+    executable: false
+    exitCode: 0
+    match: false
+  - description: Rename JRE directory
+    taskType: CMD
+    command: >-
+      ${ROOT_CMD} mv ${BAGUETTE_CLIENT_BASE_DIR}/zulu* ${BAGUETTE_CLIENT_BASE_DIR}/jre8
+    executable: false
+    exitCode: 0
+    match: false
+  - description: List BC home directory
+    taskType: CMD
+    command: 'ls -l ${BAGUETTE_CLIENT_BASE_DIR}'
+    executable: false
+    exitCode: 0
+    match: false
+  - description: Print JRE version
+    taskType: CMD
+    command: '${BAGUETTE_CLIENT_BASE_DIR}/jre8/bin/java -version'
+    executable: false
+    exitCode: 0
+    match: false

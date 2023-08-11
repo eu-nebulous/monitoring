@@ -1,0 +1,17 @@
+            <!-- small box -->
+            <div v-bind:class="['small-box', `${bg_class}`]">
+              <div class="inner">
+                <h3>
+                  <slot></slot>
+                </h3>
+                <p>
+                  <slot name="description"></slot>
+                </p>
+              </div>
+              <div class="icon">
+                <i v-bind:class="[`${icon_classes}`]"></i>
+              </div>
+              <slot name="more_info">
+                <a v-bind:href="more_info_url" v-if="more_info_url && more_info_url.trim()!=''" class="small-box-footer">More info <i class="fas fa-arrow-circle-right"></i></a>
+              </slot>
+            </div>

@@ -1,0 +1,33 @@
+{
+  "os": "LINUX",
+  "description": "EMS client removal instruction set",
+  "instructions": [
+    {
+      "description": "Kill EMS client if still running",
+      "taskType": "LOG",
+      "message": "Killing EMS client if still running..."
+    },
+    {
+      "description": "Killing previous EMS client process",
+      "taskType": "CMD",
+      "command": "${BAGUETTE_CLIENT_BASE_DIR}/bin/kill.sh"
+    },
+
+    {
+      "description": "Rename EMS client folder",
+      "taskType": "LOG",
+      "message": "Renaming EMS client folder..."
+    },
+    {
+      "description": "Renaming EMS client folder if any",
+      "taskType": "CMD",
+      "command": "mv ${BAGUETTE_CLIENT_BASE_DIR}/ ${BAGUETTE_CLIENT_BASE_DIR}--$(date +%s)/"
+    },
+
+    {
+      "description": "Log EMS client removal",
+      "taskType": "LOG",
+      "message": "EMS client removed from Node"
+    }
+  ]
+}

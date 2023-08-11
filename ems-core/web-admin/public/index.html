@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright (C) 2017-2023 Institute of Communication and Computer Systems (imu.iccs.gr)
+  ~
+  ~ This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+  ~ Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+  ~ If a copy of the MPL was not distributed with this file, you can obtain one at
+  ~ https://www.mozilla.org/en-US/MPL/2.0/
+  -->
+<html lang="">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <link rel="icon" href="<%= BASE_URL %>favicon.ico">
+    <title>EMS Web Admin</title>
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="./assets/plugins/bootstrap/css/bootstrap.min.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="./assets/plugins/fontawesome-free/css/all.min.css">
+    <!-- Ionicons -->
+    <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+    <!-- Theme style -->
+    <link rel="stylesheet" href="./assets/css/adminlte.min.css">
+    <!-- Google Font: Source Sans Pro -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700">
+    <!-- Colors (see http://clrs.cc/) -->
+    <link rel="stylesheet" href="https://s3-us-west-2.amazonaws.com/colors-css/2.2.0/colors.min.css">
+
+    <!-- jQuery -->
+    <script src="./assets/plugins/jquery/jquery.min.js"></script>
+    <!--<script src="./assets/plugins/jquery/jquery.slimscroll.min.js"></script>-->
+    <!-- Bootstrap 4 -->
+    <script src="./assets/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <!-- AdminLTE App -->
+    <script src="./assets/js/adminlte.min.js"></script>
+
+  </head>
+  <!--<body class="hold-transition sidebar-mini sidebar-collapse">--><!-- with left side Menu -->
+  <body class="hold-transition layout-top-nav"><!-- without left side Menu -->
+    <noscript>
+      <strong>We're sorry but <%= htmlWebpackPlugin.options.title %> doesn't work properly without JavaScript enabled. Please enable it to continue.</strong>
+    </noscript>
+    <div id="app">
+      <p><br/></p>
+      <h1 align="center"><%= htmlWebpackPlugin.options.title %></h1>
+      <p><br/></p>
+      <h5 align="center">Page is loading. Please wait</h5>
+      <p><br/></p>
+      <p align="center"><img src="./assets/img/wave-loader-grey-sm.gif" /></p>
+    </div>
+    <!-- built files will be auto-injected -->
+  </body>
+</html>

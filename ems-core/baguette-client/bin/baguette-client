@@ -1,0 +1,46 @@
+#! /bin/sh
+#
+# Copyright (C) 2017-2023 Institute of Communication and Computer Systems (imu.iccs.gr)
+#
+# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+# Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+# If a copy of the MPL was not distributed with this file, you can obtain one at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+
+### BEGIN INIT INFO
+# Provides:          baguette-client
+# Required-Start:    $local_fs $network
+# Required-Stop:     $local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: baguette-client
+# Description:       Controls the Baguette Client service
+### END INIT INFO
+
+export JAVA_HOME="/usr/bin/java"
+SU_USER=root
+ 
+#startcmd='/opt/baguette-client/bin/run.sh &>>/opt/baguette-client/logs/output.txt &'
+#stopcmd='/opt/baguette-client/bin/kill.sh &>>/opt/baguette-client/logs/output.txt'
+startcmd='/opt/baguette-client/bin/run.sh'
+stopcmd='/opt/baguette-client/bin/kill.sh'
+
+case "$1" in
+start)
+   echo "Starting Baguette Client..."
+   su -c "${startcmd}" $SU_USER
+;;
+restart)
+   echo "Re-starting Baguette Client..."
+   su -c "${stopcmd}" $SU_USER
+   su -c "${startcmd}" $SU_USER
+;;
+stop)
+   echo "Stopping Baguette Client..."
+   su -c "${stopcmd}" $SU_USER
+;;
+*)
+   echo "Usage: $0 {start|stop|restart}"
+exit 1
+esac

@@ -1,0 +1,224 @@
+#
+# Copyright (C) 2017-2023 Institute of Communication and Computer Systems (imu.iccs.gr)
+#
+# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+# Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+# If a copy of the MPL was not distributed with this file, you can obtain one at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+
+################################################################################
+###                     EMS - Baguette Client properties                     ###
+################################################################################
+
+#password-encoder-class = password.gr.iccs.imu.ems.util.AsterisksPasswordEncoder
+#password-encoder-class = password.gr.iccs.imu.ems.util.IdentityPasswordEncoder
+#password-encoder-class = password.gr.iccs.imu.ems.util.PresentPasswordEncoder
+
+### Jasypt encryptor settings (using old settings until encrypted texts are updated)
+jasypt.encryptor.algorithm = PBEWithMD5AndDES
+jasypt.encryptor.ivGeneratorClassname = org.jasypt.iv.NoIvGenerator
+
+# Baguette Client configuration
+
+baseDir = ${BAGUETTE_CLIENT_BASE_DIR}
+connection-retry-enabled = true
+connection-retry-delay = 10000
+connection-retry-limit = -1
+auth-timeout = 60000
+exec-timeout = 120000
+#retry-period = 60000
+exit-command-allowed = false
+#kill-delay = 10
+
+IP_SETTING=${IP_SETTING}
+EMS_CLIENT_ADDRESS=${${IP_SETTING}}
+
+node-properties=
+
+# -----------------------------------------------------------------------------
+# Client Id and Baguette Server credentials
+# -----------------------------------------------------------------------------
+
+client-id = ${BAGUETTE_CLIENT_ID}
+
+#server-address = ${BAGUETTE_SERVER_HOSTNAME}
+server-address = ${BAGUETTE_SERVER_ADDRESS}
+server-port = ${BAGUETTE_SERVER_PORT}
+server-pubkey = ${BAGUETTE_SERVER_PUBKEY}
+server-pubkey-fingerprint = ${BAGUETTE_SERVER_PUBKEY_FINGERPRINT}
+server-pubkey-algorithm = ${BAGUETTE_SERVER_PUBKEY_ALGORITHM}
+server-pubkey-format = ${BAGUETTE_SERVER_PUBKEY_FORMAT}
+
+server-username = ${BAGUETTE_SERVER_USERNAME}
+server-password = ${BAGUETTE_SERVER_PASSWORD}
+
+# -----------------------------------------------------------------------------
+# Client-side Self-healing settings
+# -----------------------------------------------------------------------------
+
+#self.healing.enabled=true
+#self.healing.recovery.file.baguette=conf/baguette.json
+#self.healing.recovery.file.netdata=conf/netdata.json
+#self.healing.recovery.delay=10000
+#self.healing.recovery.retry.wait=60000
+#self.healing.recovery.max.retries=3
+
+# -----------------------------------------------------------------------------
+# Collectors settings
+# -----------------------------------------------------------------------------
+
+#collector-classes = netdata.collector.gr.iccs.imu.ems.baguette.client.NetdataCollector
+
+collector.netdata.enable = true
+collector.netdata.delay = 10000
+collector.netdata.url = http://127.0.0.1:19999/api/v1/allmetrics?format=json
+collector.netdata.urlOfNodesWithoutClient = http://%s:19999/api/v1/allmetrics?format=json
+#collector.netdata.create-topic = true
+#collector.netdata.allowed-topics = netdata__system__cpu__user:an_alias
+collector.netdata.allowed-topics = ${COLLECTOR_ALLOWED_TOPICS}
+collector.netdata.error-limit = 3
+collector.netdata.pause-period = 60
+
+collector.prometheus.enable = false
+collector.prometheus.delay = 10000
+collector.prometheus.url = http://127.0.0.1:9090/metrics
+collector.prometheus.urlOfNodesWithoutClient = http://%s:9090/metrics
+#collector.prometheus.create-topic = true
+#collector.prometheus.allowed-topics = system__cpu__user:an_alias
+collector.prometheus.allowed-topics = ${COLLECTOR_ALLOWED_TOPICS}
+collector.prometheus.error-limit = 3
+collector.prometheus.pause-period = 60
+#
+#collector.prometheus.allowedTags =
+#collector.prometheus.allowTagsInDestinationName = true
+#collector.prometheus.destinationNameFormatter = ${metricName}_${method}
+#collector.prometheus.addTagsAsEventProperties = true
+#collector.prometheus.addTagsInEventPayload = true
+#collector.prometheus.throwExceptionWhenExcessiveCharsOccur = true
+
+# -----------------------------------------------------------------------------
+# Cluster settings
+# -----------------------------------------------------------------------------
+
+#cluster.cluster-id=cluster
+#cluster.local-node.id=local-node
+#cluster.local-node.address=localhost:1234
+#cluster.local-node.properties.name=value
+#cluster.member-addresses=[localhost:3456, localhost:5678]
+
+#cluster.useSwim=false
+#cluster.failureTimeout=5000
+cluster.testInterval=5000
+
+cluster.log-enabled=true
+cluster.out-enabled=true
+
+cluster.join-on-init=true
+cluster.election-on-join=false
+#cluster.usePBInMg=true
+#cluster.usePBInPg=true
+#cluster.mgName=system
+#cluster.pgName=data
+
+cluster.tls.enabled=true
+#cluster.tls.keystore=${EMS_CONFIG_DIR}/cluster.jks
+#cluster.tls.keystore-password=atomix
+#cluster.tls.truststore=${EMS_CONFIG_DIR}/cluster.jks
+#cluster.tls.truststore-password=atomix
+cluster.tls.keystore-dir=conf
+
+cluster.score.formula=20*cpu/32+80*ram/(256*1024)
+cluster.score.default-score=0
+cluster.score.default-args.cpu=1
+cluster.score.default-args.ram=128
+#cluster.score.throw-exception=false
+
+
+################################################################################
+###                       EMS - Broker-CEP properties                        ###
+################################################################################
+
+# Broker ports and protocol
+brokercep.broker-name = broker
+brokercep.broker-port = 61617
+#brokercep.management-connector-port = 1088
+brokercep.broker-protocol = ssl
+# Don't use in EMS server
+#brokercep.bypass-local-broker = true
+
+# Common Broker settings
+BROKER_URL_PROPERTIES = transport.daemon=true&transport.trace=false&transport.useKeepAlive=true&transport.useInactivityMonitor=false&transport.needClientAuth=${CLIENT_AUTH_REQUIRED}&transport.verifyHostName=true&transport.connectionTimeout=0&transport.keepAlive=true
+CLIENT_AUTH_REQUIRED = false
+brokercep.broker-url[0] = ${brokercep.broker-protocol}://0.0.0.0:${brokercep.broker-port}?${BROKER_URL_PROPERTIES}
+brokercep.broker-url[1] = tcp://127.0.0.1:61616?${BROKER_URL_PROPERTIES}
+brokercep.broker-url[2] =
+
+CLIENT_URL_PROPERTIES=daemon=true&trace=false&useInactivityMonitor=false&connectionTimeout=0&keepAlive=true
+brokercep.broker-url-for-consumer = tcp://127.0.0.1:61616?${CLIENT_URL_PROPERTIES}
+brokercep.broker-url-for-clients = ${brokercep.broker-protocol}://${EMS_CLIENT_ADDRESS}:${brokercep.broker-port}?${CLIENT_URL_PROPERTIES}
+# Must be a public IP address
+
+# Key store
+brokercep.ssl.keystore-file = ${EMS_CONFIG_DIR}/client-broker-keystore.p12
+brokercep.ssl.keystore-type = PKCS12
+#brokercep.ssl.keystore-password = melodic
+brokercep.ssl.keystore-password = ENC(ISMbn01HVPbtRPkqm2Lslg==)
+# Trust store
+brokercep.ssl.truststore-file = ${EMS_CONFIG_DIR}/client-broker-truststore.p12
+brokercep.ssl.truststore-type = PKCS12
+#brokercep.ssl.truststore-password = melodic
+brokercep.ssl.truststore-password = ENC(ISMbn01HVPbtRPkqm2Lslg==)
+# Certificate
+brokercep.ssl.certificate-file = ${EMS_CONFIG_DIR}/client-broker.crt
+# Key-and-Cert data
+brokercep.ssl.key-entry-generate = IF-IP-CHANGED
+brokercep.ssl.key-entry-name = ${EMS_CLIENT_ADDRESS}
+brokercep.ssl.key-entry-dname = CN=${EMS_CLIENT_ADDRESS},OU=Information Management Unit (IMU),O=Institute of Communication and Computer Systems (ICCS),L=Athens,ST=Attika,C=GR
+brokercep.ssl.key-entry-ext-san = dns:localhost,ip:127.0.0.1,ip:${DEFAULT_IP},ip:${PUBLIC_IP}
+
+# Authentication and Authorization settings
+brokercep.authentication-enabled = true
+#brokercep.additional-broker-credentials = aaa/111, bbb/222, morphemic/morphemic
+brokercep.additional-broker-credentials = ENC(axeJUxNHajYfBffUwvuT3kwTgLTpRliDMz/ZQ9hROZ3BNOv0Idw72NJsawzIZRuZ)
+brokercep.authorization-enabled = false
+
+# Broker instance settings
+brokercep.broker-persistence-enabled = false
+brokercep.broker-using-jmx = true
+brokercep.broker-advisory-support-enabled = true
+brokercep.broker-using-shutdown-hook = false
+
+#brokercep.broker-enable-statistics = true
+#brokercep.broker-populate-jmsx-user-id = true
+
+# Message interceptors
+brokercep.message-interceptors[0].destination = >
+brokercep.message-interceptors[0].className = interceptor.broker.gr.iccs.imu.ems.brokercep.SequentialCompositeInterceptor
+brokercep.message-interceptors[0].params[0] = #SourceAddressMessageUpdateInterceptor
+brokercep.message-interceptors[0].params[1] = #MessageForwarderInterceptor
+brokercep.message-interceptors[0].params[2] = #NodePropertiesMessageUpdateInterceptor
+
+brokercep.message-interceptors-specs.SourceAddressMessageUpdateInterceptor.className = interceptor.broker.gr.iccs.imu.ems.brokercep.SourceAddressMessageUpdateInterceptor
+brokercep.message-interceptors-specs.MessageForwarderInterceptor.className = interceptor.broker.gr.iccs.imu.ems.brokercep.MessageForwarderInterceptor
+brokercep.message-interceptors-specs.NodePropertiesMessageUpdateInterceptor.className = interceptor.broker.gr.iccs.imu.ems.brokercep.NodePropertiesMessageUpdateInterceptor
+
+# Message forward destinations (MessageForwarderInterceptor must be included in 'message-interceptors' property)
+#brokercep.message-forward-destinations[0].connection-string = tcp://localhost:51515
+#brokercep.message-forward-destinations[0].username = AAA
+#brokercep.message-forward-destinations[0].password = 111
+#brokercep.message-forward-destinations[1].connection-string = tcp://localhost:41414
+#brokercep.message-forward-destinations[1].username = AAA
+#brokercep.message-forward-destinations[1].password = 111
+
+# Advisory watcher
+brokercep.enable-advisory-watcher = true
+
+# Memory usage limit
+brokercep.usage.memory.jvm-heap-percentage = 20
+#brokercep.usage.memory.size = 134217728
+
+#brokercep.maxEventForwardRetries: -1
+#brokercep.maxEventForwardDuration: -1
+
+################################################################################

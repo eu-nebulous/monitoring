@@ -1,0 +1,31 @@
+{
+  "os": "LINUX",
+  "description": "Check if node must be ignored",
+  "condition": "! ${SKIP_IGNORE_CHECK:-false}",
+  "instructions": [
+    {
+      "description": "Checking for .EMS_IGNORE_NODE file...",
+      "taskType": "LOG",
+      "message": "Checking for .EMS_IGNORE_NODE file..."
+    },
+    {
+      "description": "Checking for .EMS_IGNORE_NODE file",
+      "taskType": "CHECK",
+      "command": "test -e /tmp/.EMS_IGNORE_NODE",
+      "executable": false,
+      "exitCode": 0,
+      "match": false
+    },
+    {
+      "description": "Set __EMS_IGNORE_NODE__ variable",
+      "taskType": "SET_VARS",
+      "variables": {
+        "__EMS_IGNORE_NODE__": "IGNORED"
+      }
+    },
+    {
+      "description": "Stop further processing",
+      "taskType": "EXIT"
+    }
+  ]
+}

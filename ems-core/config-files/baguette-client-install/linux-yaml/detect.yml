@@ -1,0 +1,83 @@
+#
+# Copyright (C) 2017-2022 Institute of Communication and Computer Systems (imu.iccs.gr)
+#
+# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+# Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+# If a copy of the MPL was not distributed with this file, you can obtain one at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+
+#
+#  Instructions Set for detecting the node size (cores, ram, storage etc)
+#
+
+---
+os: LINUX
+description: 'Detect node features (OS, architecture, cores, RAM, disk etc)'
+condition: '! ${SKIP_DETECTION:-false}'
+instructions:
+  - description: Detecting target node type...
+    taskType: LOG
+    message: Detecting target node type...
+  - description: Copying detection script to node...
+    taskType: COPY
+    fileName: /tmp/detect.sh
+    localFileName: bin/detect.sh
+    executable: false
+    exitCode: 0
+    match: false
+  - description: Make detection script executable
+    taskType: CMD
+    command: 'chmod +x /tmp/detect.sh '
+    executable: false
+    exitCode: 0
+    match: false
+  - description: Run detection script
+    taskType: CMD
+#    command: '/tmp/detect.sh &> /tmp/detect.txt'
+    command: 'if [ ! -e /tmp/detect.txt ]; then /tmp/detect.sh &> /tmp/detect.txt; fi'
+    executable: false
+    exitCode: 0
+    match: false
+  - description: Copying detection results back to EMS server...
+    taskType: DOWNLOAD
+    fileName: /tmp/detect.txt
+    localFileName: 'logs/detect.${NODE_ADDRESS}--${TIMESTAMP-FILE}.txt'
+    executable: false
+    exitCode: 0
+    match: false
+    patterns:
+      CPU_SOCKETS:        '^\s*CPU_SOCKETS\s*[=:]\s*(.*)\s*'
+      CPU_CORES:          '^\s*CPU_CORES\s*[=:]\s*(.*)\s*'
+      CPU_PROCESSORS:     '^\s*CPU_PROCESSORS\s*[=:]\s*(.*)\s*'
+      RAM_TOTAL_KB:       '^\s*RAM_TOTAL_KB\s*[=:]\s*(.*)\s*'
+      RAM_AVAILABLE_KB:   '^\s*RAM_AVAILABLE_KB\s*[=:]\s*(.*)\s*'
+      RAM_FREE_KB:        '^\s*RAM_FREE_KB\s*[=:]\s*(.*)\s*'
+      RAM_USED_KB:        '^\s*RAM_USED_KB\s*[=:]\s*(.*)\s*'
+      RAM_UTILIZATION:    '^\s*RAM_UTILIZATION\s*[=:]\s*(.*)\s*'
+      DISK_TOTAL_KB:      '^\s*DISK_TOTAL_KB\s*[=:]\s*(.*)\s*'
+      DISK_FREE_KB:       '^\s*DISK_FREE_KB\s*[=:]\s*(.*)\s*'
+      DISK_USED_KB:       '^\s*DISK_USED_KB\s*[=:]\s*(.*)\s*'
+      DISK_UTILIZATION:   '^\s*DISK_UTILIZATION\s*[=:]\s*(.*)\s*'
+      OS_ARCHITECTURE:    '^\s*OS_ARCHITECTURE\s*[=:]\s*(.*)\s*'
+      OS_KERNEL:          '^\s*OS_KERNEL\s*[=:]\s*(.*)\s*'
+      OS_KERNEL_RELEASE:  '^\s*OS_KERNEL_RELEASE\s*[=:]\s*(.*)\s*'
+  - description: Detection results...
+    taskType: LOG
+    message: |-
+      Detection results:
+          CPU_SOCKETS=${CPU_SOCKETS:-na}
+          CPU_CORES=${CPU_CORES:-na}
+          CPU_PROCESSORS=${CPU_PROCESSORS:-na}
+          RAM_TOTAL_KB=${RAM_TOTAL_KB:-na}
+          RAM_AVAILABLE_KB=${RAM_AVAILABLE_KB:-na}
+          RAM_FREE_KB=${RAM_FREE_KB:-na}
+          RAM_USED_KB=${RAM_USED_KB:-na}
+          RAM_UTILIZATION=${RAM_UTILIZATION:-na}
+          DISK_TOTAL_KB=${DISK_TOTAL_KB:-na}
+          DISK_FREE_KB=${DISK_FREE_KB:-na}
+          DISK_USED_KB=${DISK_USED_KB:-na}
+          DISK_UTILIZATION=${DISK_UTILIZATION:-na}
+          OS_ARCHITECTURE=${OS_ARCHITECTURE:-na}
+          OS_KERNEL=${OS_KERNEL:-na}
+          OS_KERNEL_RELEASE=${OS_KERNEL_RELEASE:-na}

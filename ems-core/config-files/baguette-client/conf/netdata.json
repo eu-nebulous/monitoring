@@ -1,0 +1,16 @@
+[{
+  "name": "Initial wait...",
+  "command": "pwd",
+  "waitBefore": 0,
+  "waitAfter": 5000
+}, {
+  "name": "Sending Netdata agent kill command...",
+  "command": "sudo sh -c  'ps -U netdata -o \"pid\" --no-headers | xargs kill -9' ",
+  "waitBefore": 0,
+  "waitAfter": 2000
+}, {
+  "name": "Sending Netdata agent start command...",
+  "command": "sudo netdata",
+  "waitBefore": 0,
+  "waitAfter": 10000
+}]

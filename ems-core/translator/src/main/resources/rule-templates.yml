@@ -1,0 +1,237 @@
+#
+# Copyright (C) 2017-2023 Institute of Communication and Computer Systems (imu.iccs.gr)
+#
+# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+# Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+# If a copy of the MPL was not distributed with this file, you can obtain one at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+
+# EPL Rule templates per Element-Type and Monitoring-Grouping
+
+DOLLAR: '$'
+translator.generator:
+  language: EPL
+  rule-templates:
+    # SCHEDULE (i.e. IUTPUT) CLAUSE
+    SCHEDULE:
+      __ANY__:
+        - |
+          OUTPUT ALL EVERY [(${DOLLAR}{period})] [(${DOLLAR}{unit})]
+      AGG:
+        - |
+          OUTPUT SNAPSHOT EVERY [(${DOLLAR}{period})] [(${DOLLAR}{unit})]
+    # Binary-Event-Pattern templates
+    BEP-AND:
+      GLOBAL:
+        - |
+          /* BEP-AND-GLOBAL */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT le.* FROM [(${DOLLAR}{leftEvent})].std:lastevent() AS le, [(${DOLLAR}{rightEvent})].std:lastevent() AS re
+    BEP-OR:
+      GLOBAL:
+#XXX: TEST:
+        - |
+          /* BEP-OR-GLOBAL */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT CASE WHEN le IS NULL THEN re ELSE le END AS evt FROM PATTERN [ EVERY ( le=[(${DOLLAR}{leftEvent})] OR re=[(${DOLLAR}{rightEvent})] ) ]
+    BEP-XOR:
+#XXX: XOR is NOT SUPPORTED: IS IT EQUIVALENT TO OR??
+      GLOBAL:
+#XXX: TEST:
+        - |
+          /* BEP-XOR-GLOBAL */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT CASE WHEN le IS NULL THEN re ELSE le END AS evt FROM PATTERN [ EVERY ( le=[(${DOLLAR}{leftEvent})] OR re=[(${DOLLAR}{rightEvent})] ) ]
+    BEP-PRECEDES:
+      GLOBAL:
+#XXX: TEST:
+        - |
+          /* BEP-PRECEDES-GLOBAL */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT le.* FROM PATTERN [ EVERY ( le=[(${DOLLAR}{leftEvent})] -> re=[(${DOLLAR}{rightEvent})] ) ]
+    BEP-REPEAT_UNTIL:
+      GLOBAL:
+#XXX: TEST:
+        - |
+          /* BEP-REPEAT_UNTIL-GLOBAL */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT re.* FROM PATTERN [ EVERY [ le=[(${DOLLAR}{leftEvent})] UNTIL re=[(${DOLLAR}{rightEvent})] ] ] WHERE le IS NOT NULL
+          
+    # Unary-Event-Pattern templates
+    UEP-EVERY:
+#XXX: WHAT'S THE MEANING OF THIS OPERATOR?? ...IF STANDALONE??
+      GLOBAL:
+        - |
+          /* UEP-EVERY-GLOBAL */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT ue.* FROM PATTERN [ EVERY ue=[(${DOLLAR}{unaryEvent})] ]
+    UEP-NOT:
+#XXX: WHAT'S THE MEANING OF THIS OPERATOR?? ...IF STANDALONE??
+      GLOBAL:
+        - |
+          /* UEP-NOT-GLOBAL */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT ue.* FROM PATTERN [ NOT ue=[(${DOLLAR}{unaryEvent})] ]
+    UEP-REPEAT:
+      GLOBAL:
+#XXX: TEST:
+        - |
+          /* UEP-REPEAT-GLOBAL */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT ue[0].* FROM PATTERN [ [[(${DOLLAR}{occurrenceNum})]] ue=[(${DOLLAR}{unaryEvent})] ]
+    UEP-WHEN:
+#XXX: WHAT'S THE MEANING OF THIS OPERATOR?? ...IF STANDALONE??
+      GLOBAL:
+        - |
+          /* UEP-WHEN-GLOBAL */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT ue.* FROM [(${DOLLAR}{leftEvent})].std:lastevent() AS ue
+          
+    # Non-Functional-Event templates
+    NFE:
+      GLOBAL:
+        - |
+          /* NFE-GLOBAL */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT * FROM [(${DOLLAR}{metricConstraint})].std:lastevent()
+          
+    # Metric-Constraint templates
+    CONSTR-MET:
+      __ANY__:
+        - |
+          /* CONSTR-MET-any */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT * FROM [(${DOLLAR}{metricContext})] HAVING [(${DOLLAR}{metricContext})].metricValue [(${DOLLAR}{operator})] [(${DOLLAR}{threshold})]
+          
+    # Logical-Constraint templates
+    CONSTR-LOG:
+      __ANY__:
+        - |
+          /* CONSTR-LOG-any */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT 1 AS metricValue, 3 AS level, current_timestamp AS timestamp
+          FROM PATTERN [ EVERY ( [# th:each="con,iterStat : ${DOLLAR}{constraints}" th:text="!${DOLLAR}{iterStat.last} ? ${DOLLAR}{con} + ' '+${DOLLAR}{operator}+' ' : ${DOLLAR}{con}"] [/] ) ]
+
+    # If-Then-Constraint templates
+    CONSTR-IF-THEN:
+      __ANY__:
+#XXX: TEST:
+        - |
+          /* CONSTR-IF-THEN-any */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT 1 AS metricValue, 3 AS level, current_timestamp AS timestamp
+          FROM PATTERN [ EVERY ( [(${DOLLAR}{ifConstraint})] AND [(${DOLLAR}{thenConstraint})] [# th:if="${DOLLAR}{elseConstraint != null}" th:text="'OR NOT ( ' + ${DOLLAR}{ifConstraint} + ' ) AND ' + ${DOLLAR}{elseConstraint}"] [/] ) ]
+
+    # Context templates
+    COMP-CTX:
+      __ANY__:
+        - |
+          /* COMP-CTX-any */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/ [# th:switch="${DOLLAR}{selectMode}"] [# th:case="'epl'"]
+          SELECT [(${DOLLAR}{formula})] [/] [# th:case="*"]
+          SELECT EVAL( '[(${DOLLAR}{formula})]', '[# th:each="ctx,iterStat : ${DOLLAR}{components}" th:text="!${DOLLAR}{iterStat.last} ? ${DOLLAR}{ctx} + ',' : ${DOLLAR}{ctx}"] [/]', [# th:each="ctx,iterStat : ${DOLLAR}{contexts}" th:text="!${DOLLAR}{iterStat.last} ? ${DOLLAR}{ctx} + ', ' : ${DOLLAR}{ctx}"] [/] ) AS metricValue,
+                 3 AS level,
+                 current_timestamp AS timestamp [/] [/]
+          FROM [# th:each="ctx,iterStat : ${DOLLAR}{contexts}" th:utext="!${DOLLAR}{iterStat.last} ? ${DOLLAR}{ctx}+${DOLLAR}{windowClause}+' AS '+${DOLLAR}{ctx} + ', ' : ${DOLLAR}{ctx}+${DOLLAR}{windowClause}+' AS '+${DOLLAR}{ctx}"] [/]
+          [(${DOLLAR}{scheduleClause})]
+          
+    AGG-COMP-CTX:
+      __ANY__:
+        - |
+          /* COMP-CTX-AGG-any */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/ [# th:switch="${DOLLAR}{selectMode}"] [# th:case="'epl'"]
+          SELECT [(${DOLLAR}{formula})] [/] [# th:case="*"]
+          SELECT EVALAGG( '[(${DOLLAR}{formula})]', '[# th:each="ctx,iterStat : ${DOLLAR}{components}" th:text="!${DOLLAR}{iterStat.last} ? ${DOLLAR}{ctx} + ',' : ${DOLLAR}{ctx}"] [/]', [# th:each="ctx,iterStat : ${DOLLAR}{contexts}" th:text="!${DOLLAR}{iterStat.last} ? ${DOLLAR}{ctx} + ', ' : ${DOLLAR}{ctx}"] [/] ) AS metricValue,
+                 3 AS level,
+                 current_timestamp AS timestamp [/] [/]
+          FROM [# th:each="ctx,iterStat : ${DOLLAR}{contexts}" th:utext="!${DOLLAR}{iterStat.last} ? ${DOLLAR}{ctx}+${DOLLAR}{windowClause}+' AS '+${DOLLAR}{ctx} + ', ' : ${DOLLAR}{ctx}+${DOLLAR}{windowClause}+' AS '+${DOLLAR}{ctx}"] [/]
+          [(${DOLLAR}{scheduleClause})]
+          
+    RAW-CTX:
+      PER_INSTANCE:
+        - |
+          /* RAW-CTX-PER_INSTANCE */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT * FROM [(${DOLLAR}{sensor})] [(${DOLLAR}{scheduleClause})]
+          
+    # Metric templates
+    TL-MET:
+      __ANY__:
+        - |
+          /* MET-any */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT * FROM [(${DOLLAR}{context})]
+
+    # Metric Variable templates
+    VAR:
+      __ANY__:
+        - |
+          /* VAR-any */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/ [# th:switch="${DOLLAR}{selectMode}"] [# th:case="'epl'"]
+          SELECT [(${DOLLAR}{formula})] [/] [# th:case="*"]
+          SELECT EVAL( '[(${DOLLAR}{formula})]', '[# th:each="ctx,iterStat : ${DOLLAR}{components}" th:text="!${DOLLAR}{iterStat.last} ? ${DOLLAR}{ctx} + ',' : ${DOLLAR}{ctx}"] [/]', [# th:each="ctx,iterStat : ${DOLLAR}{contexts}" th:text="!${DOLLAR}{iterStat.last} ? ${DOLLAR}{ctx} + ', ' : ${DOLLAR}{ctx}"] [/] ) AS metricValue,
+                 3 AS level,
+                 current_timestamp AS timestamp [/] [/]
+          FROM [# th:each="ctx,iterStat : ${DOLLAR}{contexts}" th:text="!${DOLLAR}{iterStat.last} ? ${DOLLAR}{ctx}+' AS '+${DOLLAR}{ctx} + ', ' : ${DOLLAR}{ctx}+' AS '+${DOLLAR}{ctx}"] [/]
+          
+    AGG-VAR:
+      __ANY__:
+        - |
+          /* VAR-AGG-any */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/ [# th:switch="${DOLLAR}{selectMode}"] [# th:case="'epl'"]
+          SELECT [(${DOLLAR}{formula})] [/] [# th:case="*"]
+          SELECT EVALAGG( '[(${DOLLAR}{formula})]', '[# th:each="ctx,iterStat : ${DOLLAR}{components}" th:text="!${DOLLAR}{iterStat.last} ? ${DOLLAR}{ctx} + ',' : ${DOLLAR}{ctx}"] [/]', [# th:each="ctx,iterStat : ${DOLLAR}{contexts}" th:text="!${DOLLAR}{iterStat.last} ? ${DOLLAR}{ctx} + ', ' : ${DOLLAR}{ctx}"] [/] ) AS metricValue,
+                 3 AS level,
+                 current_timestamp AS timestamp [/] [/]
+          FROM [# th:each="ctx,iterStat : ${DOLLAR}{contexts}" th:text="!${DOLLAR}{iterStat.last} ? ${DOLLAR}{ctx}+' AS '+${DOLLAR}{ctx} + ', ' : ${DOLLAR}{ctx}+' AS '+${DOLLAR}{ctx}"] [/]
+          
+    LOAD-VAR:
+      __ANY__:
+        - |
+          /* LOAD-VAR-any */ /*INSERT INTO [(${outputStream})]*/
+          SELECT * FROM [(${context})]
+
+    # Optimisation-Requirement templates
+    OPT-REQ-CTX:
+      __ANY__:
+        - |
+          /* OPT-REQ-any */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT * FROM [(${DOLLAR}{context})]
+          
+    OPT-REQ-VAR:
+      __ANY__:
+        - |
+          /* OPT-REQ-any */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT * FROM [(${DOLLAR}{variable})]
+          
+    # SLO templates
+    SLO:
+      __ANY__:
+        - |
+          /* SLO-any */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT * FROM [(${DOLLAR}{constraint})]
+          
+#XXX:DEL:...remove next rule
+  XXX-extra-rule-templates:
+    BEP-AND:
+      GLOBAL:
+        - |
+          /* BEP-AND-GLOBAL : ALTERNATIVE */ /*INSERT INTO [(${DOLLAR}{outputStream})]*/
+          SELECT le.* FROM PATTERN [ EVERY (le=[(${DOLLAR}{leftEvent})] AND re=[(${DOLLAR}{rightEvent})]) ]
+    RAW-CTX:
+      PER_INSTANCE:
+        - |
+          /* RAW-CTX-PER_INSTANCE */
+          INSERT INTO TEST_STREAM
+          SELECT EVAL('-1*CPUMetric+CPUMetric_2+CPUMetric_3', '[(${DOLLAR}{metric})],[(${DOLLAR}{metric})]_2,[(${DOLLAR}{metric})]_3', [(${DOLLAR}{metric})], [(${DOLLAR}{metric})]_2, [(${DOLLAR}{metric})]_3) AS metricValue,
+                 1 AS level,
+                 current_timestamp AS timestamp
+          FROM [(${DOLLAR}{metric})] as [(${DOLLAR}{metric})], [(${DOLLAR}{metric})] as [(${DOLLAR}{metric})]_2, [(${DOLLAR}{metric})] as [(${DOLLAR}{metric})]_3[(${DOLLAR}{scheduleClause})]
+          
+    FE:
+      PER_INSTANCE:
+        - |
+          /* XXX: TODO: FE-PER_INSTANCE */
+          .......... Functional Event
+    CONSTR-IF-THEN:
+      PER_INSTANCE:
+        - |
+          /* XXX: TODO: CONSTR-IF-THEN-PER_INSTANCE */
+          .......... If-Then constraint
+    CONSTR-VAR:
+      PER_INSTANCE:
+        - |
+          /* XXX: TODO: CONSTR-VAR-PER_INSTANCE */
+          .......... Metric Variable constraint
+    CONSTR-LOG:
+      PER_INSTANCE:
+        - |
+          /* XXX: TODO: CONSTR-LOG-PER_INSTANCE */
+          .......... Logical constraint
+    VAR:
+      PER_INSTANCE:
+        - |
+          /* XXX: TODO: VAR-PER_INSTANCE */
+          .......... Metric Variable

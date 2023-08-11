@@ -1,0 +1,57 @@
+{
+  "os": "LINUX",
+  "description": "Netdata installation instruction set at VM node",
+  "condition": "! ${SKIP_NETDATA_INSTALLATION:-false}",
+  "instructions": [
+    {
+      "description": "Log Netdata installation start",
+      "taskType": "LOG",
+      "message": "Starting Netdata installation at Node"
+    },
+    {
+      "description": "Check if Netdata is already installed at Node",
+      "taskType": "CHECK",
+      "command": "[[ -f /usr/sbin/netdata ]] && exit 99",
+      /*"command": "[ $(ps -e -o pid,comm,cgroup |grep netdata |grep -v docker |grep -v lxc |wc -l) -gt 0 ] && exit 99",*/
+      "executable": false,
+      "exitCode": 99,
+      "match": true,
+      "message": "====== Netdata is already installed at Node ======"
+    },
+    {
+      "description": "Log Wait if apt is being updated",
+      "taskType": "LOG",
+      "message": "Wait if apt is being updated"
+    },
+    {
+      "description": "Start unattended-upgrade if available",
+      "taskType": "CMD",
+      "command": "if command -v unattended-upgrade &> /dev/null ; then unattended-upgrade -d ; else echo \"Command 'unattended-upgrade' is not available\" ; fi",
+      "executionTimeout": 600000
+    },
+    {
+      "description": "Wait if apt is being updated",
+      "taskType": "CMD",
+      "command": "while [ `ps aux | grep -i lock_is_held | grep -v grep | wc -l` != 0 ]; do echo \"Lock_is_held...\"; ps aux | grep -i lock_is_held ; sleep 10 ; done",
+      "executionTimeout": 600000
+    },
+    {
+      "description": "Download Netdata kickstart.sh",
+      "taskType": "CMD",
+      "command": "curl https://my-netdata.io/kickstart-static64.sh > /tmp/netdata-kickstart.sh",
+      "executionTimeout": 600000
+    },
+    {
+      "description": "Make Netdata kickstart.sh executable",
+      "taskType": "CMD",
+      "command": "chmod +x /tmp/netdata-kickstart.sh",
+      "executionTimeout": 600000
+    },
+    {
+      "description": "Run Netdata kickstart.sh",
+      "taskType": "CMD",
+      "command": "echo ${NODE_SSH_PASSWORD} | sudo -S sh /tmp/netdata-kickstart.sh --dont-wait --no-updates --disable-telemetry --dont-start-it --stable-channel --disable-cloud ",
+      "executionTimeout": 600000
+    }
+  ]
+}
