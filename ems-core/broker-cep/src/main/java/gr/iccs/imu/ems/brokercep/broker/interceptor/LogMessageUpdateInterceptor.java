@@ -27,7 +27,8 @@ public class LogMessageUpdateInterceptor extends AbstractMessageInterceptor {
     public void initialized() {
         this.eventRecorder = applicationContext.getBean(BrokerConfig.class).getEventRecorder();
         log.debug("LogMessageUpdateInterceptor: Enabled: {}", eventRecorder!=null);
-        eventRecorder.startRecording();
+        if (eventRecorder!=null)
+            eventRecorder.startRecording();
     }
 
     @Override
