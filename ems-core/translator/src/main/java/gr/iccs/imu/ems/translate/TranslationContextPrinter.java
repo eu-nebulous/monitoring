@@ -108,6 +108,8 @@ public class TranslationContextPrinter {
 		log.info("*********************************************************");
 		log.info("CMVAR set:\n{}", _TC.getCompositeMetricVariableNames());
 		log.info("*********************************************************");
+		log.info("RMVAR set:\n{}", _TC.getRawMetricVariableNames());
+		log.info("*********************************************************");
 		log.info("Function Definitions set:\n{}", getFunctionNames(_TC.getFUNC()));
 		log.info("*********************************************************");
 		log.info("Metric Constraints:\n{}", _TC.getMetricConstraints());

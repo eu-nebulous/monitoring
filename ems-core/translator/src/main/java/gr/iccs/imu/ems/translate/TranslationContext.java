@@ -77,10 +77,18 @@ public class TranslationContext implements Serializable {
     // Composite Metric Variables set
     @Getter
     @JsonIgnore
-    private final transient Set<String> CMVar = new LinkedHashSet<>();
+    private final Set<String> CMVar = new LinkedHashSet<>();
     @Getter
     @JsonIgnore
     private final transient Set<MetricVariable> CMVar_1 = new LinkedHashSet<>();
+
+    // Raw Metric Variables set
+    @Getter
+    @JsonIgnore
+    private final Set<String> RMVar = new LinkedHashSet<>();
+    @Getter
+    @JsonIgnore
+    private final transient Set<MetricVariable> RMVar_1 = new LinkedHashSet<>();
 
     // Metric Variable Values set (i.e. non-composite metric variable)
     private final Set<String> MVV = new LinkedHashSet<>();
@@ -167,6 +175,8 @@ public class TranslationContext implements Serializable {
         this.G2T.putAll( cloneMapSet(_TC.G2T) );
         this.CMVar.addAll(_TC.CMVar);
         this.CMVar_1.addAll( cloneSet(_TC.CMVar_1) );
+        this.RMVar.addAll(_TC.CMVar);
+        this.RMVar_1.addAll( cloneSet(_TC.CMVar_1) );
         this.MVV.addAll(_TC.MVV);
         this.MvvCP.putAll(_TC.MvvCP);
         this.FUNC.addAll( cloneSet(_TC.FUNC) );
@@ -287,6 +297,14 @@ public class TranslationContext implements Serializable {
         return new HashSet<>(CMVar);
     }
 
+    public HashSet<MetricVariable> getRawMetricVariables() {
+        return new HashSet<>(CMVar_1);
+    }
+
+    public HashSet<String> getRawMetricVariableNames() {
+        return new HashSet<>(CMVar);
+    }
+
     public boolean isMVV(String name) {
         for (String mvv : MVV)
             if (mvv.equals(name)) return true;
@@ -389,6 +407,15 @@ public class TranslationContext implements Serializable {
 
     public void addCompositeMetricVariables(List<MetricVariable> mvs) {
         mvs.forEach(this::addCompositeMetricVariable);
+    }
+
+    public void addRawMetricVariable(MetricVariable mv) {
+        RMVar.add(mv.getName());
+        RMVar_1.add(mv);
+    }
+
+    public void addRawMetricVariables(List<MetricVariable> mvs) {
+        mvs.forEach(this::addRawMetricVariable);
     }
 
     public void addMVV(@NonNull String mvv) {
