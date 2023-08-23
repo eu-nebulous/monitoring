@@ -298,11 +298,11 @@ public class TranslationContext implements Serializable {
     }
 
     public HashSet<MetricVariable> getRawMetricVariables() {
-        return new HashSet<>(CMVar_1);
+        return new HashSet<>(RMVar_1);
     }
 
     public HashSet<String> getRawMetricVariableNames() {
-        return new HashSet<>(CMVar);
+        return new HashSet<>(RMVar);
     }
 
     public boolean isMVV(String name) {
