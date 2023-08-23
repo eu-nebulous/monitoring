@@ -45,7 +45,7 @@ public class SelfHealingManagerImpl implements SelfHealingManager<NodeRegistryEn
 
         // Initialize recovery context
         recoveryContext.initialize(clientInstallationProperties, properties);
-        log.warn("Recovery context: {}", recoveryContext);
+        log.info("Recovery context: {}", recoveryContext);
     }
 
     private void check() {

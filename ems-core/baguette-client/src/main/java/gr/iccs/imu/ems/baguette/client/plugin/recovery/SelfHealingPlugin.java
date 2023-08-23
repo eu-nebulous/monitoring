@@ -65,7 +65,7 @@ public class SelfHealingPlugin implements Plugin, InitializingBean, EventBus.Eve
 
         // Initialize recovery context
         recoveryContext.initialize(properties);
-        log.warn("SelfHealingPlugin: Recovery context: {}", recoveryContext);
+        log.info("SelfHealingPlugin: Recovery context: {}", recoveryContext);
     }
 
     public synchronized void start() {
