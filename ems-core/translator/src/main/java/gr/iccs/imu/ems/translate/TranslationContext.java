@@ -246,14 +246,12 @@ public class TranslationContext implements Serializable {
     // Copy/Getter methods
 
     public Map<String, Set<String>> getG2T() {
-        if (G2T==null) return Collections.emptyMap();
         HashMap<String, Set<String>> newMap = new HashMap<>();
         G2T.forEach((key, value) -> newMap.put(key, new HashSet<>(value)));
         return newMap;
     }
 
     public Map<String, Map<String, Set<String>>> getG2R() {
-        if (G2R==null) return Collections.emptyMap();
         Map<String, Map<String, Set<String>>> newGroupingsMap = new HashMap<>();    // groupings
         G2R.forEach((key, value) -> {
             Map<String, Set<String>> newTopicsMap = new HashMap<>();            // topics per grouping
@@ -274,27 +272,33 @@ public class TranslationContext implements Serializable {
     }
 
     public Set<MetricConstraint> getMetricConstraints() {
-        return metricConstraints!=null ? new HashSet<>(metricConstraints) : Collections.emptySet();
+        return new HashSet<>(metricConstraints);
     }
 
     public Set<LogicalConstraint> getLogicalConstraints() {
-        return logicalConstraints!=null ? new HashSet<>(logicalConstraints) : Collections.emptySet();
+        return new HashSet<>(logicalConstraints);
+    }
+
+    public HashSet<MetricVariable> getCompositeMetricVariables() {
+        return new HashSet<>(CMVar_1);
+    }
+
+    public HashSet<String> getCompositeMetricVariableNames() {
+        return new HashSet<>(CMVar);
     }
 
     public boolean isMVV(String name) {
-        if (MVV==null)
-            return false;;
         for (String mvv : MVV)
             if (mvv.equals(name)) return true;
         return false;
     }
 
     public Set<String> getMVV() {
-        return MVV!=null ? new HashSet<>(MVV) : Collections.emptySet();
+        return new HashSet<>(MVV);
     }
 
-    public Map<String,String> getCompositeMetricVariables() {
-        return MvvCP!=null ? new HashMap<>(MvvCP) : Collections.emptyMap();
+    public Map<String,String> getMvvCP() {
+        return new HashMap<>(MvvCP);
     }
 
     // ====================================================================================================================================================
@@ -397,6 +401,10 @@ public class TranslationContext implements Serializable {
 
     public void addMVVs(List<MetricVariable> mvvs) {
         mvvs.forEach(this::addMVV);
+    }
+
+    public void addMvvCp(String matchingVarName, String varName) {
+        MvvCP.put(matchingVarName, varName);
     }
 
     public void addFunction(Function f) {

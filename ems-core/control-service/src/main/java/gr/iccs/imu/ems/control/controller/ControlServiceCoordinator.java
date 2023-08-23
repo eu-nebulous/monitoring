@@ -520,7 +520,7 @@ public class ControlServiceCoordinator implements InitializingBean {
                 log.debug("ControlServiceCoordinator.retrieveConstantsFromCpModel(): Retrieving MVVs from CP model: cp-model-id={}", cpModelId);
 
                 // Retrieve constant names from '_TC.MVV_CP' and values from a given CP model
-                log.debug("ControlServiceCoordinator.retrieveConstantsFromCpModel(): Looking for MVV_CP's: {}", _TC.getCompositeMetricVariables());
+                log.debug("ControlServiceCoordinator.retrieveConstantsFromCpModel(): Looking for MVV_CP's: {}", _TC.getMvvCP());
                 constants = mvvService.getMatchingMetricVariableValues(cpModelId, _TC);
                 log.debug("ControlServiceCoordinator.retrieveConstantsFromCpModel(): MVVs retrieved from CP model: cp-model-id={}, MVVs={}", cpModelId, constants);
 
@@ -706,7 +706,7 @@ public class ControlServiceCoordinator implements InitializingBean {
         log.debug("ControlServiceCoordinator.configureMetaSolver(): MetaSolver subscriptions configuration: {}", subscriptionConfigs);
 
         // Retrieve MVV to Current-Config MVV map
-        Map<String, String> mvvMap = _TC.getCompositeMetricVariables();
+        Map<String, String> mvvMap = _TC.getMvvCP();
         log.debug("ControlServiceCoordinator.configureMetaSolver(): MetaSolver MVV configuration: {}", mvvMap);
 
         // Prepare MetaSolver configuration

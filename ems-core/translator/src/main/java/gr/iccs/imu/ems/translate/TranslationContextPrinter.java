@@ -104,9 +104,9 @@ public class TranslationContextPrinter {
 		log.info("*********************************************************");
 		log.info("MVV set:\n{}", _TC.getMVV());
 		log.info("*********************************************************");
-		log.info("MVV_CP map:\n{}", _TC.getCompositeMetricVariables());
+		log.info("MVV_CP map:\n{}", _TC.getMvvCP());
 		log.info("*********************************************************");
-		log.info("CMVAR set:\n{}", _TC.getCMVar());
+		log.info("CMVAR set:\n{}", _TC.getCompositeMetricVariableNames());
 		log.info("*********************************************************");
 		log.info("Function Definitions set:\n{}", getFunctionNames(_TC.getFUNC()));
 		log.info("*********************************************************");

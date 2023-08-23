@@ -243,9 +243,9 @@ public class EmsInfoServiceImpl implements IEmsInfoService {
             translatorInfo.put("monitors", _TC.getMONS());
             translatorInfo.put("rules-per-grouping", _TC.getG2R());
             translatorInfo.put("destinations-per-grouping", _TC.getG2T());
-            translatorInfo.put("composite-metric-variables", _TC.getCMVar());
+            translatorInfo.put("composite-metric-variables", _TC.getCompositeMetricVariableNames());
             translatorInfo.put("metric-variable-values", _TC.getMVV());
-            translatorInfo.put("metric-variable-values-for-CP", _TC.getCompositeMetricVariables());
+            translatorInfo.put("metric-variable-values-for-CP", _TC.getMvvCP());
             translatorInfo.put("destination-connections", _TC.getTopicConnections());
             translatorInfo.put("function-definitions", _TC.getFUNC().stream()
                     .map(FunctionDefinition::toString).collect(Collectors.toList()));
