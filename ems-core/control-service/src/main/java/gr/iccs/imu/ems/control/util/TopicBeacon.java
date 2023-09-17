@@ -150,7 +150,9 @@ public class TopicBeacon implements InitializingBean {
 
         if (coordinator.getBaguetteServer().isServerRunning()) {
             log.debug("Topic Beacon: Transmitting Instance info: topics={}", properties.getInstanceTopics());
-            for (NodeRegistryEntry node : coordinator.getBaguetteServer().getNodeRegistry().getNodes()) {
+            List<NodeRegistryEntry> nodesList = new ArrayList<>(coordinator.getBaguetteServer().getNodeRegistry().getNodes());
+            log.debug("Topic Beacon: Transmitting Instance info: nodes={}", nodesList);
+            for (NodeRegistryEntry node : nodesList) {
                 String nodeName = node.getPreregistration().getOrDefault("name", "");
                 String nodeIp = node.getIpAddress();
                 //String nodeIp = node.getPreregistration().getOrDefault("ip","");
