@@ -116,6 +116,9 @@ public class TranslationContext implements Serializable {
     // Load-annotated Metric
     protected final Set<String> loadAnnotatedMetricsSet = new LinkedHashSet<>();
 
+    // Top-Level metric names
+    protected Set<String> topLevelMetricNames = new LinkedHashSet<>();
+
     // Export files
     @Getter @Setter
     private List<String> exportFiles = new ArrayList<>();
@@ -188,6 +191,7 @@ public class TranslationContext implements Serializable {
         this.logicalConstraints.addAll( cloneSet(_TC.logicalConstraints) );
         this.ifThenConstraints.addAll( cloneSet(_TC.ifThenConstraints) );
         this.loadAnnotatedMetricsSet.addAll(_TC.loadAnnotatedMetricsSet);
+        this.topLevelMetricNames.addAll(_TC.topLevelMetricNames);
         this.exportFiles.addAll(_TC.exportFiles);
         this.fullNamePattern = cloneObject(_TC.fullNamePattern);
     }
@@ -678,6 +682,31 @@ public class TranslationContext implements Serializable {
 
     public Set<String> getLoadAnnotatedMetricsSet() {
         return new HashSet<>(loadAnnotatedMetricsSet);
+    }
+
+    // ====================================================================================================================================================
+    // Top-Level Metric names helper methods
+
+    public void addTopLevelMetricNames(@NonNull Set<String> set) {
+        topLevelMetricNames.addAll(set);
+    }
+
+    public void populateTopLevelMetricNames() {
+        Set<String> set = DAG.getTopLevelNodes().stream()
+                .map(DAGNode::getElementName)
+                .collect(Collectors.toSet());
+        topLevelMetricNames.clear();
+        topLevelMetricNames.addAll(set);
+    }
+
+    public Set<String> getTopLevelMetricNames(boolean forcePopulate) {
+        if (forcePopulate) populateTopLevelMetricNames();
+        return getTopLevelMetricNames();
+    }
+
+    public Set<String> getTopLevelMetricNames() {
+        if (topLevelMetricNames==null || topLevelMetricNames.isEmpty()) populateTopLevelMetricNames();
+        return topLevelMetricNames!=null ? new HashSet<>(topLevelMetricNames) : Collections.emptySet();
     }
 
     // ====================================================================================================================================================

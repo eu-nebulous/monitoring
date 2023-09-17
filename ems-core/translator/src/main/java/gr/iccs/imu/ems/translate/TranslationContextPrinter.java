@@ -116,6 +116,8 @@ public class TranslationContextPrinter {
 		log.info("*********************************************************");
 		log.info("Load-Annotated Metrics:\n{}", _TC.getLoadAnnotatedMetricsSet());
 		log.info("*********************************************************");
+		log.info("Top-Level Metric names:\n{}", _TC.getTopLevelMetricNames());
+		log.info("*********************************************************");
 		log.info("Additional Results:\n{}", _TC.getAdditionalResults());
 		log.info("*********************************************************");
 		log.info("Export files:\n{}", _TC.getExportFiles());
