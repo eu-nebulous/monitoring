@@ -77,28 +77,28 @@ public class ControlServiceController {
 
     // ------------------------------------------------------------------------------------------------------------
 
-    @RequestMapping(value = {"/cpModel", "/cpModelJson"}, method = POST,
+    @RequestMapping(value = {"/appExecModel", "/appExecModelJson"}, method = POST,
             consumes = MediaType.APPLICATION_JSON_VALUE)
-    public String newCpModel(@RequestBody String requestStr,
+    public String newAppExecModel(@RequestBody String requestStr,
                              @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String jwtToken)
     {
-        log.debug("ControlServiceController.newCpModel(): Received request: {}", requestStr);
-        log.trace("ControlServiceController.newCpModel(): JWT token: {}", jwtToken);
+        log.debug("ControlServiceController.newAppExecModel(): Received request: {}", requestStr);
+        log.trace("ControlServiceController.newAppExecModel(): JWT token: {}", jwtToken);
 
         // Use Gson to get model id's from request body (in JSON format)
         com.google.gson.JsonObject jobj = new com.google.gson.Gson().fromJson(requestStr, com.google.gson.JsonObject.class);
-        String cpModelId = Optional.ofNullable(jobj.get("cp-model-id")).map(je -> stripQuotes(je.toString())).orElse(null);
-        log.info("ControlServiceController.newCpModel(): CP model id from request: {}", cpModelId);
+        String appExecModelId = Optional.ofNullable(jobj.get("app-exec-model-id")).map(je -> stripQuotes(je.toString())).orElse(null);
+        log.info("ControlServiceController.newAppExecModel(): App execution model id from request: {}", appExecModelId);
 
         // Check parameters
-        if (StringUtils.isBlank(cpModelId)) {
-            log.warn("ControlServiceController.newCpModel(): Request does not contain a CP model id");
-            throw new RestControllerException(400, "Request does not contain a CP model id");
+        if (StringUtils.isBlank(appExecModelId)) {
+            log.warn("ControlServiceController.newAppExecModel(): Request does not contain an App execution model id");
+            throw new RestControllerException(400, "Request does not contain an App execution model id");
         }
 
         // Start CP model processing in a worker thread
-        coordinator.processCpModel(cpModelId, ControlServiceRequestInfo.create(null, null, jwtToken));
-        log.debug("ControlServiceController.newCpModel(): CP Model processing dispatched to a worker thread");
+        coordinator.processCpModel(appExecModelId, ControlServiceRequestInfo.create(null, null, jwtToken));
+        log.debug("ControlServiceController.newAppExecModel(): App Execution Model processing dispatched to a worker thread");
 
         return "OK";
     }
@@ -124,7 +124,7 @@ public class ControlServiceController {
     }
 
     /*@RequestMapping(value = "/test/**", method = {GET, POST})
-    public String test(HttpServletRequest request, @RequestBody(required = false) String body,
+    public String testNotification(HttpServletRequest request, @RequestBody(required = false) String body,
                              @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String jwtToken)
     {
         String path = request.getRequestURI().split("/test/", 2)[1];
