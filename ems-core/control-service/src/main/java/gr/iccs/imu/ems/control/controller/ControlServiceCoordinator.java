@@ -426,11 +426,10 @@ public class ControlServiceCoordinator implements InitializingBean {
         // Translate application model into a TranslationContext object
         log.info("ControlServiceCoordinator.translateAppModelAndStore(): Model translation: model-id={}", appModelId);
         _TC = translator.translate(appModelId);
-        _TC.populateTopLevelMetricNames();
         log.debug("ControlServiceCoordinator.translateAppModelAndStore(): Model translation: RESULTS: {}", _TC);
 
         // Run post-translation plugins
-        if (postTranslationPlugins!=null && postTranslationPlugins.size()>0) {
+        if (postTranslationPlugins!=null && !postTranslationPlugins.isEmpty()) {
             log.info("ControlServiceCoordinator.translateAppModelAndStore(): Running {} post-translation plugins", postTranslationPlugins.size());
             postTranslationPlugins.stream().filter(Objects::nonNull).forEach(plugin -> {
                 log.debug("ControlServiceCoordinator.translateAppModelAndStore(): Calling post-translation plugin: {}", plugin.getClass().getName());
@@ -680,7 +679,7 @@ public class ControlServiceCoordinator implements InitializingBean {
         log.debug("ControlServiceCoordinator.configureMetaSolver(): MetaSolver configuration: scaling-topics: {}", scalingTopics);
 
         // Get top-level metric topics from _TC
-        Set<String> metricTopics = _TC.getTopLevelMetricNames().stream()
+        Set<String> metricTopics = _TC.getTopLevelMetricNames(true).stream()
                 .filter(m -> !scalingTopics.contains(m))
                 .collect(Collectors.toSet());
         log.debug("ControlServiceCoordinator.configureMetaSolver(): MetaSolver configuration: metric-topics: {}", metricTopics);
