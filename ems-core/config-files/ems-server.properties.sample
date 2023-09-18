@@ -97,7 +97,7 @@ control.IP_SETTING=${EMS_IP_SETTING:PUBLIC_IP}
 control.EXECUTIONWARE=PROACTIVE
 
 ### URLs of Upperware services being invoked by EMS
-control.esb-url = ${ESB_URL:https://mule:8088}
+control.notification-url = ${NOTIFICATION_URL:https://mule:8088}
 control.metasolver-configuration-url = ${METASOLVER_URL:http://metasolver:8092/updateConfiguration}
 
 ### Log settings
@@ -111,7 +111,7 @@ control.log-requests = ${EMS_LOG_REQUESTS:false}
 #control.skip-baguette = true
 #control.skip-collectors = true
 #control.skip-metasolver = true
-#control.skip-esb-notification = true
+#control.skip-notification = true
 control.upperware-grouping = GLOBAL
 
 ### Debug settings - Load/Save translation results

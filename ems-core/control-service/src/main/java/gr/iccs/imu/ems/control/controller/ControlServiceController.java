@@ -10,7 +10,6 @@
 package gr.iccs.imu.ems.control.controller;
 
 import com.google.gson.reflect.TypeToken;
-import eu.melodic.models.interfaces.CamelModelRequestImpl;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,48 +44,21 @@ public class ControlServiceController {
     private List<String> controllerEndpointsShort;
 
     // ------------------------------------------------------------------------------------------------------------
-    // ESB and Upperware interfacing methods
+    // Application Model methods
     // ------------------------------------------------------------------------------------------------------------
 
-    @RequestMapping(value = "/camelModel", method = POST)
-    public String newAppModel(@RequestBody CamelModelRequestImpl request,
-                              @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String jwtToken)
-    {
-        log.debug("ControlServiceController.newAppModel(): Received request: {}", request);
-        log.trace("ControlServiceController.newAppModel(): JWT token: {}", jwtToken);
-
-        // Get information from request
-        String applicationId = request.getApplicationId();
-        String notificationUri = request.getNotificationURI();
-        String requestUuid = request.getWatermark().getUuid();
-        log.info("ControlServiceController.newAppModel(): Request info: app-id={}, notification-uri={}, request-id={}",
-                applicationId, notificationUri, requestUuid);
-
-        // Check parameters
-        if (StringUtils.isBlank(applicationId)) {
-            log.warn("ControlServiceController.newAppModel(): Request does not contain an application id");
-            throw new RestControllerException(400, "Request does not contain an application id");
-        }
-
-        // Start translation and reconfiguration in a worker thread
-        coordinator.processAppModel(applicationId, null, ControlServiceRequestInfo.create(notificationUri, requestUuid, jwtToken));
-        log.debug("ControlServiceController.newAppModel()/camelModel: Model translation dispatched to a worker thread");
-
-        return "OK";
-    }
-
-    @RequestMapping(value = "/appModelJson", method = POST,
+    @RequestMapping(value = { "/appModel", "/appModelJson" }, method = POST,
             consumes = MediaType.APPLICATION_JSON_VALUE)
     public String newAppModel(@RequestBody String requestStr,
                               @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String jwtToken)
     {
         log.debug("ControlServiceController.newAppModel(): Received request: {}", requestStr);
-        log.trace("ControlServiceController.newAppModel()/camelModelJson: JWT token: {}", jwtToken);
+        log.trace("ControlServiceController.newAppModel(): JWT token: {}", jwtToken);
 
         // Use Gson to get model id's from request body (in JSON format)
-        com.google.gson.JsonObject jobj = new com.google.gson.Gson().fromJson(requestStr, com.google.gson.JsonObject.class);
-        String appModelId = Optional.ofNullable(jobj.get("app-model-id")).map(je -> stripQuotes(je.toString())).orElse(null);
-        String cpModelId = Optional.ofNullable(jobj.get("cp-model-id")).map(je -> stripQuotes(je.toString())).orElse(null);
+        com.google.gson.JsonObject jObj = new com.google.gson.Gson().fromJson(requestStr, com.google.gson.JsonObject.class);
+        String appModelId = Optional.ofNullable(jObj.get("app-model-id")).map(je -> stripQuotes(je.toString())).orElse(null);
+        String cpModelId = Optional.ofNullable(jObj.get("cp-model-id")).map(je -> stripQuotes(je.toString())).orElse(null);
         log.info("ControlServiceController.newAppModel(): App model id from request: {}", appModelId);
         log.info("ControlServiceController.newAppModel(): CP model id from request: {}", cpModelId);
 
@@ -105,7 +77,7 @@ public class ControlServiceController {
 
     // ------------------------------------------------------------------------------------------------------------
 
-    @RequestMapping(value = "/cpModelJson", method = POST,
+    @RequestMapping(value = {"/cpModel", "/cpModelJson"}, method = POST,
             consumes = MediaType.APPLICATION_JSON_VALUE)
     public String newCpModel(@RequestBody String requestStr,
                              @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String jwtToken)

@@ -24,17 +24,10 @@ import gr.iccs.imu.ems.control.util.TopicBeacon;
 import gr.iccs.imu.ems.control.util.TranslationContextMonitorGsonDeserializer;
 import gr.iccs.imu.ems.control.util.mvv.NoopMetricVariableValuesServiceImpl;
 import gr.iccs.imu.ems.util.EventBus;
-import eu.melodic.models.commons.NotificationResult;
-import eu.melodic.models.commons.NotificationResultImpl;
-import eu.melodic.models.commons.Watermark;
-import eu.melodic.models.commons.WatermarkImpl;
-import eu.melodic.models.services.CamelModelNotificationRequest;
-import eu.melodic.models.services.CamelModelNotificationRequestImpl;
 import gr.iccs.imu.ems.translate.NoopTranslator;
 import gr.iccs.imu.ems.translate.TranslationContext;
 import gr.iccs.imu.ems.translate.TranslationContextPrinter;
 import gr.iccs.imu.ems.translate.Translator;
-import gr.iccs.imu.ems.translate.dag.DAGNode;
 import gr.iccs.imu.ems.translate.model.Monitor;
 import gr.iccs.imu.ems.translate.model.Sink;
 import gr.iccs.imu.ems.translate.mvv.MetricVariableValuesService;
@@ -58,6 +51,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -194,7 +189,7 @@ public class ControlServiceCoordinator implements InitializingBean {
 
     @Async
     public void preloadModels() {
-        String preloadAppModel = properties.getPreload().getCamelModel();
+        String preloadAppModel = properties.getPreload().getAppModel();
         String preloadCpModel = properties.getPreload().getCpModel();
         if (StringUtils.isNotBlank(preloadAppModel)) {
             log.info("===================================================================================================");
@@ -240,10 +235,10 @@ public class ControlServiceCoordinator implements InitializingBean {
         if (!inUse.compareAndSet(false, true)) {
             String mesg = "ControlServiceCoordinator."+caller+": ERROR: Coordinator is in use. Exits immediately";
             log.warn(mesg);
-            if (!properties.isSkipEsbNotification()) {
+            if (!properties.isSkipNotification()) {
                 sendErrorNotification(appModelId, requestInfo, mesg, mesg);
             } else {
-                log.warn("ControlServiceCoordinator."+caller+": Skipping ESB notification due to configuration");
+                log.warn("ControlServiceCoordinator.{}: Skipping notification due to configuration", caller);
             }
             return;
         }
@@ -255,10 +250,10 @@ public class ControlServiceCoordinator implements InitializingBean {
 
             String mesg = "ControlServiceCoordinator."+caller+": EXCEPTION: " + ex;
             log.error(mesg, ex);
-            if (!properties.isSkipEsbNotification()) {
+            if (!properties.isSkipNotification()) {
                 sendErrorNotification(appModelId, requestInfo, mesg, mesg);
             } else {
-                log.warn("ControlServiceCoordinator"+caller+": Skipping ESB notification due to configuration");
+                log.warn("ControlServiceCoordinator.{}: Skipping notification due to configuration", caller);
             }
         } finally {
             // Release lock of this coordinator
@@ -350,11 +345,11 @@ public class ControlServiceCoordinator implements InitializingBean {
         log.info("ControlServiceCoordinator._processAppModel(): Cache translation results: app-model-id={}", appModelId);
         appModelToTcCache.put(_normalizeModelId(appModelId), _TC);
 
-        // Notify ESB, if 'notificationUri' is provided
-        if (!properties.isSkipEsbNotification()) {
-            notifyESB(appModelId, requestInfo, EMS_STATE.INITIALIZING);
+        // Notify others, if 'notificationUri' is provided
+        if (!properties.isSkipNotification()) {
+            notifyOthers(appModelId, requestInfo, EMS_STATE.INITIALIZING);
         } else {
-            log.warn("ControlServiceCoordinator._processAppModel(): Skipping ESB notification due to configuration");
+            log.warn("ControlServiceCoordinator._processAppModel(): Skipping notification due to configuration");
         }
 
         this.currentTC = _TC;
@@ -376,7 +371,7 @@ public class ControlServiceCoordinator implements InitializingBean {
             log.warn("ControlServiceCoordinator._processCpModel(): Skipping MVV retrieval due to configuration");
         }
 
-        // Set MVV constants in Broker-CEP and Baguette Server, and then notify ESB
+        // Set MVV constants in Broker-CEP and Baguette Server, and then notify others
         _setConstants(constants, requestInfo);
 
         log.info("ControlServiceCoordinator._processCpModel(): END: cp-model-id={}", cpModelId);
@@ -407,11 +402,11 @@ public class ControlServiceCoordinator implements InitializingBean {
             log.warn("ControlServiceCoordinator.setConstants(): Skipping Baguette Server setup due to configuration");
         }
 
-        // Notify ESB, if 'notificationUri' is provided
-        if (!properties.isSkipEsbNotification()) {
-            notifyESB(null, requestInfo, EMS_STATE.RECONFIGURING);
+        // Notify others, if 'notificationUri' is provided
+        if (!properties.isSkipNotification()) {
+            notifyOthers(null, requestInfo, EMS_STATE.RECONFIGURING);
         } else {
-            log.warn("ControlServiceCoordinator.setConstants(): Skipping ESB notification due to configuration");
+            log.warn("ControlServiceCoordinator.setConstants(): Skipping notification due to configuration");
         }
 
         log.info("ControlServiceCoordinator.setConstants(): END: constants={}", constants);
@@ -739,16 +734,16 @@ public class ControlServiceCoordinator implements InitializingBean {
         }
     }
 
-    private void notifyESB(String appModelId, ControlServiceRequestInfo requestInfo, @NonNull EMS_STATE emsState) {
+    private void notifyOthers(String appModelId, ControlServiceRequestInfo requestInfo, @NonNull EMS_STATE emsState) {
         if (StringUtils.isNotBlank(requestInfo.getNotificationUri())) {
-            setCurrentEmsState(emsState, "Notifying ESB");
+            setCurrentEmsState(emsState, "Notifying others");
 
             String notificationUri = requestInfo.getNotificationUri().trim();
-            log.debug("ControlServiceCoordinator.notifyESB(): Notifying ESB: {}", notificationUri);
+            log.debug("ControlServiceCoordinator.notifyOthers(): Notifying others: {}", notificationUri);
             sendSuccessNotification(appModelId, requestInfo);
-            log.debug("ControlServiceCoordinator.notifyESB(): ESB notified: {}", notificationUri);
+            log.debug("ControlServiceCoordinator.notifyOthers(): Others notified: {}", notificationUri);
         } else {
-            log.warn("ControlServiceCoordinator.notifyESB(): Notification URI is blank");
+            log.warn("ControlServiceCoordinator.notifyOthers(): Notification URI is blank");
         }
     }
 
@@ -774,15 +769,15 @@ public class ControlServiceCoordinator implements InitializingBean {
     }
 
     // ------------------------------------------------------------------------------------------------------------
-    // ESB notification methods
+    // Notification methods
     // ------------------------------------------------------------------------------------------------------------
 
     private void sendSuccessNotification(String applicationId, ControlServiceRequestInfo requestInfo) {
         // Prepare success result notification
-        NotificationResultImpl result = new NotificationResultImpl();
-        result.setStatus(NotificationResult.StatusType.SUCCESS);
+        Map<String,String> result = new LinkedHashMap<>();
+        result.put("STATUS", "SUCCESS");
 
-        // Prepare and send CamelModelNotification
+        // Prepare and send Notification
         try {
             sendAppModelNotification(applicationId, result, requestInfo);
         } catch (Exception ex) {
@@ -794,12 +789,12 @@ public class ControlServiceCoordinator implements InitializingBean {
                                        String errorCode, String errorDescription)
     {
         // Prepare error result notification
-        NotificationResultImpl result = new NotificationResultImpl();
-        result.setStatus(NotificationResult.StatusType.ERROR);
-        result.setErrorCode(errorCode);
-        result.setErrorDescription(errorDescription);
+        Map<String,String> result = new LinkedHashMap<>();
+        result.put("STATUS", "ERROR");
+        result.put("ERROR-CODE", errorCode);
+        result.put("ERROR-DESCRIPTION", errorDescription);
 
-        // Prepare and send CamelModelNotification
+        // Prepare and send App Model notification
         try {
             sendAppModelNotification(applicationId, result, requestInfo);
         } catch (Exception ex) {
@@ -807,56 +802,56 @@ public class ControlServiceCoordinator implements InitializingBean {
         }
     }
 
-    private void sendAppModelNotification(String applicationId, NotificationResult result, ControlServiceRequestInfo requestInfo) {
+    private void sendAppModelNotification(String applicationId, Map<String,String> result, ControlServiceRequestInfo requestInfo) {
         // Create a new watermark
-        Watermark watermark = new WatermarkImpl();
-        watermark.setUser("EMS");
-        watermark.setSystem("EMS");
-        watermark.setDate(new java.util.Date());
+        Map<String,String> watermark = new LinkedHashMap<>();
+        watermark.put("USER", "EMS");
+        watermark.put("SYSTEM", "EMS");
+        watermark.put("DATE", DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ").format(LocalDateTime.now()));
         String uuid = Objects.requireNonNullElse( requestInfo.getRequestUuid(), UUID.randomUUID().toString().toLowerCase() );
-        watermark.setUuid(uuid);
+        watermark.put("UUID", uuid);
 
-        // Create a new CamelModelNotification
-        CamelModelNotificationRequest request = new CamelModelNotificationRequestImpl();
-        request.setApplicationId(applicationId);
-        request.setResult(result);
-        request.setWatermark(watermark);
+        // Create a new App Model notification
+        Map<String,Object> request = new LinkedHashMap<>();
+        request.put("application-id", applicationId);
+        request.put("result", request);
+        request.put("watermark", watermark);
 
-        // Send CamelModelNotification to ESB (Control Process)
+        // Send App Model notification
         sendAppModelNotification(request, requestInfo);
     }
 
-    private void sendAppModelNotification(CamelModelNotificationRequest notification, ControlServiceRequestInfo requestInfo) {
+    private void sendAppModelNotification(Map<String,Object> notification, ControlServiceRequestInfo requestInfo) {
         String notificationUri = requestInfo.getNotificationUri();
         String requestUuid = requestInfo.getRequestUuid();
         String jwtToken = requestInfo.getJwtToken();
 
         // Check if 'notificationUri' is blank
         if (StringUtils.isBlank(notificationUri)) {
-            log.warn("ControlServiceCoordinator.sendAppModelNotification(): notificationUri not provided or is empty. No notification will be sent to ESB.");
+            log.warn("ControlServiceCoordinator.sendAppModelNotification(): notificationUri not provided or is empty. No notification will be sent.");
             return;
         }
         notificationUri = notificationUri.trim();
 
-        // Get ESB url from control-service configuration
-        String esbUrl = properties.getEsbUrl();
-        if (StringUtils.isBlank(esbUrl)) {
-            log.warn("ControlServiceCoordinator.sendAppModelNotification(): esb-url property is empty. No notification will be sent to ESB.");
+        // Get Notification URL from control-service configuration
+        String notificationUrl = properties.getNotificationUrl();
+        if (StringUtils.isBlank(notificationUrl)) {
+            log.warn("ControlServiceCoordinator.sendAppModelNotification(): notification-url property is empty. No notification will be sent.");
             return;
         }
-        esbUrl = esbUrl.trim();
+        notificationUrl = notificationUrl.trim();
 
-        // Fixing ESB URL parts
-        if (esbUrl.endsWith("/")) {
-            esbUrl = esbUrl.substring(0, esbUrl.length() - 1);
+        // Fixing Notification URL parts
+        if (notificationUrl.endsWith("/")) {
+            notificationUrl = notificationUrl.substring(0, notificationUrl.length() - 1);
         }
         if (notificationUri.startsWith("/")) {
             notificationUri = notificationUri.substring(1);
         }
 
-        // Call ESB endpoint
-        String url = esbUrl + "/" + notificationUri;
-        log.info("ControlServiceCoordinator.sendAppModelNotification(): Invoking ESB endpoint: {}", url);
+        // Call Notification URL endpoint
+        String url = notificationUrl + "/" + notificationUri;
+        log.info("ControlServiceCoordinator.sendAppModelNotification(): Invoking Notification endpoint: {}", url);
         log.trace("ControlServiceCoordinator.sendAppModelNotification(): JWT token: {}", jwtToken);
 
         ResponseEntity<String> response;
@@ -875,11 +870,11 @@ public class ControlServiceCoordinator implements InitializingBean {
         if (response!=null) {
             String responseStatus = response.getStatusCode().toString();
             if (response.getStatusCode().is2xxSuccessful())
-                log.info("ControlServiceCoordinator.sendAppModelNotification(): ESB endpoint invoked: {}, status={}, message={}", url, responseStatus, response.getBody());
+                log.info("ControlServiceCoordinator.sendAppModelNotification(): Notification endpoint invoked: {}, status={}, message={}", url, responseStatus, response.getBody());
             else
-                log.info("ControlServiceCoordinator.sendAppModelNotification(): ESB endpoint invoked: {}, status={}, message={}", url, responseStatus, response.getBody());
+                log.info("ControlServiceCoordinator.sendAppModelNotification(): Notification endpoint invoked: {}, status={}, message={}", url, responseStatus, response.getBody());
         } else {
-            log.warn("ControlServiceCoordinator.sendAppModelNotification(): ESB endpoint invoked: {}, response is NULL", url);
+            log.warn("ControlServiceCoordinator.sendAppModelNotification(): Notification endpoint invoked: {}, response is NULL", url);
         }
     }
 

@@ -50,7 +50,7 @@ public class ControlServiceProperties {
 
     private String upperwareGrouping;
     private String metasolverConfigurationUrl;
-    private String esbUrl;
+    private String notificationUrl;
 
     private Preload preload = new Preload();
 
@@ -60,7 +60,7 @@ public class ControlServiceProperties {
     private boolean skipBaguette;
     private boolean skipCollectors;
     private boolean skipMetasolver;
-    private boolean skipEsbNotification;
+    private boolean skipNotification;
 
     private String tcLoadFile;
     private String tcSaveFile;
@@ -76,7 +76,7 @@ public class ControlServiceProperties {
 
     @Data
     public static class Preload {
-        private String camelModel;
+        private String appModel;
         private String cpModel;
     }
 }

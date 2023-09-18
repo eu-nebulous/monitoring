@@ -100,7 +100,7 @@ control:
   EXECUTIONWARE: PROACTIVE
 
   ### URLs of Upperware services being invoked by EMS
-  esb-url: ${ESB_URL:https://mule:8088}
+  notification-url: ${NOTIFICATION_URL:https://mule:8088}
   metasolver-configuration-url: ${METASOLVER_URL:http://metasolver:8092/updateConfiguration}
 
   ### Log settings
@@ -114,7 +114,7 @@ control:
   #skip-baguette: true
   #skip-collectors: true
   #skip-metasolver: true
-  #skip-esb-notification: true
+  #skip-notification: true
   upperware-grouping: GLOBAL
 
   ### Debug settings - Load/Save translation results
