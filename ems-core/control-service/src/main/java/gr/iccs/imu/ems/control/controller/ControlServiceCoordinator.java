@@ -17,6 +17,7 @@ import gr.iccs.imu.ems.brokercep.BrokerCepService;
 import gr.iccs.imu.ems.brokercep.BrokerCepStatementSubscriber;
 import gr.iccs.imu.ems.brokercep.event.EventMap;
 import gr.iccs.imu.ems.control.collector.netdata.ServerNetdataCollector;
+import gr.iccs.imu.ems.control.plugin.MetasolverPlugin;
 import gr.iccs.imu.ems.control.plugin.PostTranslationPlugin;
 import gr.iccs.imu.ems.control.plugin.TranslationContextPlugin;
 import gr.iccs.imu.ems.control.properties.ControlServiceProperties;
@@ -78,6 +79,8 @@ public class ControlServiceCoordinator implements InitializingBean {
     private final List<TranslationContextPlugin> translationContextPlugins;
     private final TranslationContextPrinter translationContextPrinter;
 
+    private final List<MetasolverPlugin> metasolverPlugins;
+
     private final List<MetricVariableValuesService> mvvServiceImplementations;
     private MetricVariableValuesService mvvService;     // Will be populated in 'afterPropertiesSet()'
 
@@ -115,6 +118,7 @@ public class ControlServiceCoordinator implements InitializingBean {
 
         log.debug("ControlServiceCoordinator.afterPropertiesSet():    Post-translation plugins: {}", postTranslationPlugins);
         log.debug("ControlServiceCoordinator.afterPropertiesSet():  TranslationContext plugins: {}", translationContextPlugins);
+        log.debug("ControlServiceCoordinator.afterPropertiesSet():          MetaSolver plugins: {}", metasolverPlugins);
     }
 
     private void initMvvService() {
@@ -421,6 +425,7 @@ public class ControlServiceCoordinator implements InitializingBean {
         // Translate application model into a TranslationContext object
         log.info("ControlServiceCoordinator.translateAppModelAndStore(): Model translation: model-id={}", appModelId);
         _TC = translator.translate(appModelId);
+        _TC.populateTopLevelMetricNames();
         log.debug("ControlServiceCoordinator.translateAppModelAndStore(): Model translation: RESULTS: {}", _TC);
 
         // Run post-translation plugins
@@ -674,10 +679,15 @@ public class ControlServiceCoordinator implements InitializingBean {
         log.debug("ControlServiceCoordinator.configureMetaSolver(): MetaSolver configuration: scaling-topics: {}", scalingTopics);
 
         // Get top-level metric topics from _TC
-        Set<String> metricTopics = _TC.getTopLevelMetricNames(true).stream()
+        Set<String> topLevelMetrics = _TC.getTopLevelMetricNames(true);
+        log.debug("ControlServiceCoordinator.configureMetaSolver(): Top-Level metrics: {}", topLevelMetrics);
+        Set<String> metricTopics = topLevelMetrics.stream()
                 .filter(m -> !scalingTopics.contains(m))
                 .collect(Collectors.toSet());
         log.debug("ControlServiceCoordinator.configureMetaSolver(): MetaSolver configuration: metric-topics: {}", metricTopics);
+
+        // Let Metasolver plugins modify topics sets
+        metasolverPlugins.forEach(p -> p.topicsCollected(_TC, scalingTopics, metricTopics));
 
         // Prepare subscription configurations
         String upperwareBrokerUrl = brokerCep != null ? brokerCep.getBrokerCepProperties().getBrokerUrlForClients() : null;
@@ -694,14 +704,17 @@ public class ControlServiceCoordinator implements InitializingBean {
         }
         List<Map<String, String>> subscriptionConfigs = new ArrayList<>();
         for (String t : scalingTopics)
-            subscriptionConfigs.add(_prepareSubscriptionConfig(upperwareBrokerUrl, username, password, certificate, t, "", "SCALE"));
+            subscriptionConfigs.add(_prepareSubscriptionConfig(_TC, upperwareBrokerUrl, username, password, certificate, t, "", "SCALE"));
         for (String t : metricTopics)
-            subscriptionConfigs.add(_prepareSubscriptionConfig(upperwareBrokerUrl, username, password, certificate, t, "", "MVV"));
+            subscriptionConfigs.add(_prepareSubscriptionConfig(_TC, upperwareBrokerUrl, username, password, certificate, t, "", "MVV"));
         log.debug("ControlServiceCoordinator.configureMetaSolver(): MetaSolver subscriptions configuration: {}", subscriptionConfigs);
 
         // Retrieve MVV to Current-Config MVV map
         Map<String, String> mvvMap = _TC.getMvvCP();
         log.debug("ControlServiceCoordinator.configureMetaSolver(): MetaSolver MVV configuration: {}", mvvMap);
+
+        // Let Metasolver plugins modify MVV map
+        metasolverPlugins.forEach(p -> p.mvvsCollected(_TC, mvvMap));
 
         // Prepare MetaSolver configuration
         Map<String,Object> msConfig = new HashMap<>();
@@ -756,7 +769,7 @@ public class ControlServiceCoordinator implements InitializingBean {
         return modelId;
     }
 
-    protected Map<String, String> _prepareSubscriptionConfig(String url, String username, String password, String certificate, String topic, String clientId, String type) {
+    protected Map<String, String> _prepareSubscriptionConfig(TranslationContext _TC, String url, String username, String password, String certificate, String topic, String clientId, String type) {
         Map<String, String> map = new HashMap<>();
         map.put("url", url);
         map.put("username", username);
@@ -765,6 +778,10 @@ public class ControlServiceCoordinator implements InitializingBean {
         map.put("topic", topic);
         map.put("client-id", clientId);
         map.put("type", type);
+
+        // Let Metasolver plugins modify subscription
+        metasolverPlugins.forEach(p -> p.prepareSubscription(_TC, map));
+
         return map;
     }
 

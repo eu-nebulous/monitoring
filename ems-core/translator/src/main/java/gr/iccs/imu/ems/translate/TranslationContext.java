@@ -21,6 +21,7 @@ import lombok.Setter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
 
 import java.io.Serializable;
 import java.util.*;
@@ -69,11 +70,6 @@ public class TranslationContext implements Serializable {
     // Grouping-to-Topics map
     private final Map<String, Set<String>> G2T = new HashMap<>();
 
-    // Metric-to-Metric Context map
-    @Getter
-    @JsonIgnore
-    private final transient Map<Metric, Set<MetricContext>> M2MC = new HashMap<>();
-
     // Composite Metric Variables set
     @Getter
     @JsonIgnore
@@ -114,10 +110,11 @@ public class TranslationContext implements Serializable {
     private final Set<IfThenConstraint> ifThenConstraints = new LinkedHashSet<>();
 
     // Load-annotated Metric
+    protected final Map<String, String> loadAnnotatedDestinationToMetricContextNameMap = new LinkedHashMap<>();
     protected final Set<String> loadAnnotatedMetricsSet = new LinkedHashSet<>();
 
     // Top-Level metric names
-    protected Set<String> topLevelMetricNames = new LinkedHashSet<>();
+    protected final Set<String> topLevelMetricNames = new LinkedHashSet<>();
 
     // Export files
     @Getter @Setter
@@ -190,6 +187,7 @@ public class TranslationContext implements Serializable {
         this.metricConstraints.addAll( cloneSet(_TC.metricConstraints) );
         this.logicalConstraints.addAll( cloneSet(_TC.logicalConstraints) );
         this.ifThenConstraints.addAll( cloneSet(_TC.ifThenConstraints) );
+        this.loadAnnotatedDestinationToMetricContextNameMap.putAll(_TC.loadAnnotatedDestinationToMetricContextNameMap);
         this.loadAnnotatedMetricsSet.addAll(_TC.loadAnnotatedMetricsSet);
         this.topLevelMetricNames.addAll(_TC.topLevelMetricNames);
         this.exportFiles.addAll(_TC.exportFiles);
@@ -279,48 +277,43 @@ public class TranslationContext implements Serializable {
         return newGroupingsMap;
     }
 
-    public MetricContext getMetricContextForMetric(Metric m) {
-        if (M2MC==null) return null;
-        Set<MetricContext> set = M2MC.get(m);
-        return set == null ? null : set.iterator().next();
-    }
-
     public Set<MetricConstraint> getMetricConstraints() {
-        return new HashSet<>(metricConstraints);
+        return metricConstraints!=null ? new HashSet<>(metricConstraints) : new HashSet<>();
     }
 
     public Set<LogicalConstraint> getLogicalConstraints() {
-        return new HashSet<>(logicalConstraints);
+        return logicalConstraints!=null ? new HashSet<>(logicalConstraints) : new HashSet<>();
     }
 
     public HashSet<MetricVariable> getCompositeMetricVariables() {
-        return new HashSet<>(CMVar_1);
+        return CMVar_1!=null ? new HashSet<>(CMVar_1) : new HashSet<>();
     }
 
     public HashSet<String> getCompositeMetricVariableNames() {
-        return new HashSet<>(CMVar);
+        return CMVar!=null ? new HashSet<>(CMVar) : new HashSet<>();
     }
 
     public HashSet<MetricVariable> getRawMetricVariables() {
-        return new HashSet<>(RMVar_1);
+        return RMVar_1!=null ? new HashSet<>(RMVar_1) : new HashSet<>();
     }
 
     public HashSet<String> getRawMetricVariableNames() {
-        return new HashSet<>(RMVar);
+        return RMVar!=null ? new HashSet<>(RMVar) : new HashSet<>();
     }
 
     public boolean isMVV(String name) {
+        if (MVV==null) return false;
         for (String mvv : MVV)
             if (mvv.equals(name)) return true;
         return false;
     }
 
     public Set<String> getMVV() {
-        return new HashSet<>(MVV);
+        return MVV!=null ? new HashSet<>(MVV) : new HashSet<>();
     }
 
     public Map<String,String> getMvvCP() {
-        return new HashMap<>(MvvCP);
+        return MvvCP!=null ? new HashMap<>(MvvCP) : new HashMap<>();
     }
 
     // ====================================================================================================================================================
@@ -394,14 +387,6 @@ public class TranslationContext implements Serializable {
 
     public void addGroupingRulePairs(String grouping, String topic, List<String> rules) {
         rules.forEach(rule -> addGroupingRulePair(grouping, topic, rule));
-    }
-
-    public void addMetricMetricContextPair(Metric m, MetricContext mc) {
-        _addPair(M2MC, m, mc);
-    }
-
-    public void addMetricMetricContextPairs(Metric m, List<MetricContext> mcs) {
-        _addPair(M2MC, m, mcs);
     }
 
     public void addCompositeMetricVariable(MetricVariable mv) {
@@ -672,6 +657,23 @@ public class TranslationContext implements Serializable {
     // ====================================================================================================================================================
     // Load-Metrics-related helper methods
 
+    public void addLoadAnnotatedDestinationNameToMetricContextName(@NonNull String metricContextName, @NonNull String destinationName) {
+        loadAnnotatedDestinationToMetricContextNameMap.put(destinationName, metricContextName);
+    }
+
+    public void addLoadAnnotatedDestinationNameToMetricContextName(@NonNull Map<String,String> map) {
+        loadAnnotatedDestinationToMetricContextNameMap.putAll(map);
+    }
+
+    public Map<String,String> getLoadAnnotatedDestinationNameToMetricContextNameMap() {
+        return loadAnnotatedDestinationToMetricContextNameMap!=null
+                ? new HashMap<>(loadAnnotatedDestinationToMetricContextNameMap) : new HashMap<>();
+    }
+
+    public String getLoadAnnotatedDestinationMetricContextName(@NonNull String key) {
+        return getLoadAnnotatedDestinationNameToMetricContextNameMap().get(key);
+    }
+
     public void addLoadAnnotatedMetric(@NonNull String metricName) {
         loadAnnotatedMetricsSet.add(metricName);
     }
@@ -681,7 +683,7 @@ public class TranslationContext implements Serializable {
     }
 
     public Set<String> getLoadAnnotatedMetricsSet() {
-        return new HashSet<>(loadAnnotatedMetricsSet);
+        return loadAnnotatedMetricsSet!=null ? new HashSet<>(loadAnnotatedMetricsSet) : new HashSet<>();
     }
 
     // ====================================================================================================================================================
@@ -692,11 +694,19 @@ public class TranslationContext implements Serializable {
     }
 
     public void populateTopLevelMetricNames() {
-        Set<String> set = DAG.getTopLevelNodes().stream()
+        if (getDAG()==null) {
+            log.warn("TranslationContext.populateTopLevelMetricNames(): DAG is NULL");
+            return;
+        }
+        log.trace("TranslationContext.populateTopLevelMetricNames(): DAG is *NOT* NULL");
+        Set<String> set = getDAG().getTopLevelNodes().stream()
                 .map(DAGNode::getElementName)
                 .collect(Collectors.toSet());
-        topLevelMetricNames.clear();
-        topLevelMetricNames.addAll(set);
+        log.trace("TranslationContext.populateTopLevelMetricNames(): set: {}", set);
+        synchronized (topLevelMetricNames) {
+            topLevelMetricNames.clear();
+            topLevelMetricNames.addAll(set);
+        }
     }
 
     public Set<String> getTopLevelMetricNames(boolean forcePopulate) {
@@ -717,6 +727,9 @@ public class TranslationContext implements Serializable {
         Object result = getAdditionalResults().get(key);
         if (result==null) return null;
         return clazz.cast(result);
+    }
+
+    public void printExtraInfo(Logger log) {
     }
 
     // ====================================================================================================================================================

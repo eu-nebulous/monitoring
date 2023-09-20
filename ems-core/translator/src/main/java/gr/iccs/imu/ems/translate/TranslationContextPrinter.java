@@ -100,8 +100,6 @@ public class TranslationContextPrinter {
 		log.info("*********************************************************");
 		log.info("Topics-Connections map:\n{}", _TC.getTopicConnections());
 		log.info("*********************************************************");
-		log.info("Metric-to-Metric Context map:\n{}", map2string(_TC.getM2MC()));
-		log.info("*********************************************************");
 		log.info("MVV set:\n{}", _TC.getMVV());
 		log.info("*********************************************************");
 		log.info("MVV_CP map:\n{}", _TC.getMvvCP());
@@ -114,9 +112,16 @@ public class TranslationContextPrinter {
 		log.info("*********************************************************");
 		log.info("Metric Constraints:\n{}", _TC.getMetricConstraints());
 		log.info("*********************************************************");
+		log.info("Load-Annotated Destination-to-Metric Context names map:\n{}",
+				_TC.getLoadAnnotatedDestinationNameToMetricContextNameMap());
+		log.info("*********************************************************");
 		log.info("Load-Annotated Metrics:\n{}", _TC.getLoadAnnotatedMetricsSet());
 		log.info("*********************************************************");
 		log.info("Top-Level Metric names:\n{}", _TC.getTopLevelMetricNames());
+		log.info("*********************************************************");
+
+		_TC.printExtraInfo(log);
+
 		log.info("*********************************************************");
 		log.info("Additional Results:\n{}", _TC.getAdditionalResults());
 		log.info("*********************************************************");
@@ -124,7 +129,11 @@ public class TranslationContextPrinter {
 		log.info("*********************************************************");
 	}
 
-	public String prettifyG2R(Map<String, Map<String, Set<String>>> map, String startIdent) {
+	public static void separator() {
+		log.info("*********************************************************");
+	}
+
+	public static String prettifyG2R(Map<String, Map<String, Set<String>>> map, String startIdent) {
 		StringBuilder sb = new StringBuilder();
 		String ident2 = startIdent+"  ";
 		String ident3 = startIdent+"    ";
@@ -147,7 +156,7 @@ public class TranslationContextPrinter {
 		return sb.toString();
 	}
 	
-	protected Map<String,List<String>> map2string(Map map) {
+	public static Map<String,List<String>> map2string(Map map) {
 		if (map==null) return null;
 		Map<String,List<String>> newMap = new HashMap<>();
 		for (Object key : map.keySet()) {
@@ -172,7 +181,7 @@ public class TranslationContextPrinter {
 		return newMap;
 	}
 	
-	protected Collection<String> getFunctionNames(Collection<FunctionDefinition> col) {
+	public static Collection<String> getFunctionNames(Collection<FunctionDefinition> col) {
 		return col.stream()
 				.map(FunctionDefinition::getName)
 				.collect(Collectors.toList());
