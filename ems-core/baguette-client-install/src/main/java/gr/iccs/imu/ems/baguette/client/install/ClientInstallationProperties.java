@@ -17,10 +17,7 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Pattern;
 
 @Slf4j
@@ -43,6 +40,7 @@ public class ClientInstallationProperties implements InitializingBean {
 
     private String clientInstallationRequestsTopic = "ems.client.installation.requests";
     private String clientInstallationReportsTopic = "ems.client.installation.reports";
+    private List<Pattern> clientInstallationReportNodeInfoPatterns = new ArrayList<>();
 
     private String baseDir;                     // EMS client home directory
     private String rootCmd;                     // Root command (e.g. 'sudo', or 'echo ${NODE_SSH_PASSWORD} | sudo -S ')

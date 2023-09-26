@@ -14,6 +14,7 @@ import gr.iccs.imu.ems.baguette.server.NodeRegistryEntry;
 import gr.iccs.imu.ems.brokercep.BrokerCepService;
 import gr.iccs.imu.ems.common.plugin.PluginManager;
 import lombok.NoArgsConstructor;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 
 import javax.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -75,22 +77,12 @@ public class ClientInstaller implements InitializingBean {
 
                 // Send execution report to local broker
                 log.trace("ClientInstaller: Preparing execution report event for Task #{}: result={}, task={}", taskCnt, resultStr, task);
-                Map<String, Object> executionReport = Map.of(
-                        "requestId", task.getId(),
-                        "status", resultStr,
-                        "nodeInfo", Map.of(
-                                "CPU", 100,
-                                "RAM", 200,
-                                "DISK", 300
-                        ),
-                        "metricValue", 0,
-                        "level", 3,
-                        "timestamp", Instant.now().toEpochMilli()
-                );
+                LinkedHashMap<String, Object> executionReport = new LinkedHashMap<>(
+                        createReportEventFromExecutionResults(taskCnt, task, result));
                 log.info("ClientInstaller: Sending execution report for Task #{}: destination={}, report={}",
                         taskCnt, properties.getClientInstallationReportsTopic(), executionReport);
-                brokerCepService.publishEvent(
-                        null, properties.getClientInstallationReportsTopic(), executionReport);
+                brokerCepService.publishSerializable(
+                        null, properties.getClientInstallationReportsTopic(), executionReport, true);
             } catch (Throwable t) {
                 log.info("ClientInstaller: Exception caught in Client installation Task #{}: Exception: ", taskCnt, t);
             }
@@ -185,5 +177,26 @@ public class ClientInstaller implements InitializingBean {
         }
         log.info("ClientInstaller: Task execution result #{}: success={}", taskCounter, result);
         return result;
+    }
+
+    public Map<String, Object> createReportEventFromExecutionResults(long taskCnt, @NonNull ClientInstallationTask task, boolean result) {
+        String resultStr = result ? "SUCCESS" : "FAILED";
+        Map<String, String> data = task.getNodeRegistryEntry().getPreregistration();
+        log.trace("ClientInstaller: createReportEventFromExecutionResults: Task #{}: Execution data:\n{}", taskCnt, data);
+        Map<String, Object> nodeInfoMap = new LinkedHashMap<>();
+        properties.getClientInstallationReportNodeInfoPatterns().forEach(pattern -> {
+            log.trace("ClientInstaller: createReportEventFromExecutionResults: Task #{}:Applying pattern: {}", taskCnt, pattern);
+            data.keySet().stream()
+                    //.peek(key->log.trace("                ---->  Checking:  key={}, match={}", key, pattern.matcher(key).matches()))
+                    .filter(key -> pattern.matcher(key).matches())
+                    .forEach(key -> nodeInfoMap.put(key, data.get(key)));
+        });
+        log.debug("ClientInstaller: createReportEventFromExecutionResults: Task #{}: Node info collected: {}", taskCnt, nodeInfoMap);
+        return Map.of(
+                "requestId", task.getId(),
+                "status", resultStr,
+                "nodeInfo", nodeInfoMap,
+                "timestamp", Instant.now().toEpochMilli()
+        );
     }
 }
