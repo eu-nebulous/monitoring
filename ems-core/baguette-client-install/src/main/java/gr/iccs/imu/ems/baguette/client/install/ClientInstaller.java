@@ -11,6 +11,7 @@ package gr.iccs.imu.ems.baguette.client.install;
 
 import gr.iccs.imu.ems.baguette.server.BaguetteServer;
 import gr.iccs.imu.ems.baguette.server.NodeRegistryEntry;
+import gr.iccs.imu.ems.brokercep.BrokerCepService;
 import gr.iccs.imu.ems.common.plugin.PluginManager;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.validation.constraints.NotNull;
+import java.time.Instant;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
@@ -34,6 +37,8 @@ public class ClientInstaller implements InitializingBean {
 
     @Autowired
     private ClientInstallationProperties properties;
+    @Autowired
+    private BrokerCepService brokerCepService;
     @Autowired
     private BaguetteServer baguetteServer;
     @Autowired
@@ -58,13 +63,34 @@ public class ClientInstaller implements InitializingBean {
         executorService.submit(() -> {
             long taskCnt = taskCounter.getAndIncrement();
             try {
+                // Execute task
                 log.info("ClientInstaller: Executing Client installation Task #{}: task-id={}, node-id={}, name={}, type={}, address={}",
                         taskCnt, task.getId(), task.getNodeId(), task.getName(), task.getType(), task.getAddress());
                 long startTm = System.currentTimeMillis();
                 boolean result = executeTask(task, taskCnt);
                 long endTm = System.currentTimeMillis();
+                String resultStr = result ? "SUCCESS" : "FAILED";
                 log.info("ClientInstaller: Client installation Task #{}: result={}, duration={}ms",
-                        taskCnt, result ? "SUCCESS" : "FAILED", endTm - startTm);
+                        taskCnt, resultStr, endTm - startTm);
+
+                // Send execution report to local broker
+                log.trace("ClientInstaller: Preparing execution report event for Task #{}: result={}, task={}", taskCnt, resultStr, task);
+                Map<String, Object> executionReport = Map.of(
+                        "requestId", task.getId(),
+                        "status", resultStr,
+                        "nodeInfo", Map.of(
+                                "CPU", 100,
+                                "RAM", 200,
+                                "DISK", 300
+                        ),
+                        "metricValue", 0,
+                        "level", 3,
+                        "timestamp", Instant.now().toEpochMilli()
+                );
+                log.info("ClientInstaller: Sending execution report for Task #{}: destination={}, report={}",
+                        taskCnt, properties.getClientInstallationReportsTopic(), executionReport);
+                brokerCepService.publishEvent(
+                        null, properties.getClientInstallationReportsTopic(), executionReport);
             } catch (Throwable t) {
                 log.info("ClientInstaller: Exception caught in Client installation Task #{}: Exception: ", taskCnt, t);
             }
@@ -72,45 +98,61 @@ public class ClientInstaller implements InitializingBean {
     }
 
     private boolean executeTask(ClientInstallationTask task, long taskCounter) {
-        if (baguetteServer.getNodeRegistry().getCoordinator()==null)
-            throw new IllegalStateException("Baguette Server Coordinator has not yet been initialized");
-
         if ("VM".equalsIgnoreCase(task.getType()) || "baremetal".equalsIgnoreCase(task.getType())) {
-            NodeRegistryEntry entry = baguetteServer.getNodeRegistry().getNodeByAddress(task.getAddress());
-            if (entry==null)
-                throw new IllegalStateException("Node entry has been removed from Node Registry before installation: Node IP address: "+task.getAddress());
-                //baguetteServer.handleNodeSituation(task.getAddress(), INTERNAL_ERROR);
-            entry.nodeInstalling(task);
+            if (baguetteServer.getNodeRegistry().getCoordinator()==null)
+                throw new IllegalStateException("Baguette Server Coordinator has not yet been initialized");
 
-            // Call InstallationContextPlugin's before installation
-            log.debug("ClientInstaller: PRE-INSTALLATION: Calling installation context processors: {}", properties.getInstallationContextProcessorPlugins());
-            pluginManager.getActivePlugins(InstallationContextProcessorPlugin.class)
-                    .forEach(plugin->((InstallationContextProcessorPlugin)plugin).processBeforeInstallation(task, taskCounter));
-
-            log.debug("ClientInstaller: INSTALLATION: Executing installation task: task-counter={}, task={}", taskCounter, task);
-            boolean success = executeVmTask(task, taskCounter);
-            log.debug("ClientInstaller: NODE_REGISTRY_ENTRY after installation execution: \n{}", task.getNodeRegistryEntry());
-
-            if (entry.getState()==NodeRegistryEntry.STATE.INSTALLING) {
-                log.warn("ClientInstaller: NODE_REGISTRY_ENTRY status is still INSTALLING after executing client installation. Changing to INSTALL_ERROR");
-                entry.nodeInstallationError(null);
-            }
-
-            // Call InstallationContextPlugin's after installation
-            log.debug("ClientInstaller: POST-INSTALLATION: Calling installation context processors: {}", properties.getInstallationContextProcessorPlugins());
-            pluginManager.getActivePlugins(InstallationContextProcessorPlugin.class)
-                    .forEach(plugin->((InstallationContextProcessorPlugin)plugin).processAfterInstallation(task, taskCounter, success));
-
-            // Pre-register Node to baguette Server Coordinator
-            log.debug("ClientInstaller: POST-INSTALLATION: Node is being pre-registered: {}", entry);
-            baguetteServer.getNodeRegistry().getCoordinator().preregister(entry);
-
-            log.debug("ClientInstaller: Installation outcome: {}", success ? "Success" : "Error");
-            return success;
+            return executeVmOrBaremetalTask(task, taskCounter);
+        } else
+        if ("DIAGNOSTICS".equalsIgnoreCase(task.getType())) {
+            return executeDiagnosticsTask(task, taskCounter);
         } else {
             log.error("ClientInstaller: UNSUPPORTED TASK TYPE: {}", task.getType());
         }
         return false;
+    }
+
+    private boolean executeVmOrBaremetalTask(ClientInstallationTask task, long taskCounter) {
+        NodeRegistryEntry entry = baguetteServer.getNodeRegistry().getNodeByAddress(task.getAddress());
+        if (entry==null)
+            throw new IllegalStateException("Node entry has been removed from Node Registry before installation: Node IP address: "+ task.getAddress());
+        //baguetteServer.handleNodeSituation(task.getAddress(), INTERNAL_ERROR);
+        entry.nodeInstalling(task);
+
+        // Call InstallationContextPlugin's before installation
+        log.debug("ClientInstaller: PRE-INSTALLATION: Calling installation context processors: {}", properties.getInstallationContextProcessorPlugins());
+        pluginManager.getActivePlugins(InstallationContextProcessorPlugin.class)
+                .forEach(plugin->((InstallationContextProcessorPlugin)plugin).processBeforeInstallation(task, taskCounter));
+
+        log.debug("ClientInstaller: INSTALLATION: Executing installation task: task-counter={}, task={}", taskCounter, task);
+        boolean success = executeVmTask(task, taskCounter);
+        log.debug("ClientInstaller: NODE_REGISTRY_ENTRY after installation execution: \n{}", task.getNodeRegistryEntry());
+
+        if (entry.getState()==NodeRegistryEntry.STATE.INSTALLING) {
+            log.warn("ClientInstaller: NODE_REGISTRY_ENTRY status is still INSTALLING after executing client installation. Changing to INSTALL_ERROR");
+            entry.nodeInstallationError(null);
+        }
+
+        // Call InstallationContextPlugin's after installation
+        log.debug("ClientInstaller: POST-INSTALLATION: Calling installation context processors: {}", properties.getInstallationContextProcessorPlugins());
+        pluginManager.getActivePlugins(InstallationContextProcessorPlugin.class)
+                .forEach(plugin->((InstallationContextProcessorPlugin)plugin).processAfterInstallation(task, taskCounter, success));
+
+        // Pre-register Node to baguette Server Coordinator
+        log.debug("ClientInstaller: POST-INSTALLATION: Node is being pre-registered: {}", entry);
+        baguetteServer.getNodeRegistry().getCoordinator().preregister(entry);
+
+        log.debug("ClientInstaller: Installation outcome: {}", success ? "Success" : "Error");
+        return success;
+    }
+
+    private boolean executeDiagnosticsTask(ClientInstallationTask task, long taskCounter) {
+        log.debug("ClientInstaller: DIAGNOSTICS: Executing diagnostics task: task-counter={}, task={}", taskCounter, task);
+        boolean success = executeVmTask(task, taskCounter);
+        log.debug("ClientInstaller: DIAGNOSTICS: After diagnostics execution: \n{}", task);
+
+        log.debug("ClientInstaller: DIAGNOSTICS: Outcome: {}", success ? "Success" : "Error");
+        return success;
     }
 
     private boolean executeVmTask(ClientInstallationTask task, long taskCounter) {
