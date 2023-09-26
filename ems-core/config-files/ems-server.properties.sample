@@ -510,6 +510,7 @@ baguette.client.install.instructions.LINUX = \
   file:${EMS_CONFIG_DIR}/baguette-client-install/linux/baguette-skip.json, \
   file:${EMS_CONFIG_DIR}/baguette-client-install/linux/start-agents.json
 baguette.client.install.instructions.WINDOWS = file:${EMS_CONFIG_DIR}/baguette-client-install/win/win.json
+baguette.client.install.instructions.DIAGNOSTICS_LINUX = file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/detect.yml
 
 baguette.client.install.continueOnFail = true
 baguette.client.install.sessionRecordingDir = ${LOGS_DIR:${EMS_CONFIG_DIR}/../logs}
@@ -546,6 +547,11 @@ baguette.client.install.parameters.BAGUETTE_INSTALLATION_MIN_DISK_FREE=1024*1024
 baguette.client.install.installationContextProcessorPlugins=\
     plugin.install.gr.iccs.imu.ems.baguette.client.AllowedTopicsProcessorPlugin, \
     plugin.install.gr.iccs.imu.ems.baguette.client.PrometheusProcessorPlugin
+
+baguette.client.install.clientInstallationReportNodeInfoPatterns[0] = ^CPU_.+($|[\s:=])
+baguette.client.install.clientInstallationReportNodeInfoPatterns[1] = ^RAM_TOTAL_KB($|[\s:=])
+baguette.client.install.clientInstallationReportNodeInfoPatterns[2] = ^DISK_TOTAL_KB($|[\s:=])
+baguette.client.install.clientInstallationReportNodeInfoPatterns[3] = ^OS_.+($|[\s:=])
 
 ### Server-side Self-Healing. Recovers monitoring functionality of registered nodes (i.e. EMS client and/or Netdata agent)
 self.healing.enabled=true
