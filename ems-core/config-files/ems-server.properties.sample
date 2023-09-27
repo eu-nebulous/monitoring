@@ -510,6 +510,7 @@ baguette.client.install.instructions.LINUX = \
   file:${EMS_CONFIG_DIR}/baguette-client-install/linux/baguette-skip.json, \
   file:${EMS_CONFIG_DIR}/baguette-client-install/linux/start-agents.json
 baguette.client.install.instructions.WINDOWS = file:${EMS_CONFIG_DIR}/baguette-client-install/win/win.json
+baguette.client.install.instructions.VM_LINUX = .....same as LINUX......
 baguette.client.install.instructions.DIAGNOSTICS_LINUX = file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/detect.yml
 
 baguette.client.install.continueOnFail = true

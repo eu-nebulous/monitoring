@@ -537,7 +537,7 @@ baguette.client.install:
   ### Instruction Set file processing settings
 
   instructions:
-    LINUX:
+    LINUX: &install_on_linux
       # Instructions set files - JSON version
       - file:${EMS_CONFIG_DIR}/baguette-client-install/linux/check-ignore.json
       - file:${EMS_CONFIG_DIR}/baguette-client-install/linux/detect.json
@@ -557,6 +557,7 @@ baguette.client.install:
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/start-agents.yml
     WINDOWS:
       - file:${EMS_CONFIG_DIR}/baguette-client-install/win/win.json
+    VM_LINUX: *install_on_linux
     DIAGNOSTICS_LINUX:
       - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/detect.yml
 
