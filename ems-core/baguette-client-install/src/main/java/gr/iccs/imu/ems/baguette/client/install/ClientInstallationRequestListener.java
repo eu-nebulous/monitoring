@@ -48,7 +48,7 @@ public class ClientInstallationRequestListener implements InitializingBean {
     private final BaguetteServer baguetteServer;
     private final ObjectMapper objectMapper;
 
-    private Map<String,List<InstructionsSet>> diagnosticsInstructionSetMap;
+    private Map<String,List<InstructionsSet>> instructionsSetMap;
 
     @Override
     public void afterPropertiesSet() throws JMSException {
@@ -57,30 +57,31 @@ public class ClientInstallationRequestListener implements InitializingBean {
     }
 
     private void initializeInstructionSet() {
-        Map<String, List<String>> diagnosticsConfig = properties.getInstructions().entrySet().stream()
-                .filter(entry -> entry.getKey() != null).filter(entry -> entry.getKey().contains("DIAGNOSTICS"))
+        Map<String, List<String>> instructionsSetConfig = properties.getInstructions().entrySet().stream()
+                .filter(entry -> entry.getKey() != null)
+                .filter(entry -> entry.getKey().contains("_"))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        log.debug("InstallationEventListener: DIAGNOSTICS instruction sets configuration: {}", diagnosticsConfig);
-        if (diagnosticsConfig.isEmpty())
-            log.warn("InstallationEventListener: No DIAGNOSTICS instruction sets found");
+        log.debug("InstallationEventListener: Instructions sets configuration: {}", instructionsSetConfig);
+        if (instructionsSetConfig.isEmpty())
+            log.warn("InstallationEventListener: No instructions sets found");
 
-        diagnosticsInstructionSetMap = new HashMap<>();
-        diagnosticsConfig.forEach((name, value) -> {
+        instructionsSetMap = new HashMap<>();
+        instructionsSetConfig.forEach((name, value) -> {
             if (value == null || value.isEmpty()) {
-                log.warn("InstallationEventListener: DIAGNOSTICS instruction set is empty: {}", name);
+                log.warn("InstallationEventListener: Instructions sets map is empty: {}", name);
             } else {
                 try {
                     for (String fileName : value) {
                         if (StringUtils.isBlank(fileName)) continue;
                         InstructionsSet instructionsSet = instructionsService.loadInstructionsFile(fileName);
-                        diagnosticsInstructionSetMap.computeIfAbsent(name, k -> new ArrayList<>()).add(instructionsSet);
+                        instructionsSetMap.computeIfAbsent(name, k -> new ArrayList<>()).add(instructionsSet);
                     }
                 } catch (Exception e) {
-                    log.error("InstallationEventListener: ERROR: while loading DIAGNOSTICS instruction set: {}", name);
+                    log.error("InstallationEventListener: ERROR: while loading instructions set: {}", name);
                 }
             }
         });
-        log.debug("InstallationEventListener: DIAGNOSTICS instruction sets: {}", diagnosticsInstructionSetMap);
+        log.debug("InstallationEventListener: Instructions sets loaded: {}", instructionsSetMap);
     }
 
     private void connectToBroker() throws JMSException {
@@ -100,25 +101,44 @@ public class ClientInstallationRequestListener implements InitializingBean {
 
     private MessageListener getMessageListener() {
         return message -> {
+            String requestId = null;
             try {
                 // Extract request from JMS message
                 Map<String, String> request = extractRequest(message);
                 log.debug("InstallationEventListener: Got a client installation request: {}", request);
-                if (request==null) return;
+                if (request==null)
+                    throw new IllegalArgumentException("Could not extract request data");
+                requestId = request.get("requestId").trim();
+
+                // Check incoming request
+                List<String> errors = new ArrayList<>();
+                if (StringUtils.isBlank(request.get("requestId"))) errors.add("requestId");
+                if (StringUtils.isBlank(request.get("requestType"))) errors.add("requestType");
+                if (StringUtils.isBlank(request.get("deviceOs"))) errors.add("deviceOs");
+                if (StringUtils.isBlank(request.get("deviceIpAddress"))) errors.add("deviceIpAddress");
+                if (StringUtils.isBlank(request.get("deviceUsername"))) errors.add("deviceUsername");
+                if (StringUtils.isBlank(request.get("devicePassword")) && StringUtils.isBlank(request.get("devicePublicKey")))
+                    errors.add("Both devicePublicKey and devicePublicKey");
+                if (! errors.isEmpty()) {
+                    String errorMessage = "Missing fields: " + errors.stream().collect(Collectors.joining(", "));
+                    throw new IllegalArgumentException(errorMessage);
+                }
 
                 // Get instructions set for device
-                String diagnosticsForOs = "DIAGNOSTICS_" + request.get("deviceOs").trim().toUpperCase();
-                List<InstructionsSet> instructionsSetsList = diagnosticsInstructionSetMap.get(diagnosticsForOs);
-                log.debug("InstallationEventListener: diagnosticsForOs={}, instructionsSetsList={}", diagnosticsForOs, instructionsSetsList);
+                String instructionsSetsName = request.get("requestType").trim().toUpperCase() +
+                        "_" + request.get("deviceOs").trim().toUpperCase();
+                List<InstructionsSet> instructionsSetsList = instructionsSetMap.get(instructionsSetsName);
+                log.debug("InstallationEventListener: instructionsSetsName={}, instructionsSetsList={}", instructionsSetsName, instructionsSetsList);
                 if (instructionsSetsList==null || instructionsSetsList.isEmpty()) {
-                    log.warn("InstallationEventListener: No DIAGNOSTICS instructions set found for device: {}", diagnosticsForOs);
+                    log.warn("InstallationEventListener: No instructions sets found for request: id={}, instructionsSetsName={}",
+                            request.get("requestId"), instructionsSetsName);
                     return;
                 }
 
                 // Create client installation task
                 ClientInstallationTask newTask = ClientInstallationTask.builder()
-                        .type("DIAGNOSTICS")
                         .id(request.get("requestId"))
+                        .type(request.get("requestType"))
                         .nodeId(request.get("deviceId"))
                         .name(request.get("deviceName"))
                         .os(request.get("deviceOs"))
@@ -140,6 +160,14 @@ public class ClientInstallationRequestListener implements InitializingBean {
 
             } catch (Throwable e) {
                 log.error("InstallationEventListener: ERROR: ", e);
+                try {
+                    if (StringUtils.isNotBlank(requestId))
+                        clientInstaller.sendClientInstallationReport(requestId, "ERROR: "+e.getMessage());
+                    else
+                        clientInstaller.sendClientInstallationReport("UNKNOWN-REQUEST-ID", "ERROR: "+e.getMessage()+"\n"+message);
+                } catch (Throwable t) {
+                    log.info("InstallationEventListener: EXCEPTION while sending Client installation report for incoming request: request={}, Exception: ", message, t);
+                }
             }
         };
     }

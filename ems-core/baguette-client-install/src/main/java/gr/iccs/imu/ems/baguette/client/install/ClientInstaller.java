@@ -16,12 +16,15 @@ import gr.iccs.imu.ems.common.plugin.PluginManager;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.jms.JMSException;
 import javax.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -64,27 +67,30 @@ public class ClientInstaller implements InitializingBean {
     public void addTask(@NotNull ClientInstallationTask task) {
         executorService.submit(() -> {
             long taskCnt = taskCounter.getAndIncrement();
+            String resultStr = "";
+            String errorStr = "";
+
+            // Execute task
             try {
-                // Execute task
                 log.info("ClientInstaller: Executing Client installation Task #{}: task-id={}, node-id={}, name={}, type={}, address={}",
                         taskCnt, task.getId(), task.getNodeId(), task.getName(), task.getType(), task.getAddress());
                 long startTm = System.currentTimeMillis();
                 boolean result = executeTask(task, taskCnt);
                 long endTm = System.currentTimeMillis();
-                String resultStr = result ? "SUCCESS" : "FAILED";
+                resultStr = result ? "SUCCESS" : "FAILED";
                 log.info("ClientInstaller: Client installation Task #{}: result={}, duration={}ms",
                         taskCnt, resultStr, endTm - startTm);
-
-                // Send execution report to local broker
-                log.trace("ClientInstaller: Preparing execution report event for Task #{}: result={}, task={}", taskCnt, resultStr, task);
-                LinkedHashMap<String, Object> executionReport = new LinkedHashMap<>(
-                        createReportEventFromExecutionResults(taskCnt, task, result));
-                log.info("ClientInstaller: Sending execution report for Task #{}: destination={}, report={}",
-                        taskCnt, properties.getClientInstallationReportsTopic(), executionReport);
-                brokerCepService.publishSerializable(
-                        null, properties.getClientInstallationReportsTopic(), executionReport, true);
             } catch (Throwable t) {
                 log.info("ClientInstaller: Exception caught in Client installation Task #{}: Exception: ", taskCnt, t);
+                errorStr = t.getMessage();
+            }
+
+            // Send execution report to local broker
+            try {
+                resultStr = StringUtils.defaultIfBlank(resultStr, "ERROR: " + errorStr);
+                sendClientInstallationReport(taskCnt, task, resultStr);
+            } catch (Throwable t) {
+                log.info("ClientInstaller: Exception caught while sending Client installation report for Task #{}: Exception: ", taskCnt, t);
             }
         });
     }
@@ -179,8 +185,27 @@ public class ClientInstaller implements InitializingBean {
         return result;
     }
 
-    public Map<String, Object> createReportEventFromExecutionResults(long taskCnt, @NonNull ClientInstallationTask task, boolean result) {
-        String resultStr = result ? "SUCCESS" : "FAILED";
+    public void sendClientInstallationReport(long taskCnt, @NonNull ClientInstallationTask task, String resultStr) throws JMSException {
+        log.trace("ClientInstaller: Preparing execution report event for Task #{}: result={}, task={}", taskCnt, resultStr, task);
+        LinkedHashMap<String, Object> executionReport = new LinkedHashMap<>(
+                createReportEventFromExecutionResults(taskCnt, task, resultStr));
+        log.info("ClientInstaller: Sending execution report for Task #{}: destination={}, report={}",
+                taskCnt, properties.getClientInstallationReportsTopic(), executionReport);
+        brokerCepService.publishSerializable(
+                null, properties.getClientInstallationReportsTopic(), executionReport, true);
+    }
+
+    public void sendClientInstallationReport(String requestId, String resultStr) throws JMSException {
+        log.trace("ClientInstaller: Preparing execution report event for request: result={}, requestId={}", resultStr, requestId);
+        LinkedHashMap<String, Object> executionReport = new LinkedHashMap<>(
+                createReportEvent(requestId, resultStr, Collections.emptyMap()));
+        log.info("ClientInstaller: Sending execution report for request: destination={}, report={}",
+                properties.getClientInstallationReportsTopic(), executionReport);
+        brokerCepService.publishSerializable(
+                null, properties.getClientInstallationReportsTopic(), executionReport, true);
+    }
+
+    private Map<String, Object> createReportEventFromExecutionResults(long taskCnt, @NonNull ClientInstallationTask task, String resultStr) {
         Map<String, String> data = task.getNodeRegistryEntry().getPreregistration();
         log.trace("ClientInstaller: createReportEventFromExecutionResults: Task #{}: Execution data:\n{}", taskCnt, data);
         Map<String, Object> nodeInfoMap = new LinkedHashMap<>();
@@ -192,9 +217,13 @@ public class ClientInstaller implements InitializingBean {
                     .forEach(key -> nodeInfoMap.put(key, data.get(key)));
         });
         log.debug("ClientInstaller: createReportEventFromExecutionResults: Task #{}: Node info collected: {}", taskCnt, nodeInfoMap);
+        return createReportEvent(task.getId(), resultStr, nodeInfoMap);
+    }
+
+    private static Map<String, Object> createReportEvent(@NonNull String requestId, @NonNull String statusStr, Map<String, Object> nodeInfoMap) {
         return Map.of(
-                "requestId", task.getId(),
-                "status", resultStr,
+                "requestId", requestId,
+                "status", statusStr,
                 "nodeInfo", nodeInfoMap,
                 "timestamp", Instant.now().toEpochMilli()
         );

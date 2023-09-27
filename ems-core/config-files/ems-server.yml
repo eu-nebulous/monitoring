@@ -599,10 +599,10 @@ baguette.client.install:
 
   clientInstallationReportNodeInfoPatterns:
     - '^CPU_.+($|[\s:=])'
-#    - '^RAM_.+($|[\s:=])'
-#    - '^DISK_.+($|[\s:=])'
-    - '^RAM_TOTAL_KB($|[\s:=])'
-    - '^DISK_TOTAL_KB($|[\s:=])'
+    - '^RAM_.+($|[\s:=])'
+    - '^DISK_.+($|[\s:=])'
+#    - '^RAM_TOTAL_KB($|[\s:=])'
+#    - '^DISK_TOTAL_KB($|[\s:=])'
     - '^OS_.+($|[\s:=])'
 
 ### Server-side Self-Healing. Recovers monitoring functionality of registered nodes (i.e. EMS client and/or Netdata agent)

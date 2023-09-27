@@ -549,8 +549,8 @@ baguette.client.install.installationContextProcessorPlugins=\
     plugin.install.gr.iccs.imu.ems.baguette.client.PrometheusProcessorPlugin
 
 baguette.client.install.clientInstallationReportNodeInfoPatterns[0] = ^CPU_.+($|[\s:=])
-baguette.client.install.clientInstallationReportNodeInfoPatterns[1] = ^RAM_TOTAL_KB($|[\s:=])
-baguette.client.install.clientInstallationReportNodeInfoPatterns[2] = ^DISK_TOTAL_KB($|[\s:=])
+baguette.client.install.clientInstallationReportNodeInfoPatterns[1] = ^RAM_($|[\s:=])
+baguette.client.install.clientInstallationReportNodeInfoPatterns[2] = ^DISK_($|[\s:=])
 baguette.client.install.clientInstallationReportNodeInfoPatterns[3] = ^OS_.+($|[\s:=])
 
 ### Server-side Self-Healing. Recovers monitoring functionality of registered nodes (i.e. EMS client and/or Netdata agent)
