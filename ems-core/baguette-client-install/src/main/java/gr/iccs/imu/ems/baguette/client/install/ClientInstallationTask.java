@@ -25,6 +25,7 @@ import java.util.List;
 public class ClientInstallationTask {
     private final String id;
     private final String nodeId;
+    private final String requestId;
     private final String name;
     private final String os;
     private final String address;
@@ -34,4 +35,5 @@ public class ClientInstallationTask {
     private final NodeRegistryEntry nodeRegistryEntry;
     private final List<InstructionsSet> instructionSets;
     private final TranslationContext translationContext;
+    private boolean nodeMustBeInRegistry = true;
 }

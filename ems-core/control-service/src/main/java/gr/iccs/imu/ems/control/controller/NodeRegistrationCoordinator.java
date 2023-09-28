@@ -26,6 +26,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -80,13 +81,23 @@ public class NodeRegistrationCoordinator implements InitializingBean {
     // ------------------------------------------------------------------------------------------------------------
 
     public String registerNode(HttpServletRequest request, Map<String,Object> nodeMap, TranslationContext translationContext) throws Exception {
-        // Pre-process node data passed from SAL (before registering node)
-        Map<String, String> nodeMapFlattened = StrUtil.deepFlattenMap(nodeMap);
-        log.trace("NodeRegistrationCoordinator.registerNode(): Flattened node info map: \n{}", nodeMapFlattened);
-
         // Get web server base URL
         String baseUrl = calculateBaseUrl(request);
         log.debug("NodeRegistrationCoordinator.registerNode(): baseUrl={}", baseUrl);
+
+        return registerNode(baseUrl, nodeMap, translationContext);
+    }
+
+    public String registerNode(String baseUrl, Map<String,Object> nodeMap, TranslationContext translationContext) throws Exception {
+        // Pre-process node data passed from SAL (before registering node)
+        Map<String, String> nodeMapFlattened = StrUtil.deepFlattenMap(nodeMap);
+        log.trace("NodeRegistrationCoordinator.registerNode(): Flattened node info map: {}", nodeMapFlattened);
+
+        // Try to guess base URL
+        if (StringUtils.isBlank(baseUrl)) {
+            baseUrl = guessBaseUrl();
+            log.debug("NodeRegistrationCoordinator.registerNode(): Guessed baseUrl={}", baseUrl);
+        }
 
         // Update node registration info with OS name, BASE_URL, IP_SETTING, and CLIENT_ID
         updateRegistrationInfo(nodeMapFlattened, baseUrl);
@@ -136,18 +147,49 @@ public class NodeRegistrationCoordinator implements InitializingBean {
                 : NetUtil.getPublicIpAddress();
     }
 
-    public String calculateBaseUrl(HttpServletRequest request) {
+    private String getStaticResourcePath() {
         String staticResourceContext = staticResourceProperties.getResourceContext();
         staticResourceContext =  StringUtils.substringBeforeLast(staticResourceContext,"/**");
         staticResourceContext =  StringUtils.substringBeforeLast(staticResourceContext,"/*");
         if (!staticResourceContext.startsWith("/")) staticResourceContext = "/"+staticResourceContext;
+        return staticResourceContext;
+    }
+
+    public String calculateBaseUrl(HttpServletRequest request) {
+        String staticResourceContext = getStaticResourcePath();
         /*String baseUrl =
                 request.getScheme()+"://"+ coordinator.getServerIpAddress() +":"+request.getServerPort()+staticResourceContext;*/
-        String baseUrl = ServletUriComponentsBuilder.fromRequestUri(request)
+        return ServletUriComponentsBuilder.fromRequestUri(request)
                 .host(getServerIpAddress())
                 .replacePath(staticResourceContext)
                 .build().toUriString();
+    }
+
+    @Value("${server.ssl.enabled}")
+    private boolean serverSslEnabled;
+    @Value("${server.ssl.key-store}")
+    private String serverSslKeystore;
+    @Value("${server.ssl.key-alias}")
+    private String serverSslKeyAlias;
+    @Value("${server.port:8080}")
+    private int serverPort;
+
+    public String guessBaseUrl() {
+        String staticResourceContext = getStaticResourcePath();
+        log.trace("NodeRegistrationCoordinator.guessBaseUrl: Server: port={}, context={} -- SSL enabled={}, keystore={}, alias={}",
+                serverPort, staticResourceContext, serverSslEnabled, serverSslKeystore, serverSslKeyAlias);
+        String baseUrl = ServletUriComponentsBuilder.newInstance()
+                .scheme( isSecure() ? "https" : "http" )
+                .host(getServerIpAddress())
+                .port(serverPort)
+                .path(staticResourceContext)
+                .build().toString();
+        log.trace("NodeRegistrationCoordinator.guessBaseUrl: baseUrl={}", baseUrl);
         return baseUrl;
+    }
+
+    private boolean isSecure() {
+        return StringUtils.isNoneBlank(serverSslKeystore, serverSslKeyAlias);
     }
 
     // Retained for backward compatibility with Cloudiator
@@ -171,8 +213,7 @@ public class NodeRegistrationCoordinator implements InitializingBean {
         return json;
     }
 
-    public String createClientInstallationTask(NodeRegistryEntry entry, TranslationContext translationContext
-    ) throws Exception {
+    public String createClientInstallationTask(NodeRegistryEntry entry, TranslationContext translationContext) throws Exception {
         //log.info("ControlServiceController.baguetteRegisterNodeForProactive(): INPUT: node-map: {}", nodeMap);
 
         ClientInstallationTask installationTask = InstallationHelperFactory.getInstance()

@@ -65,6 +65,7 @@ public class VmInstallationHelper extends AbstractInstallationHelper {
         String baseUrl = nodeMap.get("BASE_URL");
         String clientId = nodeMap.get("CLIENT_ID");
         String ipSetting = nodeMap.get("IP_SETTING");
+        String requestId = nodeMap.get("requestId");
 
         // Extract node identification and type information
         String nodeId = nodeMap.get("id");
@@ -102,6 +103,7 @@ public class VmInstallationHelper extends AbstractInstallationHelper {
         ClientInstallationTask installationTask = ClientInstallationTask.builder()
                 .id(clientId)
                 .nodeId(nodeId)
+                .requestId(requestId)
                 .name(nodeName)
                 .os(nodeOs)
                 .address(nodeAddress)

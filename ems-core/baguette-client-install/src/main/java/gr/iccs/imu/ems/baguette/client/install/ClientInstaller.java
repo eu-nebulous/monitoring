@@ -112,9 +112,14 @@ public class ClientInstaller implements InitializingBean {
 
     private boolean executeVmOrBaremetalTask(ClientInstallationTask task, long taskCounter) {
         NodeRegistryEntry entry = baguetteServer.getNodeRegistry().getNodeByAddress(task.getAddress());
-        if (entry==null)
+        if (task.isNodeMustBeInRegistry() && entry==null)
             throw new IllegalStateException("Node entry has been removed from Node Registry before installation: Node IP address: "+ task.getAddress());
         //baguetteServer.handleNodeSituation(task.getAddress(), INTERNAL_ERROR);
+
+        // ClientInstallationRequestListener submits tasks without pre-registered nodes
+        if (! task.isNodeMustBeInRegistry())
+            entry = task.getNodeRegistryEntry();
+
         entry.nodeInstalling(task);
 
         // Call InstallationContextPlugin's before installation
@@ -217,7 +222,8 @@ public class ClientInstaller implements InitializingBean {
                     .forEach(key -> nodeInfoMap.put(key, data.get(key)));
         });
         log.debug("ClientInstaller: createReportEventFromExecutionResults: Task #{}: Node info collected: {}", taskCnt, nodeInfoMap);
-        return createReportEvent(task.getId(), resultStr, nodeInfoMap);
+        String requestId = StringUtils.defaultIfBlank(task.getRequestId(), task.getId());
+        return createReportEvent(requestId, resultStr, nodeInfoMap);
     }
 
     private static Map<String, Object> createReportEvent(@NonNull String requestId, @NonNull String statusStr, Map<String, Object> nodeInfoMap) {

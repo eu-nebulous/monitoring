@@ -16,6 +16,7 @@ import gr.iccs.imu.ems.baguette.server.NodeRegistryEntry;
 import gr.iccs.imu.ems.util.KeystoreUtil;
 import gr.iccs.imu.ems.util.PasswordUtil;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -44,9 +45,10 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public abstract class AbstractInstallationHelper implements InitializingBean, ApplicationListener<WebServerInitializedEvent>, InstallationHelper {
+    protected final static String LINUX_OS_FAMILY = "LINUX";
+    protected final static String WINDOWS_OS_FAMILY = "WINDOWS";
+
     protected static AbstractInstallationHelper instance = null;
-    protected static List<String> LINUX_OS_FAMILIES;
-    protected static List<String> WINDOWS_OS_FAMILIES;
 
     @Autowired
     @Getter @Setter
@@ -66,8 +68,6 @@ public abstract class AbstractInstallationHelper implements InitializingBean, Ap
     public void afterPropertiesSet() {
         log.debug("AbstractInstallationHelper.afterPropertiesSet(): class={}: configuration: {}", getClass().getName(), properties);
         AbstractInstallationHelper.instance = this;
-        LINUX_OS_FAMILIES = properties.getOsFamilies().get("LINUX");
-        WINDOWS_OS_FAMILIES = properties.getOsFamilies().get("WINDOWS");
     }
 
     @Override
@@ -233,13 +233,21 @@ public abstract class AbstractInstallationHelper implements InitializingBean, Ap
 
         String osFamily = entry.getPreregistration().get("operatingSystem");
         List<InstructionsSet> instructionsSetList = null;
-        if (LINUX_OS_FAMILIES.contains(osFamily.toUpperCase()))
+        if (matchesOsFamily(osFamily, LINUX_OS_FAMILY))
             instructionsSetList = prepareInstallationInstructionsForLinux(entry);
-        else if (WINDOWS_OS_FAMILIES.contains(osFamily.toUpperCase()))
+        else if (matchesOsFamily(osFamily, WINDOWS_OS_FAMILY))
             instructionsSetList = prepareInstallationInstructionsForWin(entry);
         else
             log.warn("AbstractInstallationHelper.prepareInstallationInstructionsForOs(): Unsupported OS family: {}", osFamily);
         return instructionsSetList;
+    }
+
+    public boolean matchesOsFamily(@NonNull String lookup, @NonNull String osFamily) {
+        lookup = lookup.trim().toUpperCase();
+        List<String> familyList = properties.getOsFamilies().get(osFamily);
+        if (familyList!=null && !familyList.isEmpty() && osFamily.equals(lookup))
+            return true;
+        return familyList != null && familyList.contains(lookup);
     }
 
     protected InstructionsSet _appendCopyInstructions(
