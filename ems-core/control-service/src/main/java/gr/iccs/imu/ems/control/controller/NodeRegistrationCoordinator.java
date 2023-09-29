@@ -26,7 +26,8 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.web.ServerProperties;
+import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -45,6 +46,10 @@ public class NodeRegistrationCoordinator implements InitializingBean {
     private final BaguetteServer baguetteServer;
     private final StaticResourceProperties staticResourceProperties;
     private final AtomicBoolean inUse = new AtomicBoolean();
+
+    // Used for retrieving server port and SSL settings
+    private final ServerProperties serverProperties;
+    private final ServletWebServerApplicationContext webServerAppCtxt;
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -165,31 +170,22 @@ public class NodeRegistrationCoordinator implements InitializingBean {
                 .build().toUriString();
     }
 
-    @Value("${server.ssl.enabled}")
-    private boolean serverSslEnabled;
-    @Value("${server.ssl.key-store}")
-    private String serverSslKeystore;
-    @Value("${server.ssl.key-alias}")
-    private String serverSslKeyAlias;
-    @Value("${server.port:8080}")
-    private int serverPort;
-
     public String guessBaseUrl() {
+        int serverPort = webServerAppCtxt.getWebServer().getPort();
         String staticResourceContext = getStaticResourcePath();
+        boolean serverSslEnabled = serverProperties.getSsl().isEnabled();
+        String serverSslKeystore = serverProperties.getSsl().getKeyStore();
+        String serverSslKeyAlias = serverProperties.getSsl().getKeyAlias();
         log.trace("NodeRegistrationCoordinator.guessBaseUrl: Server: port={}, context={} -- SSL enabled={}, keystore={}, alias={}",
                 serverPort, staticResourceContext, serverSslEnabled, serverSslKeystore, serverSslKeyAlias);
         String baseUrl = ServletUriComponentsBuilder.newInstance()
-                .scheme( isSecure() ? "https" : "http" )
+                .scheme( serverSslEnabled ? "https" : "http" )
                 .host(getServerIpAddress())
                 .port(serverPort)
                 .path(staticResourceContext)
                 .build().toString();
         log.trace("NodeRegistrationCoordinator.guessBaseUrl: baseUrl={}", baseUrl);
         return baseUrl;
-    }
-
-    private boolean isSecure() {
-        return StringUtils.isNoneBlank(serverSslKeystore, serverSslKeyAlias);
     }
 
     // Retained for backward compatibility with Cloudiator
