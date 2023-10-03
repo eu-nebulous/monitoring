@@ -66,8 +66,14 @@ public class NodeRegistrationController {
         log.info("NodeRegistrationController.baguetteRegisterNode(): node-id: {}", nodeId);
         log.debug("NodeRegistrationController.baguetteRegisterNode(): Node information: map={}", nodeMap);
 
-        String response = nodeRegistrationCoordinator.registerNode(request, nodeMap,
-                coordinator.getTranslationContextOfAppModel(coordinator.getCurrentAppModelId()));
+        String response;
+        try {
+            response = nodeRegistrationCoordinator.registerNode(request, nodeMap,
+                    coordinator.getTranslationContextOfAppModel(coordinator.getCurrentAppModelId()));
+        } catch (Exception e) {
+            log.error("NodeRegistrationController.baguetteRegisterNode(): EXCEPTION while registering node: map={}\n", nodeMap, e);
+            response = "ERROR "+e.getMessage();
+        }
 
         log.info("NodeRegistrationController.baguetteRegisterNode(): Node registered: node-id: {}", nodeId);
         log.debug("NodeRegistrationController.baguetteRegisterNode(): node: {}, json: {}", nodeId, response);

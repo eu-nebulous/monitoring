@@ -137,9 +137,9 @@ public class ClientInstallationRequestListener implements InitializingBean {
                 log.error("InstallationEventListener: ERROR: ", e);
                 try {
                     if (StringUtils.isNotBlank(requestId))
-                        clientInstaller.sendClientInstallationReport(requestId, "ERROR: "+e.getMessage());
+                        clientInstaller.sendErrorClientInstallationReport(requestId, "ERROR: "+e.getMessage());
                     else
-                        clientInstaller.sendClientInstallationReport("UNKNOWN-REQUEST-ID", "ERROR: "+e.getMessage()+"\n"+message);
+                        clientInstaller.sendErrorClientInstallationReport("UNKNOWN-REQUEST-ID", "ERROR: "+e.getMessage()+"\n"+message);
                 } catch (Throwable t) {
                     log.info("InstallationEventListener: EXCEPTION while sending Client installation report for incoming request: request={}, Exception: ", message, t);
                 }
@@ -209,11 +209,20 @@ public class ClientInstallationRequestListener implements InitializingBean {
     }
 
     private void processOnboardingRequest(Map<String,String> request) throws Exception {
-        String requestId = request.get("requestId").trim();
+        String requestId = request.getOrDefault("requestId", "").trim();
         log.info("InstallationEventListener: New node ONBOARDING request with Id: {}", requestId);
+        if (StringUtils.isBlank(requestId)) {
+            clientInstaller.sendErrorClientInstallationReport("MISSING-REQUEST-ID", "INVALID REQUEST. MISSING REQUEST ID");
+            return;
+        }
 
-        log.debug("InstallationEventListener: Registering node due to ONBOARDING request with Id: {}", requestId);
-        nodeRegistration.registerNode(null, convertToNodeInfoMap(request), new TranslationContext(requestId));
+        try {
+            log.debug("InstallationEventListener: Registering node due to ONBOARDING request with Id: {}", requestId);
+            nodeRegistration.registerNode(null, convertToNodeInfoMap(request), new TranslationContext(requestId));
+        } catch (Exception e) {
+            log.warn("InstallationEventListener: EXCEPTION while executing ONBOARDING request with Id: {}\n", requestId, e);
+            clientInstaller.sendErrorClientInstallationReport(requestId, "ERROR: "+e.getMessage());
+        }
     }
 
     private Map<String, Object> convertToNodeInfoMap(Map<String, String> request) {

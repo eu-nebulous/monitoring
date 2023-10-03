@@ -27,6 +27,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
@@ -88,9 +89,9 @@ public class ClientInstaller implements InitializingBean {
             // Send execution report to local broker
             try {
                 resultStr = StringUtils.defaultIfBlank(resultStr, "ERROR: " + errorStr);
-                sendClientInstallationReport(taskCnt, task, resultStr);
+                sendSuccessClientInstallationReport(taskCnt, task, resultStr);
             } catch (Throwable t) {
-                log.info("ClientInstaller: Exception caught while sending Client installation report for Task #{}: Exception: ", taskCnt, t);
+                log.info("ClientInstaller: EXCEPTION while sending Client installation report for Task #{}: Exception: ", taskCnt, t);
             }
         });
     }
@@ -190,21 +191,21 @@ public class ClientInstaller implements InitializingBean {
         return result;
     }
 
-    public void sendClientInstallationReport(long taskCnt, @NonNull ClientInstallationTask task, String resultStr) throws JMSException {
-        log.trace("ClientInstaller: Preparing execution report event for Task #{}: result={}, task={}", taskCnt, resultStr, task);
+    public void sendSuccessClientInstallationReport(long taskCnt, @NonNull ClientInstallationTask task, String resultStr) throws JMSException {
+        log.trace("ClientInstaller: Preparing SUCCESS execution report event for Task #{}: result={}, task={}", taskCnt, resultStr, task);
         LinkedHashMap<String, Object> executionReport = new LinkedHashMap<>(
                 createReportEventFromExecutionResults(taskCnt, task, resultStr));
-        log.info("ClientInstaller: Sending execution report for Task #{}: destination={}, report={}",
+        log.info("ClientInstaller: Sending SUCCESS execution report for Task #{}: destination={}, report={}",
                 taskCnt, properties.getClientInstallationReportsTopic(), executionReport);
         brokerCepService.publishSerializable(
                 null, properties.getClientInstallationReportsTopic(), executionReport, true);
     }
 
-    public void sendClientInstallationReport(String requestId, String resultStr) throws JMSException {
-        log.trace("ClientInstaller: Preparing execution report event for request: result={}, requestId={}", resultStr, requestId);
+    public void sendErrorClientInstallationReport(String requestId, String resultStr) throws JMSException {
+        log.trace("ClientInstaller: Preparing ERROR execution report event for request: result={}, requestId={}", resultStr, requestId);
         LinkedHashMap<String, Object> executionReport = new LinkedHashMap<>(
-                createReportEvent(requestId, resultStr, Collections.emptyMap()));
-        log.info("ClientInstaller: Sending execution report for request: destination={}, report={}",
+                createReportEvent(requestId, null, resultStr, Collections.emptyMap()));
+        log.info("ClientInstaller: Sending ERROR execution report for request: destination={}, report={}",
                 properties.getClientInstallationReportsTopic(), executionReport);
         brokerCepService.publishSerializable(
                 null, properties.getClientInstallationReportsTopic(), executionReport, true);
@@ -223,14 +224,19 @@ public class ClientInstaller implements InitializingBean {
         });
         log.debug("ClientInstaller: createReportEventFromExecutionResults: Task #{}: Node info collected: {}", taskCnt, nodeInfoMap);
         String requestId = StringUtils.defaultIfBlank(task.getRequestId(), task.getId());
-        return createReportEvent(requestId, resultStr, nodeInfoMap);
+        return createReportEvent(requestId, task.getNodeRegistryEntry().getReference(), resultStr, nodeInfoMap);
     }
 
-    private static Map<String, Object> createReportEvent(@NonNull String requestId, @NonNull String statusStr, Map<String, Object> nodeInfoMap) {
+    private static Map<String, Object> createReportEvent(@NonNull String requestId,
+                                                         String reference,
+                                                         @NonNull String statusStr,
+                                                         Map<String, Object> nodeInfoMap)
+    {
         return Map.of(
                 "requestId", requestId,
+                "reference", Objects.requireNonNullElse(reference, ""),
                 "status", statusStr,
-                "nodeInfo", nodeInfoMap,
+                "nodeInfo", nodeInfoMap!=null ? nodeInfoMap : Collections.emptyMap(),
                 "timestamp", Instant.now().toEpochMilli()
         );
     }

@@ -114,7 +114,8 @@ public class NodeRegistrationCoordinator implements InitializingBean {
             entry = baguetteServer.registerClient(nodeMapFlattened);
         } catch (Exception e) {
             log.error("NodeRegistrationCoordinator.registerNode(): EXCEPTION while registering node: map={}\n", nodeMap, e);
-            return "ERROR "+e.getMessage();
+            //return "ERROR "+e.getMessage();
+            throw e;
         }
 
         // Continue processing according to ExecutionWare type
