@@ -560,6 +560,8 @@ baguette.client.install:
     VM_LINUX: *install_on_linux
     DIAGNOSTICS_LINUX:
       - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/detect.yml
+    REMOVE_LINUX:
+      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/stop-agents.yml
 
   continueOnFail: true
   sessionRecordingDir: ${LOGS_DIR:${EMS_CONFIG_DIR}/../logs}
