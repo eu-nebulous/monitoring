@@ -130,6 +130,7 @@ public class ClientInstallationRequestListener implements InitializingBean {
                 switch (requestType) {
                     case "DIAGNOSTICS" -> processDiagnosticsRequest(request);
                     case "VM" -> processOnboardingRequest(request);
+                    case "REMOVE" -> processRemoveRequest(request);
                     default -> throw new IllegalArgumentException("Unsupported request type: "+requestType);
                 };
 
@@ -174,6 +175,7 @@ public class ClientInstallationRequestListener implements InitializingBean {
         // Create client installation task
         ClientInstallationTask newTask = ClientInstallationTask.builder()
                 .id(request.get("requestId"))
+                .taskType(ClientInstallationTask.TASK_TYPE.DIAGNOSTIC)
                 .requestId(request.get("requestId"))
                 .type(request.get("requestType"))
                 .nodeId(request.get("deviceId"))
@@ -264,5 +266,27 @@ public class ClientInstallationRequestListener implements InitializingBean {
         ));
         log.trace("InstallationEventListener.convertToNodeInfoMap(): END: nodeMap: {}", nodeMap);
         return nodeMap;
+    }
+
+    private void processRemoveRequest(Map<String,String> request) throws Exception {
+        String requestId = request.getOrDefault("requestId", "").trim();
+        String nodeAddress = request.getOrDefault("deviceIpAddress", "").trim();
+        log.info("InstallationEventListener: New node REMOVE request with Id: {}, address={}", requestId, nodeAddress);
+        if (StringUtils.isBlank(requestId)) {
+            clientInstaller.sendErrorClientInstallationReport("MISSING-REQUEST-ID", "INVALID REQUEST. MISSING REQUEST ID");
+            return;
+        }
+        if (StringUtils.isBlank(nodeAddress)) {
+            clientInstaller.sendErrorClientInstallationReport(requestId, "INVALID REQUEST. MISSING IP ADDRESS");
+            return;
+        }
+
+        try {
+            log.debug("InstallationEventListener: Off-boarding node due to REMOVE request with Id: {}", requestId);
+            nodeRegistration.unregisterNode(nodeAddress, new TranslationContext(requestId));
+        } catch (Exception e) {
+            log.warn("InstallationEventListener: EXCEPTION while executing REMOVE request with Id: {}\n", requestId, e);
+            clientInstaller.sendErrorClientInstallationReport(requestId, "ERROR: "+e.getMessage());
+        }
     }
 }

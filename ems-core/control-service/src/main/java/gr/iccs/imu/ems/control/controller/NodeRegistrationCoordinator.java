@@ -12,15 +12,19 @@ package gr.iccs.imu.ems.control.controller;
 import gr.iccs.imu.ems.baguette.client.install.ClientInstallationTask;
 import gr.iccs.imu.ems.baguette.client.install.ClientInstaller;
 import gr.iccs.imu.ems.baguette.client.install.helper.InstallationHelperFactory;
+import gr.iccs.imu.ems.baguette.client.selfhealing.ClientRecoveryPlugin;
 import gr.iccs.imu.ems.baguette.server.BaguetteServer;
+import gr.iccs.imu.ems.baguette.server.ClientShellCommand;
 import gr.iccs.imu.ems.baguette.server.NodeRegistryEntry;
 import gr.iccs.imu.ems.control.properties.ControlServiceProperties;
 import gr.iccs.imu.ems.control.properties.StaticResourceProperties;
 import gr.iccs.imu.ems.translate.TranslationContext;
+import gr.iccs.imu.ems.util.EventBus;
 import gr.iccs.imu.ems.util.NetUtil;
 import gr.iccs.imu.ems.util.StrUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +39,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
@@ -50,6 +55,8 @@ public class NodeRegistrationCoordinator implements InitializingBean {
     // Used for retrieving server port and SSL settings
     private final ServerProperties serverProperties;
     private final ServletWebServerApplicationContext webServerAppCtxt;
+
+    private final EventBus<String,Object,Object> eventBus;
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -125,6 +132,60 @@ public class NodeRegistrationCoordinator implements InitializingBean {
             response = getClientInstallationInstructions(entry);
         } else {
             response = createClientInstallationTask(entry, translationContext);
+        }
+
+        return response;
+    }
+
+    public String unregisterNode(@NonNull String ipAddress, TranslationContext translationContext) throws Exception {
+        log.debug("NodeRegistrationCoordinator.unregisterNode(): BEGIN: ip-address={}", ipAddress);
+        if (StringUtils.isBlank(ipAddress)) {
+            log.error("NodeRegistrationCoordinator.unregisterNode(): Blank IP address provided");
+            throw new IllegalArgumentException("Blank IP address provided");
+        }
+
+        // Retrieve node entry from registry
+        NodeRegistryEntry entry = baguetteServer.getNodeRegistry().getNodeByAddress(ipAddress);
+        if (entry==null) {
+            log.error("NodeRegistrationCoordinator.unregisterNode(): Node not found in registry: address={}", ipAddress);
+            throw new IllegalArgumentException("Node not found in registry: address="+ipAddress);
+        }
+
+        // Set node state to REMOVING in order to prevent self-healing
+        entry.nodeRemoving(null);
+
+        // Signal self-healing plugin to cancel any pending recovery tasks
+        log.debug("NodeRegistrationCoordinator.unregisterNode(): Notifying Self-healing to remove any pending recovery tasks: address={}", ipAddress);
+        eventBus.send(ClientRecoveryPlugin.CLIENT_REMOVED_TOPIC, entry);
+
+        // Close CSC connection
+        ClientShellCommand csc = ClientShellCommand.getActiveByIpAddress(entry.getIpAddress());
+        if (csc!=null) {
+            log.info("NodeRegistrationCoordinator.unregisterNode(): Closing connection to EMS client: address={}", ipAddress);
+            csc.stop("REMOVING NODE");
+        } else
+            log.warn("NodeRegistrationCoordinator.unregisterNode(): CSC is null. Cannot close connection to EMS client. Probably connection has already closed: address={}", ipAddress);
+
+        // Continue processing according to ExecutionWare type
+        String response;
+        log.info("NodeRegistrationCoordinator.unregisterNode(): ExecutionWare: {}", properties.getExecutionware());
+        if (properties.getExecutionware()==ControlServiceProperties.ExecutionWare.CLOUDIATOR) {
+            response = "NOT SUPPORTED";
+        } else {
+            response = createClientUninstallTask(entry, translationContext, () -> {
+                // Unregister and Archive node
+                try {
+                    entry.nodeRemoved(null);
+                    baguetteServer.unregisterClient(entry);
+                    return "OK";
+                } catch (Exception e) {
+                    log.error("NodeRegistrationCoordinator.unregisterNode(): EXCEPTION while unregistering node: address={}, entry={}\n", ipAddress, entry, e);
+                    entry.nodeRemoveError(Map.of(
+                            "error", e.getMessage()
+                    ));
+                    return "ERROR " + e.getMessage();
+                }
+            });
         }
 
         return response;
@@ -211,13 +272,31 @@ public class NodeRegistrationCoordinator implements InitializingBean {
     }
 
     public String createClientInstallationTask(NodeRegistryEntry entry, TranslationContext translationContext) throws Exception {
-        //log.info("ControlServiceController.baguetteRegisterNodeForProactive(): INPUT: node-map: {}", nodeMap);
+        return createClientInstallationTask(entry, translationContext, null);
+    }
 
+    public String createClientInstallationTask(NodeRegistryEntry entry, TranslationContext translationContext, Callable<String> callback) throws Exception {
         ClientInstallationTask installationTask = InstallationHelperFactory.getInstance()
                 .createInstallationHelper(entry)
                 .createClientInstallationTask(entry, translationContext);
+        installationTask.setCallback(callback);
         ClientInstaller.instance().addTask(installationTask);
         log.debug("NodeRegistrationCoordinator.createClientInstallationTask(): New installation-task: {}", installationTask);
+
+        return "OK";
+    }
+
+    public String createClientUninstallTask(NodeRegistryEntry entry, TranslationContext translationContext) throws Exception {
+        return createClientUninstallTask(entry, translationContext, null);
+    }
+
+    public String createClientUninstallTask(NodeRegistryEntry entry, TranslationContext translationContext, Callable<String> callback) throws Exception {
+        ClientInstallationTask uninstallTask = InstallationHelperFactory.getInstance()
+                .createInstallationHelper(entry)
+                .createClientUninstallTask(entry, translationContext);
+        uninstallTask.setCallback(callback);
+        ClientInstaller.instance().addTask(uninstallTask);
+        log.debug("NodeRegistrationCoordinator.createClientUninstallTask(): New uninstall-task: {}", uninstallTask);
 
         return "OK";
     }

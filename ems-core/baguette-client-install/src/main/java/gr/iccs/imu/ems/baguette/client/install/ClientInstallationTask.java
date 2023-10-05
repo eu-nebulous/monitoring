@@ -16,6 +16,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.util.List;
+import java.util.concurrent.Callable;
 
 /**
  * Client installation task
@@ -23,17 +24,22 @@ import java.util.List;
 @Data
 @Builder
 public class ClientInstallationTask {
+    public enum TASK_TYPE { INSTALL, UNINSTALL, DIAGNOSTIC, OTHER }
+
     private final String id;
+    private final TASK_TYPE taskType;
     private final String nodeId;
     private final String requestId;
     private final String name;
     private final String os;
     private final String address;
-    private final String type;
+    private final String type;          // Node type (VM, baremetal etc)
     private final String provider;
     private final SshConfig ssh;
     private final NodeRegistryEntry nodeRegistryEntry;
     private final List<InstructionsSet> instructionSets;
     private final TranslationContext translationContext;
     private boolean nodeMustBeInRegistry = true;
+
+    private Callable<String> callback;
 }

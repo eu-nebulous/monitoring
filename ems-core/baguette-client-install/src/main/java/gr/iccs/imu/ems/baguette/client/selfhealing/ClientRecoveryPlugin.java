@@ -48,8 +48,9 @@ public class ClientRecoveryPlugin implements InitializingBean, EventBus.EventCon
     private long clientRecoveryDelay;
     private String recoveryInstructionsFile;
 
-    private final static String CLIENT_EXIT_TOPIC = "BAGUETTE_SERVER_CLIENT_EXITED";
-    private final static String CLIENT_REGISTERED_TOPIC = "BAGUETTE_SERVER_CLIENT_REGISTERED";
+    public final static String CLIENT_EXIT_TOPIC = "BAGUETTE_SERVER_CLIENT_EXITED";
+    public final static String CLIENT_REGISTERED_TOPIC = "BAGUETTE_SERVER_CLIENT_REGISTERED";
+    public final static String CLIENT_REMOVED_TOPIC = "BAGUETTE_SERVER_CLIENT_REMOVED";
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -61,6 +62,8 @@ public class ClientRecoveryPlugin implements InitializingBean, EventBus.EventCon
         log.debug("ClientRecoveryPlugin: Subscribed for BAGUETTE_SERVER_CLIENT_EXITED events");
         eventBus.subscribe(CLIENT_REGISTERED_TOPIC, this);
         log.debug("ClientRecoveryPlugin: Subscribed for BAGUETTE_SERVER_CLIENT_REGISTERED events");
+        eventBus.subscribe(CLIENT_REMOVED_TOPIC, this);
+        log.debug("ClientRecoveryPlugin: Subscribed for CLIENT_REMOVED_TOPIC events");
 
         log.trace("ClientRecoveryPlugin: clientInstallationProperties: {}", clientInstallationProperties);
         log.trace("ClientRecoveryPlugin: baguetteServer: {}", baguetteServer);
@@ -80,18 +83,28 @@ public class ClientRecoveryPlugin implements InitializingBean, EventBus.EventCon
         }
 
         // Only process messages of ClientShellCommand type are accepted (sent by CSC instances)
-        if (! (message instanceof ClientShellCommand)) {
-            log.warn("ClientRecoveryPlugin: onMessage(): Message is not a {} object. Will ignore it.", ClientShellCommand.class.getSimpleName());
+        if (! (message instanceof NodeRegistryEntry) && ! (message instanceof ClientShellCommand)) {
+            log.warn("ClientRecoveryPlugin: onMessage(): Message is neither a {} or a {} object. Will ignore it.",
+                    NodeRegistryEntry.class.getSimpleName(), ClientShellCommand.class.getSimpleName());
             return;
         }
 
-        // Get NodeRegistryEntry from ClientShellCommand passed with event
-        ClientShellCommand csc = (ClientShellCommand)message;
-        String clientId = csc.getId();
-        String address = csc.getClientIpAddress();
-        log.debug("ClientRecoveryPlugin: onMessage(): client-id={}, client-address={}", clientId, address);
+        NodeRegistryEntry nodeInfo;
+        String clientId;
+        String address;
+        if (message instanceof NodeRegistryEntry entry) {
+            nodeInfo = entry;
+            clientId = entry.getClientId();
+            address = entry.getIpAddress();
+        } else {
+            // Get NodeRegistryEntry from ClientShellCommand passed with event
+            ClientShellCommand csc = (ClientShellCommand) message;
+            clientId = csc.getId();
+            address = csc.getClientIpAddress();
+            log.debug("ClientRecoveryPlugin: onMessage(): client-id={}, client-address={}", clientId, address);
 
-        NodeRegistryEntry nodeInfo = csc.getNodeRegistryEntry();    //or = nodeRegistry.getNodeByAddress(address);
+            nodeInfo = csc.getNodeRegistryEntry();    //or = nodeRegistry.getNodeByAddress(address);
+        }
         log.debug("ClientRecoveryPlugin: onMessage(): client-node-info={}", nodeInfo);
         log.trace("ClientRecoveryPlugin: onMessage(): node-registry.node-addresses={}", nodeRegistry.getNodeAddresses());
         log.trace("ClientRecoveryPlugin: onMessage(): node-registry.nodes={}", nodeRegistry.getNodes());
@@ -108,13 +121,24 @@ public class ClientRecoveryPlugin implements InitializingBean, EventBus.EventCon
             processExitEvent(nodeInfo);
         }
         if (CLIENT_REGISTERED_TOPIC.equals(topic)) {
-            log.debug("ClientRecoveryPlugin: onMessage(): CLIENT REGISTERED_TOPIC: message={}", message);
+            log.debug("ClientRecoveryPlugin: onMessage(): CLIENT REGISTERED: message={}", message);
             processRegisteredEvent(nodeInfo);
+        }
+        if (CLIENT_REMOVED_TOPIC.equals(topic)) {
+            log.debug("ClientRecoveryPlugin: onMessage(): CLIENT REMOVED: message={}", message);
+            processRemovedEvent(nodeInfo);
         }
     }
 
     private void processExitEvent(NodeRegistryEntry nodeInfo) {
         log.debug("ClientRecoveryPlugin: processExitEvent(): BEGIN: client-id={}, client-address={}", nodeInfo.getClientId(), nodeInfo.getIpAddress());
+
+        // Check if node can be recovered (based on its Life-Cycle state)
+        if (! nodeInfo.canRecover()) {
+            log.warn("ClientRecoveryPlugin: processExitEvent(): Node will not be recovered because its state is {}: client-id={}, client-address={}",
+                    nodeInfo.getState(), nodeInfo.getClientId(), nodeInfo.getIpAddress());
+            return;
+        }
 
         // Set node state to DOWN
         baguetteServer.getSelfHealingManager().setNodeSelfHealingState(nodeInfo, SelfHealingManager.NODE_STATE.DOWN);
@@ -156,9 +180,28 @@ public class ClientRecoveryPlugin implements InitializingBean, EventBus.EventCon
         baguetteServer.getSelfHealingManager().setNodeSelfHealingState(nodeInfo, SelfHealingManager.NODE_STATE.UP);
     }
 
+    private void processRemovedEvent(NodeRegistryEntry nodeInfo) {
+        log.debug("ClientRecoveryPlugin: processRemovedEvent(): BEGIN: client-id={}, client-address={}", nodeInfo.getClientId(), nodeInfo.getIpAddress());
+
+        // Cancel any pending recovery task (for the node)
+        ScheduledFuture<?> future = pendingTasks.remove(nodeInfo);
+        log.debug("ClientRecoveryPlugin: processRemovedEvent(): Recovery task: task={}, client-id={}, client-address={}", future, nodeInfo.getClientId(), nodeInfo.getIpAddress());
+        if (future!=null && ! future.isDone() && ! future.isCancelled()) {
+            log.warn("ClientRecoveryPlugin: processRemovedEvent(): Cancelled recovery task: client-id={}, client-address={}", nodeInfo.getClientId(), nodeInfo.getIpAddress());
+            future.cancel(false);
+        }
+    }
+
     public void runClientRecovery(NodeRegistryEntry entry) throws Exception {
         log.debug("ClientRecoveryPlugin: runClientRecovery(): node-info={}", entry);
         if (entry==null) return;
+
+        if (! entry.canRecover()) {
+            log.info("ClientRecoveryPlugin: runClientRecovery(): Cannot recover node. Will not attempt recovery again: node-state={}, client-id={}, client-address={}",
+                    entry.getState(), entry.getClientId(), entry.getIpAddress());
+            pendingTasks.remove(entry);
+            return;
+        }
 
         log.trace("ClientRecoveryPlugin: runClientRecovery(): recoveryInstructionsFile={}", recoveryInstructionsFile);
         entry.getPreregistration().put("instruction-files", recoveryInstructionsFile);

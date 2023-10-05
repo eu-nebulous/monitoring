@@ -10,6 +10,7 @@
 package gr.iccs.imu.ems.baguette.client.install;
 
 import gr.iccs.imu.ems.baguette.server.BaguetteServer;
+import gr.iccs.imu.ems.baguette.server.ClientShellCommand;
 import gr.iccs.imu.ems.baguette.server.NodeRegistryEntry;
 import gr.iccs.imu.ems.brokercep.BrokerCepService;
 import gr.iccs.imu.ems.common.plugin.PluginManager;
@@ -69,26 +70,49 @@ public class ClientInstaller implements InitializingBean {
         executorService.submit(() -> {
             long taskCnt = taskCounter.getAndIncrement();
             String resultStr = "";
+            String callbackStr = "";
             String errorStr = "";
 
             // Execute task
+            boolean result = false;
             try {
                 log.info("ClientInstaller: Executing Client installation Task #{}: task-id={}, node-id={}, name={}, type={}, address={}",
                         taskCnt, task.getId(), task.getNodeId(), task.getName(), task.getType(), task.getAddress());
                 long startTm = System.currentTimeMillis();
-                boolean result = executeTask(task, taskCnt);
+                result = executeTask(task, taskCnt);
                 long endTm = System.currentTimeMillis();
                 resultStr = result ? "SUCCESS" : "FAILED";
                 log.info("ClientInstaller: Client installation Task #{}: result={}, duration={}ms",
                         taskCnt, resultStr, endTm - startTm);
             } catch (Throwable t) {
-                log.info("ClientInstaller: Exception caught in Client installation Task #{}: Exception: ", taskCnt, t);
-                errorStr = t.getMessage();
+                log.error("ClientInstaller: Exception caught in Client installation Task #{}: Exception: ", taskCnt, t);
+                errorStr = "EXCEPTION " + t.getMessage();
+            }
+
+            // Run callback (if any)
+            if (result && task.getCallback()!=null) {
+                try {
+                    log.debug("ClientInstaller: CALLBACK started: Task #{}: task-id={}", taskCnt, task.getId());
+                    long startTm = System.currentTimeMillis();
+                    callbackStr = task.getCallback().call();
+                    long endTm = System.currentTimeMillis();
+                    log.info("ClientInstaller: CALLBACK completed: Task #{}: callback-result={}, duration={}ms", taskCnt, callbackStr, endTm - startTm);
+                    if (! "OK".equalsIgnoreCase(callbackStr)) resultStr = "FAILED";
+                } catch (Throwable t) {
+                    log.error("ClientInstaller: CALLBACK: Exception caught while running callback of Client installation Task #{}: Exception: ", taskCnt, t);
+                    callbackStr = "CALLBACK-EXCEPTION " + t.getMessage();
+                    resultStr = "FAILED";
+                }
+            } else {
+                if (result)
+                    log.debug("ClientInstaller: No CALLBACK found for Task #{}", taskCnt);
+                else
+                    log.debug("ClientInstaller: Skipped CALLBACK because execution failed for Task #{}", taskCnt);
             }
 
             // Send execution report to local broker
             try {
-                resultStr = StringUtils.defaultIfBlank(resultStr, "ERROR: " + errorStr);
+                resultStr = StringUtils.defaultIfBlank(resultStr, "ERROR: " + errorStr + " " + callbackStr);
                 sendSuccessClientInstallationReport(taskCnt, task, resultStr);
             } catch (Throwable t) {
                 log.info("ClientInstaller: EXCEPTION while sending Client installation report for Task #{}: Exception: ", taskCnt, t);
@@ -103,7 +127,8 @@ public class ClientInstaller implements InitializingBean {
 
             return executeVmOrBaremetalTask(task, taskCounter);
         } else
-        if ("DIAGNOSTICS".equalsIgnoreCase(task.getType())) {
+        //if ("DIAGNOSTICS".equalsIgnoreCase(task.getType())) {
+        if (task.getTaskType()==ClientInstallationTask.TASK_TYPE.DIAGNOSTIC) {
             return executeDiagnosticsTask(task, taskCounter);
         } else {
             log.error("ClientInstaller: UNSUPPORTED TASK TYPE: {}", task.getType());
@@ -121,30 +146,55 @@ public class ClientInstaller implements InitializingBean {
         if (! task.isNodeMustBeInRegistry())
             entry = task.getNodeRegistryEntry();
 
-        entry.nodeInstalling(task);
-
-        // Call InstallationContextPlugin's before installation
-        log.debug("ClientInstaller: PRE-INSTALLATION: Calling installation context processors: {}", properties.getInstallationContextProcessorPlugins());
-        pluginManager.getActivePlugins(InstallationContextProcessorPlugin.class)
-                .forEach(plugin->((InstallationContextProcessorPlugin)plugin).processBeforeInstallation(task, taskCounter));
-
-        log.debug("ClientInstaller: INSTALLATION: Executing installation task: task-counter={}, task={}", taskCounter, task);
-        boolean success = executeVmTask(task, taskCounter);
-        log.debug("ClientInstaller: NODE_REGISTRY_ENTRY after installation execution: \n{}", task.getNodeRegistryEntry());
-
-        if (entry.getState()==NodeRegistryEntry.STATE.INSTALLING) {
-            log.warn("ClientInstaller: NODE_REGISTRY_ENTRY status is still INSTALLING after executing client installation. Changing to INSTALL_ERROR");
-            entry.nodeInstallationError(null);
+        // Check if node is being removed or have been archived
+        if (task.getNodeRegistryEntry().isArchived()) {
+            log.warn("ClientInstaller: Node is being removed or has been archived: {}", properties.getInstallationContextProcessorPlugins());
+            throw new IllegalStateException("Node is being removed or has been archived: Node IP address: "+ task.getAddress());
         }
 
-        // Call InstallationContextPlugin's after installation
-        log.debug("ClientInstaller: POST-INSTALLATION: Calling installation context processors: {}", properties.getInstallationContextProcessorPlugins());
-        pluginManager.getActivePlugins(InstallationContextProcessorPlugin.class)
-                .forEach(plugin->((InstallationContextProcessorPlugin)plugin).processAfterInstallation(task, taskCounter, success));
+        boolean success;
+        if (! task.getInstructionSets().isEmpty()) {
+            // Starting installation
+            entry.nodeInstalling(task);
+
+            // Call InstallationContextPlugin's before installation
+            log.debug("ClientInstaller: PRE-INSTALLATION: Calling installation context processors: {}", properties.getInstallationContextProcessorPlugins());
+            pluginManager.getActivePlugins(InstallationContextProcessorPlugin.class)
+                    .forEach(plugin -> ((InstallationContextProcessorPlugin) plugin).processBeforeInstallation(task, taskCounter));
+
+            log.debug("ClientInstaller: INSTALLATION: Executing installation task: task-counter={}, task={}", taskCounter, task);
+            success = executeVmTask(task, taskCounter);
+            log.debug("ClientInstaller: NODE_REGISTRY_ENTRY after installation execution: \n{}", task.getNodeRegistryEntry());
+
+            if (entry.getState() == NodeRegistryEntry.STATE.INSTALLING) {
+                log.warn("ClientInstaller: NODE_REGISTRY_ENTRY status is still INSTALLING after executing client installation. Changing to INSTALL_ERROR");
+                entry.nodeInstallationError(null);
+            }
+
+            // Call InstallationContextPlugin's after installation
+            log.debug("ClientInstaller: POST-INSTALLATION: Calling installation context processors: {}", properties.getInstallationContextProcessorPlugins());
+            pluginManager.getActivePlugins(InstallationContextProcessorPlugin.class)
+                    .forEach(plugin -> ((InstallationContextProcessorPlugin) plugin).processAfterInstallation(task, taskCounter, success));
+        } else {
+            log.debug("ClientInstaller: SKIP INSTALLATION: Task has no instructions sets. Skipping execution: Node IP address: "+ task.getAddress());
+            success = true;
+        }
 
         // Pre-register Node to baguette Server Coordinator
-        log.debug("ClientInstaller: POST-INSTALLATION: Node is being pre-registered: {}", entry);
-        baguetteServer.getNodeRegistry().getCoordinator().preregister(entry);
+        if (task.getTaskType()==ClientInstallationTask.TASK_TYPE.INSTALL) {
+            log.debug("ClientInstaller: POST-INSTALLATION: Node is being pre-registered: {}", entry);
+            baguetteServer.getNodeRegistry().getCoordinator().preregister(entry);
+        }
+
+        // Un-register Node from baguette Server Coordinator
+        if (task.getTaskType()==ClientInstallationTask.TASK_TYPE.UNINSTALL) {
+            ClientShellCommand csc = ClientShellCommand.getActiveByIpAddress(entry.getIpAddress());
+            log.debug("ClientInstaller: POST-INSTALLATION: CSC of node to be unregistered: {}", csc);
+            if (csc!=null) {
+                log.debug("ClientInstaller: POST-INSTALLATION: Node is going to be unregistered: {}", entry);
+                baguetteServer.getNodeRegistry().getCoordinator().unregister(csc);
+            }
+        }
 
         log.debug("ClientInstaller: Installation outcome: {}", success ? "Success" : "Error");
         return success;

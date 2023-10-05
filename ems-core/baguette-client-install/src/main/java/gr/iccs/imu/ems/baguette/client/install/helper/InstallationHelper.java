@@ -25,8 +25,13 @@ public interface InstallationHelper {
     List<InstructionsSet> prepareInstallationInstructionsForWin(NodeRegistryEntry entry);
     List<InstructionsSet> prepareInstallationInstructionsForLinux(NodeRegistryEntry entry) throws IOException;
 
+    List<InstructionsSet> prepareUninstallInstructionsForOs(NodeRegistryEntry entry) throws IOException;
+    List<InstructionsSet> prepareUninstallInstructionsForWin(NodeRegistryEntry entry);
+    List<InstructionsSet> prepareUninstallInstructionsForLinux(NodeRegistryEntry entry) throws IOException;
+
     default ClientInstallationTask createClientInstallationTask(NodeRegistryEntry entry) throws Exception {
         return createClientInstallationTask(entry, null);
     }
     ClientInstallationTask createClientInstallationTask(NodeRegistryEntry entry, TranslationContext translationContext) throws Exception;
+    ClientInstallationTask createClientUninstallTask(NodeRegistryEntry entry, TranslationContext translationContext) throws Exception;
 }

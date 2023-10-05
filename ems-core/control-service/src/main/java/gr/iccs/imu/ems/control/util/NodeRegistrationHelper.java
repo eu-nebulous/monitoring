@@ -36,4 +36,11 @@ public class NodeRegistrationHelper implements InitializingBean, INodeRegistrati
                 baseUrl, nodeInfo, translationContext);
         return nodeRegistrationCoordinator.registerNode(baseUrl, nodeInfo, translationContext);
     }
+
+    @Override
+    public String unregisterNode(String nodeAddress, TranslationContext translationContext) throws Exception {
+        log.debug("NodeRegistrationHelper: Invoking unregisterNode: node-address={}, TC={}",
+                nodeAddress, translationContext);
+        return nodeRegistrationCoordinator.unregisterNode(nodeAddress, translationContext);
+    }
 }

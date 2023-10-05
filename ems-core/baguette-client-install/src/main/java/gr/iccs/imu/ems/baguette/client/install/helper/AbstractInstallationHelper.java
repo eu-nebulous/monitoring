@@ -242,6 +242,21 @@ public abstract class AbstractInstallationHelper implements InitializingBean, Ap
         return instructionsSetList;
     }
 
+    public List<InstructionsSet> prepareUninstallInstructionsForOs(NodeRegistryEntry entry) throws IOException {
+        if (! entry.getBaguetteServer().isServerRunning()) throw new RuntimeException("Baguette Server is not running");
+        log.trace("AbstractInstallationHelper.prepareUninstallInstructionsForOs(): node-map={}", entry.getPreregistration());
+
+        String osFamily = entry.getPreregistration().get("operatingSystem");
+        List<InstructionsSet> instructionsSetList = null;
+        if (matchesOsFamily(osFamily, LINUX_OS_FAMILY))
+            instructionsSetList = prepareUninstallInstructionsForLinux(entry);
+        else if (matchesOsFamily(osFamily, WINDOWS_OS_FAMILY))
+            instructionsSetList = prepareUninstallInstructionsForWin(entry);
+        else
+            log.warn("AbstractInstallationHelper.prepareUninstallInstructionsForOs(): Unsupported OS family: {}", osFamily);
+        return instructionsSetList;
+    }
+
     public boolean matchesOsFamily(@NonNull String lookup, @NonNull String osFamily) {
         lookup = lookup.trim().toUpperCase();
         List<String> familyList = properties.getOsFamilies().get(osFamily);

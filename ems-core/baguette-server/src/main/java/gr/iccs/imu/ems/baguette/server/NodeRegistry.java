@@ -10,6 +10,7 @@
 package gr.iccs.imu.ems.baguette.server;
 
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -17,9 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -29,6 +28,7 @@ import java.util.stream.Collectors;
 @Service
 public class NodeRegistry {
     private final Map<String,NodeRegistryEntry> registry = new LinkedHashMap<>();
+    private final List<NodeRegistryEntry> archived = new LinkedList<>();
     @Getter @Setter
     private ServerCoordinator coordinator;
 
@@ -133,5 +133,28 @@ public class NodeRegistry {
 
     public Collection<String> getNodeReferences() {
         return registry.values().stream().map(NodeRegistryEntry::getReference).collect(Collectors.toList());
+    }
+
+    public synchronized void archiveNode(@NonNull NodeRegistryEntry entry) {
+        log.debug("NodeRegistry.archiveNode(): Archiving node: entry={}", entry);
+
+        // Run checks
+        if (StringUtils.isBlank(entry.getIpAddress())) {
+            log.warn("NodeRegistry.archiveNode(): Node entry does not have an IP address. Ignoring archiving operation: entry={}", entry);
+            return;
+        }
+        if (! registry.containsKey(entry.getIpAddress())) {
+            log.warn("NodeRegistry.archiveNode(): Node with IP address {} not found in registry. Ignoring archiving operation: entry={}", entry.getIpAddress(), entry);
+            return;
+        }
+        if (registry.get(entry.getIpAddress())!=entry) {
+            log.warn("NodeRegistry.archiveNode(): Node passed does not match with node registered to IP address {}. Ignoring archiving operation: entry={}", entry.getIpAddress(), entry);
+            return;
+        }
+
+        // Archive node
+        archived.add(entry);
+        registry.remove(entry.getIpAddress());
+        entry.nodeArchived(null);
     }
 }

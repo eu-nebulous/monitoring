@@ -53,7 +53,7 @@ public class NodeRegistrationController {
         return "OK";
     }
 
-    @RequestMapping(value = "/baguette/registerNode", method = POST,
+    @RequestMapping(value = { "/baguette/registerNode", "/baguette/node/register" }, method = POST,
             consumes = MediaType.APPLICATION_JSON_VALUE)
     public String baguetteRegisterNode(@RequestBody String jsonNode, HttpServletRequest request) throws Exception {
         log.info("NodeRegistrationController.baguetteRegisterNode(): Invoked");
@@ -77,6 +77,26 @@ public class NodeRegistrationController {
 
         log.info("NodeRegistrationController.baguetteRegisterNode(): Node registered: node-id: {}", nodeId);
         log.debug("NodeRegistrationController.baguetteRegisterNode(): node: {}, json: {}", nodeId, response);
+        return response;
+    }
+
+    @RequestMapping(value = "/baguette/node/unregister/{ipAddress:.+}", method = {GET, POST},
+            produces = MediaType.TEXT_PLAIN_VALUE)
+    public String baguetteUnregisterNode(@PathVariable String ipAddress, HttpServletRequest request) throws Exception {
+        log.info("NodeRegistrationController.baguetteUnregisterNode(): Invoked");
+        log.debug("NodeRegistrationController.baguetteUnregisterNode(): Node IP address:\n{}", ipAddress);
+
+        String response;
+        try {
+            response = nodeRegistrationCoordinator.unregisterNode(ipAddress,
+                    coordinator.getTranslationContextOfAppModel(coordinator.getCurrentAppModelId()));
+        } catch (Exception e) {
+            log.error("NodeRegistrationController.baguetteUnregisterNode(): EXCEPTION while unregistering node: address={}\n", ipAddress, e);
+            response = "ERROR "+e.getMessage();
+        }
+
+        log.info("NodeRegistrationController.baguetteUnregisterNode(): Node unregistered: node-address={}", ipAddress);
+        log.debug("NodeRegistrationController.baguetteUnregisterNode(): address={}, json={}", ipAddress, response);
         return response;
     }
 

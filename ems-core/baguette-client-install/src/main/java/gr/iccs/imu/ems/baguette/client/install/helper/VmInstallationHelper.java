@@ -22,6 +22,7 @@ import gr.iccs.imu.ems.baguette.server.NodeRegistryEntry;
 import gr.iccs.imu.ems.translate.TranslationContext;
 import gr.iccs.imu.ems.util.CredentialsMap;
 import gr.iccs.imu.ems.util.NetUtil;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringSubstitutor;
@@ -60,7 +61,31 @@ public class VmInstallationHelper extends AbstractInstallationHelper {
 
     @Override
     public ClientInstallationTask createClientInstallationTask(NodeRegistryEntry entry, TranslationContext translationContext) throws IOException {
-        Map<String, String> nodeMap = entry.getPreregistration();
+        // Get EMS client installation instructions for VM node
+        List<InstructionsSet> instructionsSetList =
+                prepareInstallationInstructionsForOs(entry);
+
+        return createClientTask(ClientInstallationTask.TASK_TYPE.INSTALL, entry, translationContext, instructionsSetList);
+    }
+
+    @Override
+    public ClientInstallationTask createClientUninstallTask(NodeRegistryEntry entry, TranslationContext translationContext) throws Exception {
+        // Clear any cached 'instruction-files' override (from a previous run)
+        entry.getPreregistration().remove("instruction-files");
+
+        // Get EMS client uninstall instructions for VM node
+        List<InstructionsSet> instructionsSetList =
+                prepareUninstallInstructionsForOs(entry);
+
+        return createClientTask(ClientInstallationTask.TASK_TYPE.UNINSTALL, entry, translationContext, instructionsSetList);
+    }
+
+    private ClientInstallationTask createClientTask(@NonNull ClientInstallationTask.TASK_TYPE taskType,
+                                                    NodeRegistryEntry entry,
+                                                    TranslationContext translationContext,
+                                                    List<InstructionsSet> instructionsSetList)
+    {
+        Map<String, String> nodeMap = initializeNodeMap(entry);
 
         String baseUrl = nodeMap.get("BASE_URL");
         String clientId = nodeMap.get("CLIENT_ID");
@@ -95,13 +120,10 @@ public class VmInstallationHelper extends AbstractInstallationHelper {
         if (StringUtils.isEmpty(password) && StringUtils.isBlank(privateKey))
             throw new IllegalArgumentException("Missing SSH password or private key for Node");
 
-        // Get EMS client installation instructions for VM node
-        List<InstructionsSet> instructionsSetList =
-                prepareInstallationInstructionsForOs(entry);
-
         // Create Installation Task for VM node
-        ClientInstallationTask installationTask = ClientInstallationTask.builder()
+        ClientInstallationTask task = ClientInstallationTask.builder()
                 .id(clientId)
+                .taskType(taskType)
                 .nodeId(nodeId)
                 .requestId(requestId)
                 .name(nodeName)
@@ -121,29 +143,21 @@ public class VmInstallationHelper extends AbstractInstallationHelper {
                 .nodeRegistryEntry(entry)
                 .translationContext(translationContext)
                 .build();
-        log.debug("VmInstallationHelper.createClientInstallationTask(): Created client installation task: {}", installationTask);
-
-        return installationTask;
+        log.debug("VmInstallationHelper.createClientTask(): Created client task: {}", task);
+        return task;
     }
 
-    @Override
-    public List<InstructionsSet> prepareInstallationInstructionsForWin(NodeRegistryEntry entry) {
-        log.warn("VmInstallationHelper.prepareInstallationInstructionsForWin(): NOT YET IMPLEMENTED");
-        throw new IllegalArgumentException("VmInstallationHelper.prepareInstallationInstructionsForWin(): NOT YET IMPLEMENTED");
-    }
-
-    @Override
-    public List<InstructionsSet> prepareInstallationInstructionsForLinux(NodeRegistryEntry entry) throws IOException {
+    private Map<String, String> initializeNodeMap(NodeRegistryEntry entry) {
         Map<String, String> nodeMap = entry.getPreregistration();
         BaguetteServer baguette = entry.getBaguetteServer();
 
         String baseUrl = StringUtils.removeEnd(nodeMap.get("BASE_URL"), "/");
         String clientId = nodeMap.get("CLIENT_ID");
         String ipSetting = nodeMap.get("IP_SETTING");
-        log.debug("VmInstallationHelper.prepareInstallationInstructionsForLinux(): Invoked: base-url={}", baseUrl);
+        log.debug("VmInstallationHelper.initializeNodeMap(): Invoked: base-url={}", baseUrl);
 
         // Get parameters
-        log.trace("VmInstallationHelper.prepareInstallationInstructionsForLinux(): properties: {}", properties);
+        log.trace("VmInstallationHelper.initializeNodeMap(): properties: {}", properties);
         String rootCmd = properties.getRootCmd();
         String baseDir = properties.getBaseDir();
         String checkInstallationFile = properties.getCheckInstalledFile();
@@ -170,7 +184,7 @@ public class VmInstallationHelper extends AbstractInstallationHelper {
                                 : "NODE_" + e.getKey().toUpperCase(),
                         Map.Entry::getValue,
                         (v1, v2) -> {
-                            log.warn("VmInstallationHelper.prepareInstallationInstructionsForLinux(): DUPLICATE KEY FOUND: key={}, old-value={}, new-value={}",
+                            log.warn("VmInstallationHelper.initializeNodeMap(): DUPLICATE KEY FOUND: key={}, old-value={}, new-value={}",
                                     k, v1, v2);
                             return v2;
                         }
@@ -182,12 +196,12 @@ public class VmInstallationHelper extends AbstractInstallationHelper {
                         ? "NODE_SSH_" + k.substring(4).toUpperCase()
                         : "NODE_" + k.toUpperCase();
                 if (additionalKeysMap.containsKey(k)) {
-                    log.warn("VmInstallationHelper.prepareInstallationInstructionsForLinux(): DUPLICATE KEY FOUND: key={}, old-value={}, new-value={}",
+                    log.warn("VmInstallationHelper.initializeNodeMap(): DUPLICATE KEY FOUND: key={}, old-value={}, new-value={}",
                             k, additionalKeysMap.get(k), v);
                 }
                 additionalKeysMap.put(k, v);
             } catch (Exception ex) {
-                log.error("VmInstallationHelper.prepareInstallationInstructionsForLinux(): EXCEPTION in additional keys copy loop: key={}, value={}, additionalKeysMap={}, Exception:\n",
+                log.error("VmInstallationHelper.initializeNodeMap(): EXCEPTION in additional keys copy loop: key={}, value={}, additionalKeysMap={}, Exception:\n",
                         k, v, additionalKeysMap, ex);
             }
         });
@@ -229,7 +243,7 @@ public class VmInstallationHelper extends AbstractInstallationHelper {
 
         nodeMap.putAll(clientInstallationProperties.getParameters());
         nodeMap.put("EMS_PUBLIC_DIR", System.getProperty("PUBLIC_DIR", System.getenv("PUBLIC_DIR")));
-        log.trace("VmInstallationHelper.prepareInstallationInstructionsForLinux: value-map: {}", nodeMap);
+        log.trace("VmInstallationHelper.initializeNodeMap: value-map: {}", nodeMap);
 
 /*        // Clear EMS server certificate (PEM) file, if not secure
         if (!isServerSecure) {
@@ -251,26 +265,65 @@ public class VmInstallationHelper extends AbstractInstallationHelper {
             }
         }*/
 
+        return nodeMap;
+    }
+
+    @Override
+    public List<InstructionsSet> prepareInstallationInstructionsForWin(NodeRegistryEntry entry) {
+        log.warn("VmInstallationHelper.prepareInstallationInstructionsForWin(): NOT YET IMPLEMENTED");
+        throw new IllegalArgumentException("VmInstallationHelper.prepareInstallationInstructionsForWin(): NOT YET IMPLEMENTED");
+    }
+
+    @Override
+    public List<InstructionsSet> prepareUninstallInstructionsForWin(NodeRegistryEntry entry) {
+        log.warn("VmInstallationHelper.prepareUninstallInstructionsForWin(): NOT YET IMPLEMENTED");
+        throw new IllegalArgumentException("VmInstallationHelper.prepareUninstallInstructionsForWin(): NOT YET IMPLEMENTED");
+    }
+
+    @Override
+    public List<InstructionsSet> prepareInstallationInstructionsForLinux(NodeRegistryEntry entry) throws IOException {
+        return prepareInstructionsForLinux(entry, "LINUX");
+    }
+
+    @Override
+    public List<InstructionsSet> prepareUninstallInstructionsForLinux(NodeRegistryEntry entry) throws IOException {
+        return prepareInstructionsForLinux(entry, "REMOVE_LINUX");
+    }
+
+    private List<InstructionsSet> prepareInstructionsForLinux(@NonNull NodeRegistryEntry entry, String instructionsScenarioName) throws IOException {
+        Map<String, String> nodeMap = entry.getPreregistration();
+
         List<InstructionsSet> instructionsSetList = new ArrayList<>();
 
         try {
             // Read installation instructions from JSON file
-            List<String> instructionSetFileList = null;
+            List<String> instructionSetFileList;
             if (nodeMap.containsKey("instruction-files")) {
+                log.trace("VmInstallationHelper.prepareInstructionsForLinux: FOUND instruction-files override: value={}", nodeMap.getOrDefault("instruction-files", null));
                 instructionSetFileList = Arrays.stream(nodeMap.getOrDefault("instruction-files", "").split(","))
                         .filter(StringUtils::isNotBlank)
                         .map(String::trim)
                         .collect(Collectors.toList());
+                log.debug("VmInstallationHelper.prepareInstructionsForLinux: FOUND instruction-files override: list={}", instructionSetFileList);
                 if (instructionSetFileList.isEmpty())
-                    log.warn("VmInstallationHelper.prepareInstallationInstructionsForLinux: Context map contains 'instruction-files' entry with no contents");
+                    log.warn("VmInstallationHelper.prepareInstructionsForLinux: Context map contains 'instruction-files' entry with no contents");
             } else {
-                instructionSetFileList = properties.getInstructions().get("LINUX");
+                log.trace("VmInstallationHelper.prepareInstructionsForLinux: NOT FOUND instruction-files override. Using configured instructions sets: instructionsScenarioName={}", instructionsScenarioName);
+                instructionSetFileList = properties.getInstructions().get(instructionsScenarioName);
+                log.trace("VmInstallationHelper.prepareInstructionsForLinux: NOT FOUND instruction-files override. Using configured instructions sets: list={}", instructionSetFileList);
+                if (instructionSetFileList==null || instructionSetFileList.isEmpty()) {
+                    log.warn("VmInstallationHelper.prepareInstructionsForLinux: No instructions set files provided in configuration with name: {}", instructionsScenarioName);
+                    instructionSetFileList = Collections.emptyList();
+                }
             }
+            log.debug("VmInstallationHelper.prepareInstructionsForLinux: Instructions sets list: {}", instructionSetFileList);
+
+            // Load instructions set from file
             for (String instructionSetFile : instructionSetFileList) {
                 // Load instructions set from file
-                log.debug("VmInstallationHelper.prepareInstallationInstructionsForLinux: Installation instructions file for LINUX: {}", instructionSetFile);
+                log.debug("VmInstallationHelper.prepareInstructionsForLinux: Installation instructions file for LINUX: {}", instructionSetFile);
                 InstructionsSet instructionsSet = InstructionsService.getInstance().loadInstructionsFile(instructionSetFile);
-                log.debug("VmInstallationHelper.prepareInstallationInstructionsForLinux: Instructions set loaded from file: {}\n{}", instructionSetFile, instructionsSet);
+                log.debug("VmInstallationHelper.prepareInstructionsForLinux: Instructions set loaded from file: {}\n{}", instructionSetFile, instructionsSet);
 
                 // Pretty print instructionsSet JSON
                 if (log.isTraceEnabled()) {
@@ -279,7 +332,7 @@ public class VmInstallationHelper extends AbstractInstallationHelper {
                     try (PrintWriter writer = new PrintWriter(stringWriter)) {
                         gson.toJson(instructionsSet, writer);
                     }
-                    log.trace("VmInstallationHelper.prepareInstallationInstructionsForLinux: Installation instructions for LINUX: json:\n{}", stringWriter);
+                    log.trace("VmInstallationHelper.prepareInstructionsForLinux: Installation instructions for LINUX: json:\n{}", stringWriter);
                 }
 
                 instructionsSetList.add(instructionsSet);
@@ -287,7 +340,7 @@ public class VmInstallationHelper extends AbstractInstallationHelper {
 
             return instructionsSetList;
         } catch (Exception ex) {
-            log.error("VmInstallationHelper.prepareInstallationInstructionsForLinux: Exception while reading Installation instructions for LINUX: ", ex);
+            log.error("VmInstallationHelper.prepareInstructionsForLinux: Exception while reading Installation instructions for LINUX: ", ex);
             throw ex;
         }
     }

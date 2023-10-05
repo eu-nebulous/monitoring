@@ -265,8 +265,16 @@ public class ClientShellCommand implements Command, Runnable, ServerSessionAware
                 }
             }
             // Client connection closed
-            eventBus.send("BAGUETTE_SERVER_CLIENT_EXITING", this);
-            getNodeRegistryEntry().nodeExiting(null);
+            try {
+                eventBus.send("BAGUETTE_SERVER_CLIENT_EXITING", this);
+                NodeRegistryEntry entry = getNodeRegistryEntry();
+                if (! entry.isArchived())
+                    entry.nodeExiting(null);
+                else
+                    log.warn("{}==> Node is archived", id);
+            } catch (Exception e) {
+                log.warn("{}==> EXCEPTION: ", id, e);
+            }
 
             log.info("{}==> Signaling client to exit", id);
             out.println("EXIT");

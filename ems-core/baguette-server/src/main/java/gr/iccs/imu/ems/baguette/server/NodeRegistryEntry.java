@@ -21,8 +21,12 @@ import java.util.*;
 @AllArgsConstructor
 @RequiredArgsConstructor
 public class NodeRegistryEntry {
-    public enum STATE { PREREGISTERED, IGNORE_NODE, INSTALLING, NOT_INSTALLED, INSTALLED, INSTALL_ERROR,
-        WAITING_REGISTRATION, REGISTERING, REGISTERED, REGISTRATION_ERROR, DISCONNECTED, EXITING, EXITED, NODE_FAILED
+    public enum STATE {
+        PREREGISTERED, IGNORE_NODE,
+        INSTALLING, NOT_INSTALLED, INSTALLED, INSTALL_ERROR,
+        WAITING_REGISTRATION, REGISTERING, REGISTERED, REGISTRATION_ERROR,
+        DISCONNECTED, EXITING, EXITED, NODE_FAILED,
+        REMOVING, REMOVED, REMOVE_ERROR, ARCHIVED
     };
     @Getter private final String ipAddress;
     @Getter private final String clientId;
@@ -39,6 +43,8 @@ public class NodeRegistryEntry {
     @Getter private transient Map<String, String> installation = new LinkedHashMap<>();
     @JsonIgnore
     @Getter private transient Map<String, String> registration = new LinkedHashMap<>();
+    @JsonIgnore
+    @Getter private transient Map<String, String> removal = new LinkedHashMap<>();
     @JsonIgnore
     @Getter @Setter private transient IClusterZone clusterZone;
 
@@ -70,100 +76,118 @@ public class NodeRegistryEntry {
 
     public void refreshReference() { reference = UUID.randomUUID().toString(); }
 
-    public NodeRegistryEntry nodePreregistration(Map<String,Object> nodeInfo) {
-        preregistration.clear();
-        preregistration.putAll(StrUtil.deepFlattenMap(nodeInfo));
-        setState(STATE.PREREGISTERED);
+    public boolean canRecover() {
+        return state != null && switch (state) {
+            case PREREGISTERED, IGNORE_NODE -> false;
+            case REMOVING, REMOVED, REMOVE_ERROR, ARCHIVED -> false;
+            default -> true;
+        };
+    }
+
+    public boolean isArchived() {
+        return state!=null && state==STATE.ARCHIVED;
+    }
+
+    public boolean canChangeStateTo(@NonNull STATE newState) {
+        return ! isArchived();
+    }
+
+    private void _canUpdateEntry(@NonNull STATE newState) {
+        if (! canChangeStateTo(newState)) {
+            throw new IllegalStateException(String.format("Cannot change NodeRegistryEntry state from %s to %s: client-id=%s, client-address=%s",
+                    state, newState, clientId, ipAddress));
+        }
+    }
+
+    private NodeRegistryEntry _updateEntry(@NonNull STATE newState, @NonNull Map<String, String> map, boolean clear, Map<String,Object> nodeInfo) {
+        _canUpdateEntry(newState);
+        if (clear) map.clear();
+        map.putAll(StrUtil.deepFlattenMap(nodeInfo));
+        setState(newState);
         return this;
     }
 
-    public NodeRegistryEntry nodeIgnore(Object nodeInfo) {
-        installation.clear();
-        installation.put("ignore-node", nodeInfo!=null ? nodeInfo.toString() : null);
+    private NodeRegistryEntry _updateEntry(@NonNull STATE newState, @NonNull Map<String, String> map, boolean clear, @NonNull String key, Object val, String defVal) {
+        _canUpdateEntry(newState);
+        if (clear) map.clear();
+        map.put(key, val!=null ? val.toString() : defVal);
         setState(STATE.IGNORE_NODE);
         return this;
     }
 
+    public NodeRegistryEntry nodePreregistration(Map<String,Object> nodeInfo) {
+        return _updateEntry(STATE.PREREGISTERED, preregistration, true, nodeInfo);
+    }
+
+    public NodeRegistryEntry nodeIgnore(Object nodeInfo) {
+        return _updateEntry(STATE.IGNORE_NODE, installation, true, "ignore-node", nodeInfo, null);
+    }
+
     public NodeRegistryEntry nodeInstalling(Object nodeInfo) {
-        installation.clear();
-        installation.put("installation-task", nodeInfo!=null ? nodeInfo.toString() : "INSTALLING");
-        setState(STATE.INSTALLING);
-        return this;
+        return _updateEntry(STATE.INSTALLING, installation, true, "installation-task", nodeInfo, "INSTALLING");
     }
 
     public NodeRegistryEntry nodeNotInstalled(Object nodeInfo) {
-        installation.clear();
-        installation.put("installation-task-result", nodeInfo!=null ? nodeInfo.toString() : "NOT_INSTALLED");
-        setState(STATE.NOT_INSTALLED);
-        return this;
+        return _updateEntry(STATE.NOT_INSTALLED, installation, true, "installation-task-result", nodeInfo, "NOT_INSTALLED");
     }
 
     public NodeRegistryEntry nodeInstallationComplete(Object nodeInfo) {
-        installation.put("installation-task-result", nodeInfo!=null ? nodeInfo.toString() : "SUCCESS");
-        setState(STATE.INSTALLED);
-        return this;
+        return _updateEntry(STATE.INSTALLED, installation, false, "installation-task-result", nodeInfo, "SUCCESS");
     }
 
     public NodeRegistryEntry nodeInstallationError(Object nodeInfo) {
-        installation.put("installation-task-result", nodeInfo!=null ? nodeInfo.toString() : "ERROR");
-        setState(STATE.INSTALL_ERROR);
-        return this;
+        return _updateEntry(STATE.INSTALL_ERROR, installation, false, "installation-task-result", nodeInfo, "ERROR");
     }
 
     public NodeRegistryEntry nodeRegistering(Map<String,Object> nodeInfo) {
-        registration.clear();
-        registration.putAll(StrUtil.deepFlattenMap(nodeInfo));
-        setState(STATE.REGISTERING);
-        return this;
+        return _updateEntry(STATE.REGISTERING, registration, true, nodeInfo);
     }
 
     public NodeRegistryEntry nodeRegistered(Map<String,Object> nodeInfo) {
-        //registration.clear();
-        registration.putAll(StrUtil.deepFlattenMap(nodeInfo));
-        setState(STATE.REGISTERED);
-        return this;
+        return _updateEntry(STATE.REGISTERED, registration, false, nodeInfo);
     }
 
     public NodeRegistryEntry nodeRegistrationError(Map<String,Object> nodeInfo) {
-        registration.putAll(StrUtil.deepFlattenMap(nodeInfo));
-        setState(STATE.REGISTRATION_ERROR);
-        return this;
+        return _updateEntry(STATE.REGISTRATION_ERROR, registration, false, nodeInfo);
     }
 
     public NodeRegistryEntry nodeRegistrationError(Throwable t) {
-        registration.putAll(StrUtil.deepFlattenMap(Collections.singletonMap("exception", t)));
-        setState(STATE.REGISTRATION_ERROR);
-        return this;
+        return _updateEntry(STATE.REGISTRATION_ERROR, registration, false, Collections.singletonMap("exception", t));
     }
 
     public NodeRegistryEntry nodeDisconnected(Map<String,Object> nodeInfo) {
-        registration.putAll(StrUtil.deepFlattenMap(nodeInfo));
-        setState(STATE.DISCONNECTED);
-        return this;
+        return _updateEntry(STATE.DISCONNECTED, registration, false, nodeInfo);
     }
 
     public NodeRegistryEntry nodeDisconnected(Throwable t) {
-        registration.putAll(StrUtil.deepFlattenMap(Collections.singletonMap("exception", t)));
-        setState(STATE.DISCONNECTED);
-        return this;
+        return _updateEntry(STATE.DISCONNECTED, registration, false, Collections.singletonMap("exception", t));
     }
 
     public NodeRegistryEntry nodeExiting(Map<String,Object> nodeInfo) {
-        registration.putAll(StrUtil.deepFlattenMap(nodeInfo));
-        setState(STATE.EXITING);
-        return this;
+        return _updateEntry(STATE.EXITING, registration, false, nodeInfo);
     }
 
     public NodeRegistryEntry nodeExited(Map<String,Object> nodeInfo) {
-        registration.putAll(StrUtil.deepFlattenMap(nodeInfo));
-        setState(STATE.EXITED);
-        return this;
+        return _updateEntry(STATE.EXITED, registration, false, nodeInfo);
     }
 
     public NodeRegistryEntry nodeFailed(Map<String,Object> failInfo) {
-        if (failInfo!=null)
-            registration.putAll(StrUtil.deepFlattenMap(failInfo));
-        setState(STATE.NODE_FAILED);
-        return this;
+        return _updateEntry(STATE.NODE_FAILED, registration, false, failInfo);
+    }
+
+    public NodeRegistryEntry nodeRemoving(Map<String,Object> nodeInfo) {
+        return _updateEntry(STATE.REMOVING, removal, false, nodeInfo);
+    }
+
+    public NodeRegistryEntry nodeRemoved(Map<String,Object> nodeInfo) {
+        return _updateEntry(STATE.REMOVED, removal, false, nodeInfo);
+    }
+
+    public NodeRegistryEntry nodeRemoveError(Map<String,Object> failInfo) {
+        return _updateEntry(STATE.REMOVE_ERROR, removal, false, failInfo);
+    }
+
+    public NodeRegistryEntry nodeArchived(Map<String,Object> nodeInfo) {
+        return _updateEntry(STATE.ARCHIVED, removal, false, nodeInfo);
     }
 }

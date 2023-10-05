@@ -550,4 +550,13 @@ public class BaguetteServer implements InitializingBean, EventBus.EventConsumer<
         }
         return clientId;
     }
+
+    public NodeRegistryEntry unregisterClient(NodeRegistryEntry entry) throws UnknownHostException {
+        log.debug("BaguetteServer.unregisterClient(): entry={}", entry);
+
+        // Archive node entry in node registry
+        nodeRegistry.archiveNode(entry);
+
+        return entry;
+    }
 }
