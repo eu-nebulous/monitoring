@@ -551,7 +551,7 @@ baguette.client.install:
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/check-ignore.yml
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/detect.yml
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/netdata.yml
-#      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/jre8.yml
+#      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/jre.yml
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/baguette.yml
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/baguette-skip.yml
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/start-agents.yml

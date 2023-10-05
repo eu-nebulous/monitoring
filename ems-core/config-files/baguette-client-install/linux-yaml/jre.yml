@@ -13,7 +13,7 @@
 
 ---
 os: LINUX
-description: JRE 8u282 installation instruction set at VM node
+description: JRE installation instruction set at VM node
 condition: >-
   ! ${SKIP_JRE_INSTALLATION:-false}                                 &&
   ! '${OS_ARCHITECTURE:-x}'.startsWith('arm')                       &&
@@ -21,16 +21,16 @@ condition: >-
   ${RAM_AVAILABLE_KB:-0} > ${BAGUETTE_INSTALLATION_MIN_RAM:-0}      &&
   ${DISK_FREE_KB:-0} > ${BAGUETTE_INSTALLATION_MIN_DISK_FREE:-0}
 instructions:
-  - description: Check if JRE 8u282 is already installed at Node
+  - description: Check if JRE is already installed at Node
     taskType: CHECK
-    command: '[[ -f ${BAGUETTE_CLIENT_BASE_DIR}/jre8/bin/java ]] && exit 99'
+    command: '[[ -f ${BAGUETTE_CLIENT_BASE_DIR}/jre/bin/java ]] && exit 99'
     executable: false
     exitCode: 99
     match: true
-    message: JRE 8u282 is already installed at Node
-  - description: Install JRE 8u282...
+    message: JRE is already installed at Node
+  - description: Install JRE...
     taskType: LOG
-    message: Install JRE 8u282...
+    message: Install JRE...
   - description: Mkdir Baguette Client installation folder
     taskType: CMD
     command: '${ROOT_CMD} mkdir -p ${BAGUETTE_CLIENT_BASE_DIR} '
@@ -47,21 +47,21 @@ instructions:
 #    match: false
   - description: Copy JRE package
     taskType: COPY
-    fileName: /tmp/jre8.282.tar.gz
-    localFileName: '${EMS_PUBLIC_DIR}/resources/${JRE8_LINUX_X64_PACKAGE}'
+    fileName: /tmp/${JRE_LINUX_PACKAGE}
+    localFileName: '${EMS_PUBLIC_DIR}/resources/${JRE_LINUX_PACKAGE}'
     executable: false
     exitCode: 0
     match: false
   - description: Extract JRE package into installation folder
     taskType: CMD
-    command: '${ROOT_CMD} tar zxvf /tmp/jre8.282.tar.gz -C ${BAGUETTE_CLIENT_BASE_DIR}'
+    command: '${ROOT_CMD} tar zxvf /tmp/${JRE_LINUX_PACKAGE} -C ${BAGUETTE_CLIENT_BASE_DIR}'
     executable: false
     exitCode: 0
     match: false
   - description: Rename JRE directory
     taskType: CMD
     command: >-
-      ${ROOT_CMD} mv ${BAGUETTE_CLIENT_BASE_DIR}/zulu* ${BAGUETTE_CLIENT_BASE_DIR}/jre8
+      ${ROOT_CMD} mv ${BAGUETTE_CLIENT_BASE_DIR}/zulu* ${BAGUETTE_CLIENT_BASE_DIR}/jre
     executable: false
     exitCode: 0
     match: false
@@ -73,7 +73,7 @@ instructions:
     match: false
   - description: Print JRE version
     taskType: CMD
-    command: '${BAGUETTE_CLIENT_BASE_DIR}/jre8/bin/java -version'
+    command: '${BAGUETTE_CLIENT_BASE_DIR}/jre/bin/java -version'
     executable: false
     exitCode: 0
     match: false
