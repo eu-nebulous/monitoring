@@ -9,8 +9,7 @@
 
 package gr.iccs.imu.ems.control.util;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.google.gson.*;
 import gr.iccs.imu.ems.baguette.server.NodeRegistryEntry;
 import gr.iccs.imu.ems.brokercep.BrokerCepService;
 import gr.iccs.imu.ems.brokercep.event.EventMap;
@@ -30,6 +29,7 @@ import org.springframework.stereotype.Service;
 import javax.jms.JMSException;
 import java.io.Serializable;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -59,7 +59,25 @@ public class TopicBeacon implements InitializingBean {
         }
 
         // initialize a Gson instance
-        gson = new GsonBuilder().disableHtmlEscaping().create();
+        gson = new GsonBuilder()
+                .disableHtmlEscaping()
+                .registerTypeAdapter(Instant.class,
+                        (JsonSerializer<Instant>) (src, typeOfSrc, context) ->
+                                (src==null) ? JsonNull.INSTANCE : new JsonPrimitive(src.toString()))
+                .registerTypeAdapter(Instant.class,
+                        (JsonDeserializer<Instant>) (json, typeOfT, context) -> {
+                            if (json.isJsonNull()) return null;
+                            if (!json.isJsonPrimitive())
+                                throw new IllegalArgumentException("");
+                            JsonPrimitive primitive = json.getAsJsonPrimitive();
+                            if (!primitive.isString())
+                                throw new IllegalArgumentException("");
+                            String s = primitive.getAsString();
+                            if (StringUtils.isEmpty(s))
+                                return null;
+                            return Instant.parse(s);
+                        })
+                .create();
 
         // configure and start scheduler
         Date startTime = new Date(System.currentTimeMillis() + properties.getInitialDelay());

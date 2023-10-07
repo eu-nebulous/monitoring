@@ -15,6 +15,7 @@ import gr.iccs.imu.ems.util.StrUtil;
 import lombok.*;
 import org.apache.commons.lang3.StringUtils;
 
+import java.time.Instant;
 import java.util.*;
 
 @Data
@@ -34,7 +35,7 @@ public class NodeRegistryEntry {
     private final transient BaguetteServer baguetteServer;
     @Getter private String hostname;
     @Getter private STATE state = null;
-    @Getter private Date stateLastUpdate;
+    @Getter private Instant stateLastUpdate;
     @Getter private String reference = UUID.randomUUID().toString();
     @Getter private List<Object> errors = new LinkedList<>();
     @JsonIgnore
@@ -71,7 +72,7 @@ public class NodeRegistryEntry {
 
     private void setState(@NonNull STATE s) {
         state = s;
-        stateLastUpdate = new Date();
+        stateLastUpdate = Instant.now();
     }
 
     public void refreshReference() { reference = UUID.randomUUID().toString(); }
