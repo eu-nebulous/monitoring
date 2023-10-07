@@ -10,6 +10,7 @@
 package gr.iccs.imu.ems.control.controller;
 
 import gr.iccs.imu.ems.control.properties.ControlServiceProperties;
+import gr.iccs.imu.ems.control.util.TopicBeacon;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.jms.JMSException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +34,7 @@ public class ManagementController {
 
     private final ControlServiceProperties properties;
     private final ManagementCoordinator coordinator;
+    private final TopicBeacon topicBeacon;
 
     // ------------------------------------------------------------------------------------------------------------
     // Client and Cluster info and control methods
@@ -88,7 +91,7 @@ public class ManagementController {
     }
 
     // ------------------------------------------------------------------------------------------------------------
-    // EMS status and information query methods
+    // EMS shutdown and exit methods
     // ------------------------------------------------------------------------------------------------------------
 
     @RequestMapping(value = "/ems/shutdown", method = {GET, POST})
@@ -112,6 +115,10 @@ public class ManagementController {
         }
     }
 
+    // ------------------------------------------------------------------------------------------------------------
+    // EMS status and information query methods
+    // ------------------------------------------------------------------------------------------------------------
+
     @RequestMapping(value = "/ems/status", method = {GET, POST}, produces = MediaType.APPLICATION_JSON_VALUE)
     public Map<String, Object> emsStatus() {
         log.info("ManagementController.emsStatus(): Not implemented");
@@ -122,6 +129,12 @@ public class ManagementController {
     public Map<String, Object> emsTopology() {
         log.info("ManagementController.emsTopology(): Not implemented");
         return Collections.emptyMap();
+    }
+
+    @RequestMapping(value = { "/beacon", "/beacon/transmit" }, method = GET)
+    public void beaconTransmit() throws JMSException {
+        log.info("ManagementController.beaconTransmit(): Invoked");
+        topicBeacon.transmitInfo();
     }
 
     // ------------------------------------------------------------------------------------------------------------
