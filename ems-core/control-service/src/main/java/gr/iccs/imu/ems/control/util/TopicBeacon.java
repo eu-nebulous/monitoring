@@ -10,6 +10,9 @@
 package gr.iccs.imu.ems.control.util;
 
 import com.google.gson.*;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
+import com.google.gson.stream.JsonWriter;
 import gr.iccs.imu.ems.baguette.server.NodeRegistryEntry;
 import gr.iccs.imu.ems.brokercep.BrokerCepService;
 import gr.iccs.imu.ems.brokercep.event.EventMap;
@@ -27,6 +30,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.stereotype.Service;
 
 import javax.jms.JMSException;
+import java.io.IOException;
 import java.io.Serializable;
 import java.time.Duration;
 import java.time.Instant;
@@ -59,25 +63,7 @@ public class TopicBeacon implements InitializingBean {
         }
 
         // initialize a Gson instance
-        gson = new GsonBuilder()
-                .disableHtmlEscaping()
-                .registerTypeAdapter(Instant.class,
-                        (JsonSerializer<Instant>) (src, typeOfSrc, context) ->
-                                (src==null) ? JsonNull.INSTANCE : new JsonPrimitive(src.toString()))
-                .registerTypeAdapter(Instant.class,
-                        (JsonDeserializer<Instant>) (json, typeOfT, context) -> {
-                            if (json.isJsonNull()) return null;
-                            if (!json.isJsonPrimitive())
-                                throw new IllegalArgumentException("");
-                            JsonPrimitive primitive = json.getAsJsonPrimitive();
-                            if (!primitive.isString())
-                                throw new IllegalArgumentException("");
-                            String s = primitive.getAsString();
-                            if (StringUtils.isEmpty(s))
-                                return null;
-                            return Instant.parse(s);
-                        })
-                .create();
+        initializeGson();
 
         // configure and start scheduler
         Date startTime = new Date(System.currentTimeMillis() + properties.getInitialDelay());
@@ -99,6 +85,49 @@ public class TopicBeacon implements InitializingBean {
             scheduler.scheduleAtFixedRate(transmitInfoTask, startTime.toInstant(), Duration.ofMillis(properties.getRate()));
             log.info("Topic Beacon started: init-delay={}ms, rate={}ms", properties.getInitialDelay(), properties.getRate());
         }
+    }
+
+    private void initializeGson() {
+        gson = new GsonBuilder()
+                .disableHtmlEscaping()
+                .registerTypeAdapter(Instant.class, new TypeAdapter<Instant>() {
+                    @Override
+                    public void write(JsonWriter out, Instant value) throws IOException {
+                        if (value==null)
+                            out.nullValue();
+                        else
+                            out.jsonValue(value.toString());
+                    }
+
+                    @Override
+                    public Instant read(JsonReader in) throws IOException {
+                        JsonToken token = in.peek();
+                        if (token==JsonToken.STRING) {
+                            String s = in.nextString();
+                            if (StringUtils.isEmpty(s))
+                                return null;
+                            return Instant.parse(s);
+                        } else
+                            throw new IllegalArgumentException("InstantGsonTypeAdapter: Expected a string primitive but encountered "+token);
+                    }
+                }.nullSafe())
+                .registerTypeAdapter(Instant.class,
+                        (JsonSerializer<Instant>) (src, typeOfSrc, context) ->
+                                (src==null) ? JsonNull.INSTANCE : new JsonPrimitive(src.toString()))
+                .registerTypeAdapter(Instant.class,
+                        (JsonDeserializer<Instant>) (json, typeOfT, context) -> {
+                            if (json.isJsonNull()) return null;
+                            if (!json.isJsonPrimitive())
+                                throw new IllegalArgumentException("InstantGsonDeserializer [1]: Expected a string primitive but encountered "+json);
+                            JsonPrimitive primitive = json.getAsJsonPrimitive();
+                            if (!primitive.isString())
+                                throw new IllegalArgumentException("InstantGsonDeserializer [2]: Expected a string primitive but encountered "+json);
+                            String s = primitive.getAsString();
+                            if (StringUtils.isEmpty(s))
+                                return null;
+                            return Instant.parse(s);
+                        })
+                .create();
     }
 
     private <T>Set<T> emptyIfNull(Set<T> s) {
@@ -174,10 +203,10 @@ public class TopicBeacon implements InitializingBean {
                 String nodeName = node.getPreregistration().getOrDefault("name", "");
                 String nodeIp = node.getIpAddress();
                 //String nodeIp = node.getPreregistration().getOrDefault("ip","");
-                String message = gson.toJson(node);
+//                String message = gson.toJson(node);
                 log.debug("Topic Beacon: Transmitting Instance info for: instance={}, ip-address={}, message={}, topics={}",
-                        nodeName, nodeIp, message, properties.getInstanceTopics());
-                sendEventToTopics(message, properties.getInstanceTopics());
+                        nodeName, nodeIp, node, properties.getInstanceTopics());
+                sendEventToTopics(node, properties.getInstanceTopics());
             }
         }
     }
@@ -188,6 +217,14 @@ public class TopicBeacon implements InitializingBean {
         EventMap event = new EventMap(-1);
         event.put("message", message);
         sendMessageToTopics(event, topics);
+    }
+
+    private void sendEventToTopics(Object message, Set<String> topics) throws JMSException {
+        EventMap event = new EventMap(-1);
+        event.put("message", message);
+        String s = gson.toJson(event);
+        log.trace("Topic Beacon: Converted event to JSON string: {}", s);
+        sendMessageToTopics(s, topics);
     }
 
     private void sendMessageToTopics(Serializable event, Set<String> topics) throws JMSException {
