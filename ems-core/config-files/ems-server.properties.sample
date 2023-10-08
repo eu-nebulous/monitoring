@@ -225,6 +225,7 @@ beacon.instance-topics = _ui_instance_info
 beacon.prediction-topics = metrics_to_predict
 beacon.prediction-rate = 60000
 beacon.slo-violation-detector-topics = metric.metric_list
+beacon.basic-metrics-topics = _client_metrics
 
 
 ################################################################################

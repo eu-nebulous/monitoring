@@ -231,6 +231,7 @@ beacon:
   prediction-topics: metrics_to_predict
   prediction-rate: 60000
   slo-violation-detector-topics: metric.metric_list
+  basic-metrics-topics: _client_metrics
 
 ################################################################################
 ### Info Service settings

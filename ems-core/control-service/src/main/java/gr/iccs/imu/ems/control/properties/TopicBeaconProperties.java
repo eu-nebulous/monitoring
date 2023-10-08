@@ -41,6 +41,7 @@ public class TopicBeaconProperties implements InitializingBean {
     @Min(1) private long predictionMinAllowedRate = 1;
     @Min(1) private long predictionMaxAllowedRate = 365*24*3600*1000L;
     private Set<String> sloViolationDetectorTopics = new HashSet<>();
+    private Set<String> basicMetricsTopics = new HashSet<>();
 
     @Override
     public void afterPropertiesSet() {

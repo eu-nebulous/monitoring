@@ -13,6 +13,7 @@ import com.google.gson.*;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
+import gr.iccs.imu.ems.baguette.server.ClientShellCommand;
 import gr.iccs.imu.ems.baguette.server.NodeRegistryEntry;
 import gr.iccs.imu.ems.brokercep.BrokerCepService;
 import gr.iccs.imu.ems.brokercep.event.EventMap;
@@ -151,6 +152,7 @@ public class TopicBeacon implements InitializingBean {
         transmitHeartbeat();
         transmitThresholdInfo();
         transmitInstanceInfo();
+        transmitBasicMetrics();
 
         // Call Beacon plugins
         beaconPlugins.stream().filter(Objects::nonNull).forEach(plugin -> {
@@ -207,6 +209,35 @@ public class TopicBeacon implements InitializingBean {
                 log.debug("Topic Beacon: Transmitting Instance info for: instance={}, ip-address={}, message={}, topics={}",
                         nodeName, nodeIp, node, properties.getInstanceTopics());
                 sendEventToTopics(node, properties.getInstanceTopics());
+            }
+        }
+    }
+
+    public void transmitBasicMetrics() {
+        if (emptyIfNull(properties.getBasicMetricsTopics()).isEmpty()) return;
+
+        if (coordinator.getBaguetteServer().isServerRunning()) {
+            for (ClientShellCommand csc : ClientShellCommand.getActive()) {
+                Map<String, Object> stats = csc.getClientStatistics();
+                try {
+                    String clientId = csc.getClientId();
+                    String clientIpAddress = csc.getClientIpAddress();
+                    if (StringUtils.isBlank(clientId) || StringUtils.isBlank(clientIpAddress))
+                        continue;
+                    long timestamp = Long.parseLong(StringUtils.defaultIfBlank(
+                            stats.getOrDefault("_received_at_server_timestamp", "").toString().trim(),
+                            "-1"
+                    ));
+                    stats.put("clientId", clientId);
+                    stats.put("ipAddress", clientIpAddress);
+                    stats.put("receivedAtServer", Instant.ofEpochMilli(timestamp).toString());
+                    log.debug("Topic Beacon: Transmitting Basic Metrics for: instance={}, ip-address={}, message={}, topics={}",
+                            clientId, clientIpAddress, stats, properties.getInstanceTopics());
+                    sendEventToTopics(stats, properties.getBasicMetricsTopics());
+                } catch (Exception e) {
+                    log.error("Topic Beacon: Transmitting Basic Metrics for: EXCEPTION while preparing basic metrics for client: id={}, ip-address={}, metrics={}\n",
+                            csc.getId(), csc.getClientIpAddress(), stats, e);
+                }
             }
         }
     }
