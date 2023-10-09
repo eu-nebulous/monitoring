@@ -39,7 +39,7 @@ public class SystemResourceMonitor implements Runnable, InitializingBean {
     private boolean enabled = Boolean.parseBoolean(
             System.getenv().getOrDefault("EMS_SYSMON_ENABLED", "true"));
     @Getter @Setter
-    private long period = Math.max(1000L,Long.parseLong(
+    private long period = Math.max(1000L, Long.parseLong(
             System.getenv().getOrDefault("EMS_SYSMON_PERIOD", "30000")));
     @Getter @Setter
     private String commandStr = System.getenv().getOrDefault("EMS_SYSMON_COMMAND", "./bin/sysmon.sh");
@@ -104,24 +104,19 @@ public class SystemResourceMonitor implements Runnable, InitializingBean {
             in.close();
             log.debug("SystemResourceMonitor: Script output:\n{}", result);
 
+            updateLatestEvent(result.toString());
             if (publishAsMetrics)
-                processOutputAsMetrics(result.toString());
+                processOutputAsMetrics();
             else
-                processOutput(result.toString());
+                processOutput();
 
         } catch (IOException e) {
             log.warn("SystemResourceMonitor: EXCEPTION: ", e);
         }
     }
 
-    @SneakyThrows
-    private void processOutput(String result) {
-        log.debug("SystemResourceMonitor: processOutput: BEGIN:\n{}", result);
-        if (StringUtils.isBlank(systemResourceMetricsTopic)) {
-            log.debug("SystemResourceMonitor: processOutput: END: No metrics topic has been set. Will not publish metrics event");
-            return;
-        }
-
+    private void updateLatestEvent(String result) {
+        log.debug("SystemResourceMonitor: updateLatestEvent: BEGIN:\n{}", result);
         EventMap event = new EventMap();
         for (String line : result.split("\n")) {
             String[] part = line.split(":", 2);
@@ -130,34 +125,47 @@ public class SystemResourceMonitor implements Runnable, InitializingBean {
             event.put(metricName, metricValue);
         }
         this.latestMeasurements = Collections.unmodifiableMap(event);
-        log.debug("SystemResourceMonitor: processOutput: Metrics: {}", event);
+        log.debug("SystemResourceMonitor: updateLatestEvent: Metrics: {}", event);
+    }
+
+    @SneakyThrows
+    private void processOutput() {
+        log.debug("SystemResourceMonitor: processOutput: BEGIN:\n{}", latestMeasurements);
+        if (StringUtils.isBlank(systemResourceMetricsTopic)) {
+            log.debug("SystemResourceMonitor: processOutput: END: No metrics topic has been set. Will not publish metrics event");
+            return;
+        }
+
+        log.debug("SystemResourceMonitor: processOutput: Metrics: {}", latestMeasurements);
 
         log.trace("SystemResourceMonitor: processOutput: Will publish metrics event to topic: {}", systemResourceMetricsTopic);
-        brokerCepService.publishEvent(null, systemResourceMetricsTopic, event);
+        brokerCepService.publishEvent(null, systemResourceMetricsTopic, latestMeasurements);
         log.debug("SystemResourceMonitor: processOutput: END: Metrics event published to topic: {}", systemResourceMetricsTopic);
     }
 
     @SneakyThrows
-    private void processOutputAsMetrics(String result) {
-        log.debug("SystemResourceMonitor: processOutputNew: BEGIN:\n{}", result);
+    private void processOutputAsMetrics() {
+        log.debug("SystemResourceMonitor: processOutputAsMetrics: BEGIN: {}", latestMeasurements);
         if (StringUtils.isBlank(systemResourceMetricsTopic)) {
-            log.debug("SystemResourceMonitor: processOutputNew: END: No metrics topic has been set. Will not publish metrics event");
+            log.debug("SystemResourceMonitor: processOutputAsMetrics: END: No metrics topic has been set. Will not publish metrics event");
             return;
         }
 
-        EventMap latest = new EventMap();
-        for (String line : result.split("\n")) {
-            String[] part = line.split(":", 2);
-            String metricName = part[0].trim().toLowerCase();
-            double metricValue= Double.parseDouble(part[1].trim());
-            latest.put(metricName, metricValue);
+        log.debug("SystemResourceMonitor: processOutputAsMetrics: Metrics: {}", latestMeasurements);
 
+        latestMeasurements.forEach((metricName, metricValue) -> {
             String topic = topicsCache.computeIfAbsent(metricName, s -> systemResourceMetricsTopic + s.trim().toUpperCase());
-            log.trace("SystemResourceMonitor: processOutputNew: Will publish {} metric event to topic: {}", metricName, topic);
-            brokerCepService.publishEvent(null, topic, new EventMap(metricValue));
-            log.trace("SystemResourceMonitor: processOutputNew: END: {} metric event published to topic: {}", metricName, topic);
-        }
-        this.latestMeasurements = Collections.unmodifiableMap(latest);
-        log.debug("SystemResourceMonitor: processOutputNew: END: Latest Metrics: {}", latest);
+            try {
+                if (StringUtils.isBlank(metricName) || metricValue == null || StringUtils.isBlank(metricValue.toString()))
+                    return;
+                log.trace("SystemResourceMonitor: processOutputAsMetrics: Will publish {} metric event to topic: {}", metricName, topic);
+                brokerCepService.publishEvent(null, topic, new EventMap(Double.parseDouble(metricValue.toString())));
+                log.trace("SystemResourceMonitor: processOutputAsMetrics: {} metric event published to topic: {}", metricName, topic);
+            } catch (Exception e) {
+                log.warn("SystemResourceMonitor: processOutputAsMetrics: EXCEPTION while publishing {} metric event to topic: {}", metricName, topic);
+            }
+        });
+
+        log.debug("SystemResourceMonitor: processOutputAsMetrics: END: Latest Metrics: {}", latestMeasurements);
     }
 }
