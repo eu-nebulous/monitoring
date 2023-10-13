@@ -1,4 +1,19 @@
+target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+
+### IntelliJ IDEA ###
 .idea
+*.iws
+*.iml
+*.ipr
+
 broker-client/*.js
 config-files/*.p12
 config-files/*.crt
