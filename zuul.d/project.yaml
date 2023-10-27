@@ -5,10 +5,7 @@
         - nebulous-monitoring-helm-lint
         - nebulous-monitoring-build-container-images
         - nebulous-monitoring-hadolint
-        - nebulous-platform-apply-helm-charts:
-            dependencies:
-              - name: nebulous-monitoring-build-container-images
-                soft: true
+        - nebulous-platform-apply-helm-charts
         - nox-linters
     gate:
       jobs:
@@ -16,10 +13,7 @@
         - nebulous-monitoring-helm-lint
         - nebulous-monitoring-upload-container-images
         - nebulous-monitoring-hadolint
-        - nebulous-platform-apply-helm-charts:
-            dependencies:
-              - name: nebulous-monitoring-upload-container-images
-                soft: true
+        - nebulous-platform-apply-helm-charts
         - nox-linters
     promote:
       jobs:
