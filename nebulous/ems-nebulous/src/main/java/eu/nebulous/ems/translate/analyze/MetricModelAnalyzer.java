@@ -1,0 +1,350 @@
+/*
+ * Copyright (C) 2023-2025 Institute of Communication and Computer Systems (imu.iccs.gr)
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public License, v2.0.
+ * If a copy of the MPL was not distributed with this file, you can obtain one at
+ * https://www.mozilla.org/en-US/MPL/2.0/
+ */
+
+package eu.nebulous.ems.translate.analyze;
+
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.DocumentContext;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.ParseContext;
+import eu.nebulous.ems.translate.NebulousEmsTranslatorProperties;
+import gr.iccs.imu.ems.translate.Grouping;
+import gr.iccs.imu.ems.translate.TranslationContext;
+import gr.iccs.imu.ems.translate.dag.DAGNode;
+import gr.iccs.imu.ems.translate.model.*;
+import lombok.Data;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.Accessors;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static eu.nebulous.ems.translate.analyze.AnalysisUtils.*;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class MetricModelAnalyzer {
+    private final NebulousEmsTranslatorProperties properties;
+    private final FunctionsHelper functionsHelper;
+    private final ConstraintsHelper constraintsHelper;
+    private final MetricsHelper metricsHelper;
+    private final NodeUpdatingHelper nodeUpdatingHelper;
+
+    // ================================================================================================================
+    // Model analysis methods
+
+    public void analyzeModel(@NonNull TranslationContext _TC, @NonNull Object metricModel, String modelName) throws Exception {
+        log.debug("MetricModelAnalyzer.analyzeModel(): BEGIN: metric-model: {}", metricModel);
+
+        // ----- Initialize jsonpath context ----------------------------------
+        Configuration jsonpathConfig = Configuration.defaultConfiguration();
+        ParseContext parseContext = JsonPath.using(jsonpathConfig);
+        DocumentContext ctx = parseContext.parse(metricModel);
+
+        // ----- Model processing ---------------------------------------------
+        log.debug("MetricModelAnalyzer.analyzeModel(): Analyzing metric model: {}", metricModel);
+        Map<String, Object> topLevelModelElements = ctx.read("$", Map.class);
+
+        // ----- Define additional translation structures and cache them in _TC -----
+        _TC.setExtensionContext(new AdditionalTranslationContextData());
+
+        // set full-name pattern in _TC, for full-name generation
+        if (StringUtils.isNotBlank(properties.getFullNamePattern())) {
+            log.debug("MetricModelAnalyzer.analyzeModel(): Set full name pattern to: {}", properties.getFullNamePattern());
+            _TC.setFullNamePattern(properties.getFullNamePattern());
+        }
+
+        // ----- Process function specifications -----
+        log.debug("MetricModelAnalyzer.analyzeModel(): Process function specs");
+        if (topLevelModelElements.containsKey("functions")) {
+            List<Object> functionSpecsList = ctx.read("$.functions.*", List.class);
+            functionSpecsList.stream().filter(s -> s instanceof Map).forEach(s -> {
+                functionsHelper.processFunction(_TC, s);
+            });
+        }
+
+        // ----- Get component and scope names -----
+        log.debug("MetricModelAnalyzer.analyzeModel(): Check name uniqueness");
+        List<String> componentNamesList = ctx.read("$.spec.components.*.name", List.class);
+        List<String> scopeNamesList = ctx.read("$.spec.scopes.*.name", List.class);
+        log.debug("Component names: {}", componentNamesList);
+        log.debug("    Scope names: {}", scopeNamesList);
+
+        // Check name uniqueness
+        checkNameUniqueness(componentNamesList, scopeNamesList);
+        Set<String> componentNames = new LinkedHashSet<>(componentNamesList);
+        Set<String> scopeNames = new LinkedHashSet<>(scopeNamesList);
+
+        // ----- Set container name and make mutable all 'spec' elements (and sub-elements) -----
+        log.debug("MetricModelAnalyzer.analyzeModel(): Set element containers");
+        Map<String, Object> modelRoot = asMap(ctx.read("$"));
+        Object specNode = modelRoot.get("spec");
+        specNode = addContainerNameAndMakeMutable(specNode, null);
+        modelRoot.put("spec", specNode);
+
+        // ----- Create object contexts for components -----
+        log.debug("MetricModelAnalyzer.analyzeModel(): Create object contexts");
+        createObjectContexts(_TC, componentNames);
+
+        // ----- Build flat lists of metrics, constraints and SLOs, and check their specs -----
+        log.debug("MetricModelAnalyzer.analyzeModel(): Build element lists");
+        buildElementLists(_TC, modelRoot);
+        log.debug("    All Metrics: {}", $$(_TC).allMetrics);
+        log.debug("All Constraints: {}", $$(_TC).allConstraints);
+        log.debug("       All SLOs: {}", $$(_TC).allSLOs);
+
+        // ----- Build of constants lists -----
+        log.debug("MetricModelAnalyzer.analyzeModel(): Build constants list");
+        buildConstantsList(_TC, modelRoot);
+
+        // ----- Process SLOs -----
+        log.debug("MetricModelAnalyzer.analyzeModel(): Process SLOs");
+        processSLOs(_TC);
+
+        // ----- Process orphan metrics (i.e. not used in constraints) -----
+        log.debug("MetricModelAnalyzer.analyzeModel(): Process orphan metrics");
+        metricsHelper.processOrphanMetrics(_TC);
+
+        // ----- Infer groupings (levels) -----
+        log.debug("MetricModelAnalyzer.analyzeModel(): Infer and set element groupings");
+        inferGroupings(_TC);
+
+        // ----- Build components to SLOs maps (including those in the scopes they participate) -----
+        if (properties.isUpdateNodesWithRequiringComponents()) {
+            log.debug("MetricModelAnalyzer.analyzeModel(): Updating DAG nodes with requiring component names");
+
+            // Build component to SLO maps
+            nodeUpdatingHelper.buildComponentsToSLOsMap(_TC, ctx, componentNames);
+            nodeUpdatingHelper.buildSLOToComponentsMap(_TC);
+
+            // Update DAG nodes with components requiring them (busy-status and orphans are required by all components)
+            nodeUpdatingHelper.updateDAGNodesWithComponents(_TC, componentNames);
+        }
+
+        // ----- Remove Orphan metrics common parent variable -----
+        if (! properties.isUseCommonOrphansParent()) {
+            log.debug("MetricModelAnalyzer.analyzeModel(): Removing common orphan metrics parent");
+            nodeUpdatingHelper.removeCommonOrphanMetricsParent(_TC);
+        }
+
+        // ----------------------------------------------------------
+
+        log.debug("MetricModelAnalyzer.analyzeModel(): END: metric-model: {}", metricModel);
+    }
+
+    // ------------------------------------------------------------------------
+    //  Additional translation data structures and shorthand retrieval method
+    // ------------------------------------------------------------------------
+
+    private AdditionalTranslationContextData $$(TranslationContext _TC) {
+        return _TC.$(AdditionalTranslationContextData.class);
+    }
+
+    @Data
+    @Accessors(fluent = true)
+    static class AdditionalTranslationContextData {
+        final Map<String, Object> parentSpecs = new LinkedHashMap<>();              // i.e. all component and scope specs
+        final Map<String, ObjectContext> objectContexts = new LinkedHashMap<>();    // i.e. object contexts for all components
+        final Map<NamesKey, Object> allSLOs = new LinkedHashMap<>();
+        final Map<NamesKey, Object> allConstraints = new LinkedHashMap<>();
+        final Map<NamesKey, Object> allMetrics = new LinkedHashMap<>();
+        final Map<NamesKey, MetricContext> metricsUsed = new LinkedHashMap<>();
+        final Map<NamesKey, Constraint> constraintsUsed = new LinkedHashMap<>();
+        final Map<NamesKey, Object> constants = new LinkedHashMap<>();
+        final Set<String> functionNames = new HashSet<>();
+        Map<String, Set<NamesKey>> componentsToSLOsMap;
+        Map<NamesKey, Set<String>> slosToComponentsMap;
+    }
+
+    // ------------------------------------------------------------------------
+    //  Analysis helper methods
+    // ------------------------------------------------------------------------
+
+    private static void checkNameUniqueness(List<String> componentNamesList, List<String> scopeNamesList) {
+        List<String> all = new ArrayList<>(componentNamesList);
+        all.addAll(scopeNamesList);
+        log.trace("      ALL names: {}", all);
+        List<String> duplicateNames = all.stream()
+                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()))
+                .entrySet().stream()
+                .filter(e -> e.getValue() > 1)
+                .map(Map.Entry::getKey)
+                .toList();
+        if (! duplicateNames.isEmpty()) {
+            log.error("Duplicate names: {}", duplicateNames);
+            throw createException("Naming conflicts exist for: "+duplicateNames);
+        }
+    }
+
+    private Object addContainerNameAndMakeMutable(Object o, String parentName) {
+        if (o instanceof Map m) {
+            Map<String, Object> newM = new LinkedHashMap<>();
+            newM.put(CONTAINER_NAME_KEY, parentName);
+            String myName0 = getSpecName(o);
+            String myName = parentName != null ? parentName : myName0;
+            m.forEach((k,v) -> newM.put(k.toString(), addContainerNameAndMakeMutable(v, myName)));
+            return newM;
+        } else
+        if (o instanceof List l) {
+            List<Object> newL = new LinkedList<>();
+            l.forEach(v -> newL.add(addContainerNameAndMakeMutable(v, parentName)));
+            return newL;
+        }
+        return o;
+    }
+
+    private void createObjectContexts(TranslationContext _TC, Set<String> componentNames) {
+        Map<String, ObjectContext> objectContexts = componentNames.stream()
+                .collect(Collectors.toMap(
+                        Function.identity(),
+                        name -> ObjectContext.builder()
+                                .component(Component.builder().name(name).build())
+                                .build()
+                ));
+        $$(_TC).objectContexts.putAll(objectContexts);
+    }
+
+    private void buildElementLists(TranslationContext _TC, Map<String, Object> modelRoot) {
+        asList(JsonPath.read(modelRoot, "$.spec.*.*")).stream().filter(Objects::nonNull).forEach(spec -> {
+            log.debug("buildElementLists: {}", spec);
+            String parentName = getSpecName(spec);
+            if (StringUtils.isBlank(parentName)) throw createException("Component or Scope with no name: " + spec);
+            $$(_TC).parentSpecs.computeIfAbsent(parentName, (key)->spec);
+
+            // Requirements (SLOs) flat list building
+            List<Object> slos = JsonPath.read(spec,
+                    "$[?(@.requirements!=null && @.requirements.*[?(@.type=='slo')])].requirements.*");
+            slos.stream().filter(Objects::nonNull).forEach(sloSpec -> {
+                log.debug("buildElementLists: SLO (requirements): {}", sloSpec);
+                String sloName = getSpecName(sloSpec);
+                if (StringUtils.isBlank(sloName)) throw createException("SLO spec with no name: " + sloSpec);
+                $$(_TC).allSLOs.put(NamesKey.create(parentName, sloName), sloSpec);
+            });
+
+            // Constraints flat list building
+            slos.stream().filter(Objects::nonNull).forEach(sloSpec -> {
+                log.debug("buildElementLists: SLO (constraints): {}", sloSpec);
+                String sloName = getSpecName(sloSpec);
+                if (StringUtils.isBlank(sloName)) throw createException("SLO spec with no name: " + sloSpec);
+
+                NamesKey sloNamesKey = NamesKey.create(parentName, sloName);
+                Map<String, Object> constraintSpec = asMap(asMap(sloSpec).get("constraint"));
+                NamesKey constraintNamesKey = createNamesKey(sloNamesKey, sloName);
+                $$(_TC).allConstraints.put(constraintNamesKey, constraintSpec);
+            });
+
+            // Metrics flat list building
+            List<Object> metrics = JsonPath.read(spec, "$[?(@.metrics!=null)].metrics.*");
+            metrics.stream().filter(Objects::nonNull).forEach(metricSpec -> {
+                log.debug("buildElementLists: Metric: {}", metricSpec);
+                String metricName = getSpecName(metricSpec);
+                if (StringUtils.isBlank(metricName)) throw createException("Metric spec with no name: " + metricSpec);
+                NamesKey namesKey = NamesKey.create(parentName, metricName);
+                $$(_TC).allMetrics.put(namesKey, metricSpec);
+            });
+        });
+    }
+
+    private void buildConstantsList(TranslationContext _TC, Map<String, Object> modelRoot) {
+        asList(JsonPath.read(modelRoot, "$.spec.*.*.metrics.*[?(@.type=='constant')]")).stream().filter(Objects::nonNull).forEach(spec -> {
+            metricsHelper.processConstant(_TC, asMap(spec), getContainerName(spec));
+        });
+    }
+
+    // ------------------------------------------------------------------------
+    //  Process SLOs -- This is the main decomposition method (uses helpers)
+    // ------------------------------------------------------------------------
+
+    private void processSLOs(TranslationContext _TC) {
+        // ----- Decompose SLOs with metric constraints to their metric hierarchies -----
+        Map<NamesKey, Object> metricSLOs = $$(_TC).allSLOs.entrySet().stream()
+                //.peek(x -> log.warn("-------->  {}", getSpecField(asMap(x.getValue()).get("constraint"), "type") ))
+                .filter(x -> "metric".equals( getSpecField(asMap(x.getValue()).get("constraint"), "type") ))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        constraintsHelper.decomposeConstraints(_TC, metricSLOs);
+
+        // ----- Decompose SLOs with non-metric constraints -----
+        Map<NamesKey, Object> nonMetricSLOs = new LinkedHashMap<>($$(_TC).allSLOs);
+        nonMetricSLOs.keySet().removeAll( metricSLOs.keySet() );
+        constraintsHelper.decomposeConstraints(_TC, nonMetricSLOs);
+    }
+
+    // ------------------------------------------------------------------------
+    //  Grouping inference methods
+    // ------------------------------------------------------------------------
+
+    private void inferGroupings(TranslationContext _TC) {
+        Grouping topLevelGrouping = Grouping.GLOBAL;
+        Grouping leafGrouping = properties.getLeafNodeGrouping();
+
+        _TC.getDAG().traverseDAG(node -> {
+            NamedElement elem = node.getElement();
+            if (elem!=null) {
+                inferElementGrouping(_TC, topLevelGrouping, leafGrouping, node);
+            }
+        });
+    }
+
+    private static void inferElementGrouping(TranslationContext _TC, Grouping topLevelGrouping, Grouping leafGrouping, DAGNode node) {
+        // Check if grouping has already been set
+        if (node.getGrouping()!=null) return;
+
+        // Get node model element
+        NamedElement elem = node.getElement();
+        if (elem==null) return;                     // Root node?
+
+        // Infer element grouping
+        Object groupingObj;
+        if (elem instanceof ServiceLevelObjective || elem instanceof Constraint) {
+            groupingObj = topLevelGrouping;
+        } else if (elem instanceof Sensor || elem instanceof RawMetricContext) {
+            groupingObj = leafGrouping;
+        } else {
+            // Infer parents' groupings
+            Set<DAGNode> parents = _TC.getDAG().getParentNodes(node);
+            parents.forEach(p -> inferElementGrouping(_TC, topLevelGrouping, leafGrouping, p));
+
+            // Get the lowest parents grouping
+            List<Grouping> parentGroupings = parents.stream()
+                    .filter(p -> p.getElement()!=null)
+                    .map(DAGNode::getGrouping)
+                    .collect(Collectors.toSet()).stream()
+                    .filter(Objects::nonNull)
+                    .sorted().toList();
+            if (! parentGroupings.isEmpty())
+                groupingObj = parentGroupings.get(0);
+            else
+                groupingObj = topLevelGrouping;
+
+            // Get grouping in element specification (if provided)
+            if (elem.getObject() instanceof Map m) {
+                Object gObj = m.get("grouping");
+                if (gObj == null)
+                    gObj = m.get("level");
+                if (gObj != null) {
+                    Grouping specGrouping = Grouping.valueOf( gObj.toString().trim().toUpperCase() );
+                    if (specGrouping.ordinal() >= leafGrouping.ordinal()) {
+                        if (specGrouping.ordinal() < Grouping.valueOf(groupingObj.toString().toUpperCase()).ordinal()) {
+                            groupingObj = specGrouping;
+                        }
+                    } else {
+                        groupingObj = leafGrouping;
+                    }
+                }
+            }
+        }
+        node.setGrouping(Grouping.valueOf(groupingObj.toString().toUpperCase()));
+    }
+
+}

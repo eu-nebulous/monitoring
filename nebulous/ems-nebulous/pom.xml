@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (C) 2023-2025 Institute of Communication and Computer Systems (imu.iccs.gr)
+  ~
+  ~ This Source Code Form is subject to the terms of the Mozilla Public License, v2.0.
+  ~ If a copy of the MPL was not distributed with this file, you can obtain one at
+  ~ https://www.mozilla.org/en-US/MPL/2.0/
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>eu.nebulous.ems</groupId>
+    <artifactId>ems-nebulous-plugin</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+    <name>Nebulous-EMS plugin</name>
+    <description>Nebulous-EMS plugin provides metric model translator and MVV service</description>
+
+    <properties>
+        <java.version>21</java.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- EMS versions -->
+        <ems.version>7.0.0-SNAPSHOT</ems.version>
+
+        <!-- Spring Boot versions -->
+        <spring.version>6.1.2</spring.version>
+        <spring-boot.version>3.2.1</spring-boot.version>
+        <snakeyaml.version>2.2</snakeyaml.version>
+        <lombok.version>1.18.30</lombok.version>
+
+        <!-- Nebulous-EMS extension dependency versions -->
+        <jackson.version>2.16.0</jackson.version>
+        <json-path.version>2.8.0</json-path.version>
+        <thymeleaf.version>3.1.2.RELEASE</thymeleaf.version>
+        <schematron.version>7.1.3</schematron.version>
+
+        <!-- io.fabricat8 docker-maven-plugin properties -->
+        <docker-image-properties-file>../ems-core/control-service/target/docker-image.properties</docker-image-properties-file>
+        <docker-maven-plugin.version>0.43.2</docker-maven-plugin.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.yaml</groupId>
+                <artifactId>snakeyaml</artifactId>
+                <version>${snakeyaml.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Compile time dependencies - Will be provided by EMS at runtime -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Spring Boot dependencies - Will be provided by EMS -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+            <version>${spring-boot.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <version>${spring-boot.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+            <version>${spring-boot.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- If omitted the Nebulous EMS extension will not be used by EMS server -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context-indexer</artifactId>
+            <version>${spring.version}</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- EMS dependencies - At runtime they will be provided by EMS -->
+        <dependency>
+            <groupId>gr.iccs.imu.ems</groupId>
+            <artifactId>util</artifactId>
+            <version>${ems.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>gr.iccs.imu.ems</groupId>
+            <artifactId>broker-cep</artifactId>
+            <version>${ems.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>gr.iccs.imu.ems</groupId>
+            <artifactId>translator</artifactId>
+            <version>${ems.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>gr.iccs.imu.ems</groupId>
+            <artifactId>control-service</artifactId>
+            <version>${ems.version}</version>
+            <classifier>original</classifier>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- ===================================================================== -->
+        <!-- Compile time dependencies - Specific to Nebulous EMS extension -->
+
+        <dependency>
+            <groupId>com.jayway.jsonpath</groupId>
+            <artifactId>json-path</artifactId>
+            <version>${json-path.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-xml</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <!-- Thymeleaf dependencies -->
+        <dependency>
+            <groupId>org.thymeleaf</groupId>
+            <artifactId>thymeleaf-spring6</artifactId>
+            <version>${thymeleaf.version}</version>
+        </dependency>
+
+        <!--  Schematron dependencies -->
+        <dependency>
+            <groupId>com.helger.schematron</groupId>
+            <artifactId>ph-schematron-api</artifactId>
+            <version>${schematron.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.helger.schematron</groupId>
+            <artifactId>ph-schematron-xslt</artifactId>
+            <version>${schematron.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.helger.schematron</groupId>
+            <artifactId>ph-schematron-pure</artifactId>
+            <version>${schematron.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.helger.schematron</groupId>
+            <artifactId>ph-schematron-validator</artifactId>
+            <version>${schematron.version}</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>remove-slf4j-files-from-jar-with-dependencies</id>
+                        <phase>package</phase>
+                        <configuration>
+                            <target>
+                                <jar destfile="${project.build.directory}/temp.jar">
+                                    <zipfileset src="${project.build.directory}/${project.artifactId}-${project.version}-jar-with-dependencies.jar"
+                                                excludes="org/slf4j/**" />
+                                </jar>
+                                <move file="${project.build.directory}/temp.jar"
+                                      tofile="${project.build.directory}/${project.artifactId}-${project.version}-jar-with-dependencies.jar"
+                                      force="true"/>
+                                <delete file="${project.build.directory}/temp-jar-with-dependencies.jar" />
+                            </target>
+                        </configuration>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Read docker image properties from file -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>properties-maven-plugin</artifactId>
+                <version>1.2.0</version>
+                <executions>
+                    <execution>
+                        <id>read-docker-image-properties</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>read-project-properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <!--<keyPrefix>dev-</keyPrefix>-->
+                    <files>
+                        <file>${docker-image-properties-file}</file>
+                    </files>
+                    <outputFile/>
+                    <properties/>
+                </configuration>
+            </plugin>
+
+            <!--<plugin>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>delete-old-docker-context</id>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <echo>Print Docker image dev properties</echo>
+                                <echo>Image name: "${docker.image.name}"</echo>
+                                <echo> Image Tag: "${docker.image.tag}"</echo>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>-->
+
+            <!-- Build docker image using docker-context folder -->
+            <!--<plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <version>${docker-maven-plugin.version}</version>
+                <configuration>
+                    <verbose>true</verbose>
+                    <useColor>true</useColor>
+                    <images>
+                        <image>
+                            <name>${docker.image.name}:${docker.image.tag}-nebulous</name>
+                            <build>
+                                <from>${docker.image.name}:${docker.image.tag}</from>
+                                <labels>
+                                    <artifactId>${project.artifactId}</artifactId>
+                                    <artifactId>${project.groupId}</artifactId>
+                                    <version>${project.version}</version>
+                                </labels>
+                                <env>
+                                    <EXTRA_LOADER_PATHS>/plugins/*</EXTRA_LOADER_PATHS>
+                                    <SCAN_PACKAGES>eu.nebulous.ems</SCAN_PACKAGES>
+                                </env>
+                                <assembly>
+                                    <targetDir>/plugin</targetDir>
+                                    <inline>
+                                        <files>
+                                            <file>
+                                                &lt;!&ndash; Path to the file you want to copy &ndash;&gt;
+                                                <source>${project.build.directory}/${project.artifactId}-${project.version}-jar-with-dependencies.jar</source>
+                                                &lt;!&ndash; Destination path within the container &ndash;&gt;
+                                                <outputDirectory></outputDirectory>
+                                            </file>
+                                        </files>
+                                    </inline>
+                                </assembly>
+                            </build>
+                        </image>
+                    </images>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>docker-image-build</id>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>-->
+
+        </plugins>
+    </build>
+
+</project>

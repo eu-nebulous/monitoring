@@ -1,0 +1,679 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nebulouscloud.eu/nebulous-metric-model-v1.0.0.schema.json",
+  "title": "Nebulous Metric Model",
+  "description": "Nebulous Metric Model is a YAML file defining the monitoring requirements and details of a Nebulous multi-container application. Current version is v.1.0.0, 2023-10",
+
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "const": "nebulous/v1"
+    },
+    "kind": {
+      "const": "MetricModel"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The display name of the model",
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "spec": {
+      "description": "Lists of component and scope with metrics and/or requirements",
+      "type": "object",
+      "properties": {
+        "components": {
+          "description": "Components list",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/component"
+          }
+        },
+        "scopes": {
+          "description": "Scopes list",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/scope"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "functions": {
+      "description": "Function definitions used in composite metric formulas",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/function"
+      }
+    }
+  },
+  "required": [ "apiVersion", "kind", "spec" ],
+  "additionalProperties": true,
+
+  "$defs": {
+
+    "name": {
+      "id": "#/$defs/name",
+      "description": "Element name",
+      "type": "string",
+      "pattern": "[A-Za-z_][A-Za-z0-9_]*"
+    },
+
+    "ref": {
+      "id": "#/$defs/ref",
+      "description": "Metric reference",
+      "type": "string",
+      "pattern": "^\\s*([A-Za-z_][A-Za-z0-9_\\-]*|\\[[A-Za-z_][A-Za-z0-9_\\-]*\\])(\\s*\\.\\s*([A-Za-z_][A-Za-z0-9_\\-]*|\\[[A-Za-z_][A-Za-z0-9_\\-]*\\]))*\\s*$"
+    },
+
+    "grouping": {
+      "id": "#/$defs/grouping",
+      "description": "Metrics computation grouping",
+      "enum": [
+        "per_instance", "instance", "PER_INSTANCE", "INSTANCE",
+        "per_host", "host", "PER_HOST", "HOST",
+        "per_zone", "zone", "PER_ZONE", "ZONE",
+        "per_region", "region", "PER_REGION", "REGION",
+        "per_cloud", "cloud", "PER_CLOUD", "CLOUD",
+        "global", "GLOBAL"
+      ]
+    },
+
+    "unit": {
+      "id": "#/$defs/name",
+      "description": "Units (empty means 'seconds')",
+      "enum": [
+        "event", "events",
+        "ms", "msec", "milli", "millis",
+        "s", "sec", "second", "seconds",
+        "min", "minute", "minutes",
+        "hr", "hour", "hours",
+        "d", "day", "days",
+        "w", "week", "weeks",
+        "y", "year", "years"
+      ],
+      "default": "sec"
+    },
+
+    "cep_size": {
+      "description": "Window size or Schedule",
+      "type": "object",
+      "properties": {
+        "value": {
+          "description": "Size value (a positive number)",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "unit": {
+          "$ref": "#/$defs/unit"
+        }
+      },
+      "required": [ "value" ],
+      "additionalProperties": false
+    },
+
+    "component": {
+      "id": "#/$defs/component",
+      "description": "Component-specific metrics and requirements",
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "requirements": {
+          "description": "Component requirements list",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/$defs/requirement"
+          }
+        },
+        "metrics": {
+          "description": "Component metrics list",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/$defs/metric"
+          }
+        }
+      },
+      "required": [ "name" ],
+      "additionalProperties": false
+    },
+
+    "scope": {
+      "id": "#/$defs/scope",
+      "description": "Scope-specific metrics and requirements",
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "components": {
+          "description": "Components partitipating in scope ('*' means all components)",
+          "oneOf": [
+            {
+              "const": "*"
+            }, 
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/name"
+              }
+            }
+          ]
+        },
+        "requirements": {
+          "description": "Scope requirements list",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/$defs/requirement"
+          }
+        },
+        "metrics": {
+          "description": "Scope metrics list",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/$defs/metric"
+          }
+        }
+      },
+      "required": [ "name" ],
+      "additionalProperties": false
+    },
+
+    "requirement": {
+      "id": "#/$defs/requirement",
+      "description": "Requirement (SLO)",
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "type": {
+          "description": "Requirement type. Currently only SLO's are supported",
+          "const": "slo"
+        },
+        "constraint": {
+          "oneOf": [
+            {
+              "description": "SLO constraint in shorthand form. Only metric constraints are allowed in shorthand form. E.g. <METRIC> <comparison-op> <THRESHOLD>",
+              "type": "string",
+              "pattern": "^\\s*[A-Za-z_][A-Za-z0-9_]*\\s*[<>=]{1,2}\\s*\\-?\\d+(\\.\\d*)?\\s*$"
+            }, 
+            {
+              "description": "SLO metric constraint in detail form",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Constraint type. Currently only 'metric' constraints are supported",
+                  "const": "metric"
+                },
+                "metric": {
+                  "description": "Name of constraint metric. Must be defined in the metrics list of this component or scope",
+                  "$ref": "#/$defs/name"
+                },
+                "operator": {
+                  "description": "Metric constraint comparison operator",
+                  "enum": [ "=", "<>", "<", "<=", "=<", ">", ">=", "=>" ]
+                },
+                "threshold": {
+                  "description": "Metric constraint threshold (a real number)",
+                  "type": "number"
+                }
+              },
+              "required": [ "metric", "operator", "threshold" ],
+              "additionalProperties": false
+            },
+            {
+              "description": "SLO logical constraint in detail form",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Constraint type. Currently only 'metric' constraints are supported",
+                  "const": "logical"
+                },
+                "operator": {
+                  "description": "Logical constraint operator",
+                  "enum": [ "and", "or" ]
+                },
+                "constraints": {
+                  "description": "Logical constraint sub-constraints",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/name"
+                  }
+                }
+              },
+              "required": [ "type", "operator", "constraints" ],
+              "additionalProperties": false
+            },
+            {
+              "description": "SLO conditional constraint in detail form",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Constraint type",
+                  "const": "conditional"
+                },
+                "if": {
+                  "description": "Conditional constraint IF clause",
+                  "$ref": "#/$defs/name"
+                },
+                "then": {
+                  "description": "Conditional constraint THEN clause",
+                  "$ref": "#/$defs/name"
+                },
+                "else": {
+                  "description": "Conditional constraint ELSE clause",
+                  "$ref": "#/$defs/name"
+                }
+              },
+              "required": [ "type", "if", "then" ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [ "name", "constraint" ],
+      "additionalProperties": false
+    },
+
+    "metric": {
+      "id": "#/$defs/metric",
+      "description": "Metric related to this component or scope",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/metric-raw"
+        }, 
+        {
+          "$ref": "#/$defs/metric-composite"
+        }, 
+        {
+          "$ref": "#/$defs/metric-constant"
+        },
+        {
+          "$ref": "#/$defs/metric-ref"
+        }
+      ]
+    },
+
+    "metric-raw": {
+      "id": "#/$defs/metric-raw",
+      "description": "Raw metric related to this component or scope",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Raw metric name",
+          "$ref": "#/$defs/name"
+        },
+        "type": {
+          "description": "Raw metric type (always 'raw'. Can be omitted)",
+          "const": "raw"
+        },
+        "template": {
+          "description": "Raw metric template (if omitted means any real number)",
+          "$ref": "#/$defs/template"
+        },
+        "sensor": {
+          "description": "Raw metric sensor specification",
+          "$ref": "#/$defs/sensor"
+        },
+        "output": {
+          "description": "Raw metric output schedule",
+          "$ref": "#/$defs/output"
+        },
+        "busy-status": {
+          "description": "is busy-status metric?",
+          "type": "boolean"
+        }
+      },
+      "required": [ "name", "sensor" ],
+      "additionalProperties": false
+    },
+
+    "metric-composite": {
+      "id": "#/$defs/metric-composite",
+      "description": "Composite related to this component or scope",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Composite metric name",
+          "$ref": "#/$defs/name"
+        },
+        "type": {
+          "description": "Composite metric type (always 'composite'. Can be omitted)",
+          "const": "composite"
+        },
+        "template": {
+          "description": "Composite metric template (if omitted means any real number)",
+          "$ref": "#/$defs/template"
+        },
+        "formula": {
+          "description": "Composite metric formula. MUST comply with 'mathXParser' syntax",
+          "type": "string",
+          "minLength": 1
+        },
+        "window": {
+          "description": "Composite metric window specification",
+          "$ref": "#/$defs/window"
+        },
+        "output": {
+          "description": "Composite metric output schedule",
+          "$ref": "#/$defs/output"
+        },
+        "level": {
+          "description": "Composite metric computation level/grouping",
+          "$ref": "#/$defs/grouping"
+        },
+        "grouping": {
+          "description": "Composite metric computation level/grouping",
+          "$ref": "#/$defs/grouping"
+        },
+        "busy-status": {
+          "description": "is busy-status metric?",
+          "type": "boolean"
+        }
+      },
+      "required": [ "name", "formula" ],
+      "additionalProperties": false
+    },
+
+    "metric-constant": {
+      "id": "#/$defs/metric-constant",
+      "description": "Constant related to this component or scope",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Constant name",
+          "$ref": "#/$defs/name"
+        },
+        "type": {
+          "description": "Constant type (always 'constant'. CANNOT BE OMITTED)",
+          "const": "constant"
+        },
+        "template": {
+          "description": "Constant metric template (if omitted means any real number)",
+          "$ref": "#/$defs/template"
+        },
+        "initial": {
+          "description": "Constant's initial value. NOTE: If omitted errors may occur at runtime until a value is provided",
+          "oneOf": [
+            {
+              "type": "string"
+            }, 
+            {
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "required": [ "name", "type" ],
+      "additionalProperties": false
+    },
+
+    "metric-ref": {
+      "id": "#/$defs/metric-ref",
+      "description": "Reference to another metric in this or another component or scope",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Metric name",
+          "$ref": "#/$defs/name"
+        },
+        "ref": {
+          "description": "Reference to another metric. Form: '<COMPONET_NAME | SCOPE_NAME>.<METRIC_NAME>', COMPONET_NAME/SCOPE_NAME can be omitted if referenced metric is in the same component or scope",
+          "$ref": "#/$defs/ref"
+        }
+      },
+      "required": [ "name", "ref" ],
+      "additionalProperties": false
+    },
+
+    "template": {
+      "id": "#/$defs/template",
+      "description": "Metric template for metrics and constants. If omitted, the metric or constant value range is assumed to be any real number",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Template Id. Reserved for future use.",
+          "type": "string"
+        },
+        "type": {
+          "description": "Metric template value type",
+          "enum": [ "int", "integer", "double", "float", "real" ]
+        },
+        "range": {
+          "description": "Metric template value range. Range bounds must be of the type specified in 'type' property",
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number"
+            }, 
+            {
+              "type": "number"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "unit": {
+          "description": "Template unit (can be omitted)",
+          "type": "string"
+        }
+      },
+      "required": [ "type" ],
+      "additionalProperties": false
+    },
+
+    "sensor": {
+      "id": "#/$defs/sensor",
+      "description": "Sensor specification for a raw metric",
+      "oneOf": [
+        {
+          "description": "Sensor specification in shorthand form. Only 'netdata' sensors allowed. Form: 'netdata <EMS_NETDATA_TOPIC>', e.g. 'netdata netdata__system__cpu__user'",
+          "type": "string",
+          "pattern": "^\\s*netdata\\s*[A-Za-z0-9_]+\\s*$"
+        }, 
+        {
+          "description": "Sensor specification in detail form",
+          "type": "object",
+          "properties": {
+            "type": {
+              "description": "Sensor type. If omitted 'netdata' sensor is assumed",
+              "type": "string",
+              "minLength": 1
+            },
+            "affinity": {
+              "description": "Netdata sensors only. The EMS_NETDATA_TOPIC. E.g. ''netdata__system__cpu__user'",
+              "type": "string",
+              "minLength": 1
+            },
+            "config": {
+              "description": "Sensor specific configuration. Typically needed for custom sensors",
+              "type": "object"
+            },
+            "install": {
+              "description": "Sensor installation scripts. NOTE: Reserved for future use",
+              "type": "object"
+            }
+          },
+          "required": [ "type" ],
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "window": {
+      "id": "#/$defs/window",
+      "description": "Composite metric window. Windows are memory buffers retaining incoming events until a time or size condition is met.",
+      "oneOf": [
+        {
+          "description": "Window specification in shorthand form. Form: <sliding|batch> <size-value> <size-unit>, e.g. 'sliding 5 minutes'",
+          "type": "string",
+          "pattern": "^\\s*(sliding|batch)\\s+\\d+(\\.\\d*)?\\s*[AZ=a-z]+\\s*$"
+        }, 
+        {
+          "description": "Window specification in detail form",
+          "type": "object",
+          "properties": {
+            "type": {
+              "description": "Window type: sliding or batch",
+              "enum": [ "batch", "sliding" ]
+            },
+            "size": {
+              "description": "Window size",
+              "oneOf": [
+                {
+                  "description": "Window size in shorthand form. Form: <size-value> <size-unit>, e.g. '30 seconds'",
+                  "type": "string",
+                  "pattern": "^\\s*\\d+(\\.\\d*)?\\s*[A-Za-z]*\\s*$"
+                },
+                {
+                  "description": "Window size in detail form",
+                  "$ref": "#/$defs/cep_size"
+                }
+              ]
+            },
+            "processing": {
+              "description": "Window processings list",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/processing"
+              }
+            }
+          },
+          "required": [ "type", "size" ],
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "processing": {
+      "id": "#/$defs/processing",
+      "description": "Window processing (i.e. group and sort, or rank)",
+      "properties": {
+        "type": {
+          "description": "Window processing type (group, sort, rank)",
+          "enum": [ "group", "sort", "rank" ]
+        },
+        "function": {
+          "description": "Window processing EPL function",
+          "type": "string",
+          "minLength": 1
+        },
+        "criteria": {
+          "description": "Window processing criteria list. At least one must be provided",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/criteria",
+            "minItems": 1
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [ "type", "criteria" ],
+      "additionalProperties": false
+    },
+
+    "criteria": {
+      "id": "#/$defs/criteria",
+      "description": "Window processing criterion (for grouping, or sorting)",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/grouping"
+        },
+        {
+          "enum": [ "timestamp", "TIMESTAMP" ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "enum": [ "custom", "CUSTOM" ]
+            },
+            "custom": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [ "custom" ],
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "output": {
+      "id": "#/$defs/output",
+      "description": "Output schedule for metrics. Controls how often the metric values are published to EMS (meanwhile they are cached in memory)",
+      "oneOf": [
+        {
+          "description": "Output specification in shorthand form. Form: <all|first|last|snapshot> <size-value> <time-unit>, e.g. 'all 30 seconds'",
+          "type": "string",
+          "pattern": "^\\s*((all|first|last|snapshot)\\s)?\\s*\\d+(\\.\\d*)?\\s*[A-Za-z]*\\s*$"
+        }, 
+        {
+          "description": "Output specification in detail form",
+          "type": "object",
+          "properties": {
+            "type": {
+              "description": "Output type. Controls which (cached) metric values will be published to EMS (all, first, last, snapshot)",
+              "enum": [ "all", "first", "last", "snapshot" ],
+              "default": "all"
+            },
+            "schedule": {
+              "description": "Output schedule",
+              "oneOf": [
+                {
+                  "description": "Output schedule in shorthand form. Form: <size-value> <time-unit>, e.g. '30 seconds'",
+                  "type": "string",
+                  "pattern": "^\\s*\\d+(\\.\\d*)?\\s*[A-Za-z]*\\s*$"
+                }, 
+                {
+                  "description": "Output schedule in detail form",
+                  "$ref": "#/$defs/cep_size"
+                }
+              ]
+            }
+          },
+          "required": [ "schedule" ],
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "function": {
+      "id": "#/$defs/function",
+      "description": "Function definition. Functions can be used in composite metric formulas.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Function name. MUST BE UNIQUE. It can be used in composite metric formulas.",
+          "$ref": "#/$defs/name"
+        },
+        "expression": {
+          "description": "Function expression. MUST comply with 'mathXParser' syntax",
+          "type": "string",
+          "minLength": 1
+        },
+        "arguments": {
+          "description": "Function arguments. They MUST match to those used in 'expression' both in number and names.",
+          "type": "array",
+          "items": {
+            "description": "Function argument. MUST be used in the corresponing function expression.",
+            "$ref": "#/$defs/name"
+          }
+        }
+      },
+      "required": [ "name", "expression", "arguments" ],
+      "additionalProperties": false
+    }
+
+  }
+}

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema xmlns="http://purl.oclc.org/dsdl/schematron">
+
+    <!-- XXX:TODO: Write schematron rules for metric model validity -->
+
+    <pattern>
+        <rule context="/metricModel" id="R001">
+            <assert id="001-apiVersion-required" test="apiVersion">
+                Element 'apiVersion' must be present
+            </assert>
+            <assert id="R001-apiVersion-expected-value" test="apiVersion = 'nebulous/v1'">
+                Element 'apiVersion' value must be 'nebulous/v1'
+            </assert>
+        </rule>
+    </pattern>
+</schema>

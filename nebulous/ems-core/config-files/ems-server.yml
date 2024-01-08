@@ -1,0 +1,681 @@
+#
+# Copyright (C) 2017-2023 Institute of Communication and Computer Systems (imu.iccs.gr)
+#
+# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+# Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+# If a copy of the MPL was not distributed with this file, you can obtain one at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+
+################################################################################
+### Global settings
+################################################################################
+
+### Don't touch the next line!!
+EMS_SERVER_ADDRESS: ${${control.IP_SETTING}}
+DOLLAR: '$'
+
+### Password Encoder settings
+#password-encoder-class: gr.iccs.imu.ems.util.password.AsterisksPasswordEncoder
+#password-encoder-class: gr.iccs.imu.ems.util.password.IdentityPasswordEncoder
+#password-encoder-class: gr.iccs.imu.ems.util.password.PresentPasswordEncoder
+
+### Jasypt encryptor settings (using old settings until encrypted texts are updated)
+jasypt:
+  encryptor:
+    algorithm: PBEWithMD5AndDES
+    ivGeneratorClassname: org.jasypt.iv.NoIvGenerator
+
+### Execution (@EnableAsync) and Scheduling (@EnableScheduling) thread pools
+#spring.task.execution.pool.max-size: 16
+#spring.task.execution.pool.queue-capacity: 100
+#spring.task.execution.pool.keep-alive: '10s'
+#spring.task.scheduling.pool.size: 2
+
+### Misc
+spring.output.ansi.enabled: ALWAYS
+spring.jackson.default-property-inclusion: non_null
+spring.threads.virtual.enabled: true
+
+
+################################################################################
+### Web server port and TLS settings
+################################################################################
+
+server:
+  port: 8111
+  ssl:
+    enabled: true
+    ### Keystore/Truststore settings
+    key-store: ${control.ssl.keystore-file}
+    key-store-password: ${control.ssl.keystore-password}
+    key-store-type: ${control.ssl.keystore-type}
+    key-alias: ${control.ssl.key-entry-name}
+    #key-password: ${control.ssl.key-entry-password}
+    #
+    ### SSL ciphers and protocol settings
+    #ciphers: TLS_RSA_WITH_AES_128_CBC_SHA256    # SSL ciphers
+    #protocol: TLS                               # SSL protocol to use
+    #enabled-protocols: TLSv1.2                  # Enabled SSL protocols
+
+#security.require-ssl: true
+
+
+################################################################################
+### JWT settings
+jwt:
+  secret: ENC(I0mRWgH2FVDDNs4OBcdh7Z+o3lOQDa3ztaEtmnXT2HN0aClkChp/lqm9zM5HyTk0stJ7v2Di75U=)
+#  expirationTime: 86400000
+#  refreshTokenExpirationTime: 86400000
+
+
+################################################################################
+### Authorization settings
+### NOTE: More authorization settings in 'authorization-client.properties'
+authorization:
+  enabled: false
+  #paths-protected: [ '/appModel*', '/cpModel*', '/ems/**', '/baguette/**', '/event/**', '/monitors' ]
+  #paths-excluded: []
+
+
+################################################################################
+### Logback configuration file
+logging:
+  config: file:${EMS_CONFIG_DIR}/logback-conf/logback-spring.xml
+
+
+################################################################################
+### Web Log-viewer configuration
+log-viewer:
+  url-mapping: /log-viewer
+
+
+################################################################################
+###                     EMS - Control Service properties                     ###
+################################################################################
+
+control:
+
+  ### Don't touch the next lines!!
+  IP_SETTING: ${EMS_IP_SETTING:PUBLIC_IP}
+  EXECUTIONWARE: PROACTIVE
+
+  ### URLs of Upperware services being invoked by EMS
+  notification-url: ${NOTIFICATION_URL:https://mule:8088}
+  metasolver-configuration-url: ${METASOLVER_URL:http://metasolver:8092/updateConfiguration}
+
+  ### Log settings
+  #print-build-info: true
+  log-requests: ${EMS_LOG_REQUESTS:false}
+
+  ### Debug settings - Deactivate processing modules
+  #skip-translation: true
+  #skip-mvv-retrieve: true
+  #skip-broker-cep: true
+  #skip-baguette: true
+  #skip-collectors: true
+  #skip-metasolver: true
+  #skip-notification: true
+  upperware-grouping: GLOBAL
+
+  ### Debug settings - Load/Save translation results
+  tc-load-file: ${EMS_TC_LOAD_FILE:${EMS_TC_FILE:${LOGS_DIR:${EMS_CONFIG_DIR}/../logs}/_TC.json}}
+  tc-save-file: ${EMS_TC_SAVE_FILE:${EMS_TC_FILE:${LOGS_DIR:${EMS_CONFIG_DIR}/../logs}/_TC.json}}
+
+  ### Process App and CP models on start-up
+  preload:
+    ### App model to process on start-up
+    app-model: ${EMS_PRELOAD_APP_MODEL:}
+    ### CP model to process on start-up
+    cp-model: ${EMS_PRELOAD_CP_MODEL:}
+
+  ### Exit settings
+  exit-allowed: false
+  exit-grace-period: 10
+  exit-code: 0
+
+  ### Key store, Trust store and Certificate settings
+  ssl:
+    # Key store settings
+    keystore-file: ${EMS_CONFIG_DIR}/ems-keystore.p12
+    keystore-type: PKCS12
+    #keystore-password: 'ENC(ISMbn01HVPbtRPkqm2Lslg==)'    # melodic
+
+    # Trust store settings
+    truststore-file: ${EMS_CONFIG_DIR}/ems-truststore.p12
+    truststore-type: PKCS12
+    #truststore-password: 'ENC(ISMbn01HVPbtRPkqm2Lslg==)'  # melodic
+
+    # Certificate settings
+    certificate-file: ${EMS_CONFIG_DIR}/ems-cert.crt
+
+    # EMS key generation settings
+    key-entry-generate: ALWAYS
+    key-entry-name: ems
+    #key-entry-password:
+    key-entry-dname: 'CN=ems,OU=Information Management Unit (IMU),O=Institute of Communication and Computer Systems (ICCS),L=Athens,ST=Attika,C=GR'
+    key-entry-ext-san: 'dns:localhost,ip:127.0.0.1,ip:${DEFAULT_IP},ip:${PUBLIC_IP}'
+
+################################################################################
+### Web configuration - Static resources
+
+### Static Web Resources and Redirects
+web.static:
+
+  ### Favicon settings
+  #favicon-context: /favicon.ico
+  favicon-path: file:${PUBLIC_DIR}/favicon.ico
+
+  ### Static resource settings
+  resource-context: /**
+  resource-path: file:${PUBLIC_DIR}/
+
+  logs-context: /logs/**
+  logs-path: file:${LOGS_DIR}/
+
+  ### Redirects
+  #redirect: /resources/index.html
+  redirects:
+    '[/]': '/admin/index.html'
+    '[/index.html]': '/admin/index.html'
+    '[/admin]': '/admin/index.html'
+    '[/admin/]': '/admin/index.html'
+    '[/resources]': '/resources/index.html'
+    '[/resources/]': '/resources/index.html'
+
+################################################################################
+### Web & REST Security configuration
+
+### NOTE: Setting this to 'false' will turn off all security features
+#melodic.security.enabled: false
+
+#web.security:
+#
+#  ### JWT authentication ###
+#  jwt-authentication:
+#    enabled: false
+#    request-parameter: jwt
+#    print-sample-token: false
+#
+#  ### API Key access ###
+#  api-key-authentication:
+#    enabled: false
+#    #value: ${random.uuid}
+#    value: 1234567890
+#    request-header: EMS-API-KEY
+#    request-parameter: ems-api-key
+#
+#  ### OTP access ###
+#  otp-authentication:
+#    enabled: false
+#    duration: 3600000
+#    request-header: EMS-OTP
+#    request-parameter: ems-otp
+#
+#  ### User Web Form authentication ###
+#  form-authentication:
+#    enabled: false
+#    username: admin
+#    password: ems
+
+################################################################################
+### Topic Beacon settings
+beacon:
+  enabled: true
+  initial-delay: 60000
+  delay: 60000
+  #rate: 60000
+  #use-delay: false
+  heartbeat-topics:
+  threshold-topics: _ui_threshold_info
+  instance-topics: _ui_instance_info
+  prediction-topics: metrics_to_predict
+  prediction-rate: 60000
+  slo-violation-detector-topics: metric.metric_list
+  basic-metrics-topics: _client_metrics
+
+################################################################################
+### Info Service settings
+info:
+  metrics-update-interval: 1000
+  metrics-client-update-interval: 10000
+  metrics-stream-update-interval: 10         # in seconds
+  metrics-stream-event-name: ems-metrics-event
+  env-var-prefixes:
+    - WEBSSH_SERVICE_-^
+    - WEB_ADMIN_!^
+    # ! at the end means to trim off the prefix; - at the end means to convert '_' to '-';
+    # ^ at the end means convert to upper case; ~ at the end means convert to lower case;
+
+################################################################################
+### Collectors settings
+collector:
+  netdata:
+    enable: true
+    delay: 10000
+    skipLocal: true
+    url: http://127.0.0.1:19999/api/v1/allmetrics?format=json
+    urlOfNodesWithoutClient: http://%s:19999/api/v1/allmetrics?format=json
+    #create-topic: true
+    #allowed-topics: netdata__system__cpu__user:an_alias
+    error-limit: 3
+    pause-period: 60
+
+################################################################################
+### Management and Endpoint settings
+management:
+  info:
+    build.enabled: true
+    env.enabled: true
+    git.enabled: true
+    java.enabled: true
+  endpoints.web:
+    exposure.include: 'health,info'
+#    exposure.include: 'health,info,hawtio,jolokia'
+#    base-path: /
+#  endpoint.health.show-details: always
+#  security.enabled: false
+#  port: 9001
+#  address: 127.0.0.1
+#endpoints.metrics.sensitive: false
+
+### Hawtio web console settings
+#management.endpoints.web.path-mapping.hawtio: hawtio/console
+#hawtio:
+#  authenticationEnabled: false         # NOTE: Uncomment to enable actuator and hawtio
+#  proxyWhitelist:
+#  realm: hawtio
+#  role: admin,viewer
+#  rolePrincipalClasses: org.apache.activemq.jaas.GroupPrincipal
+
+### Jolokia (HTTP-JMX bridge) settings
+#jolokia.config.debug: false
+#endpoints.jolokia:
+#  enabled: true
+#  sensitive: false
+#  path: /jolokia
+#spring.jmx.enabled: true
+#endpoints.jmx.enabled: true
+
+################################################################################
+### Spring Boot Admin Client settings
+#spring.boot.admin.client:
+#  url: http://localhost:8080
+#  username: username
+#  password: password
+#  instance.service-base-url: http://localhost:8080
+
+
+################################################################################
+###                       EMS - Broker-CEP properties                        ###
+################################################################################
+
+BROKER_URL_PROPERTIES: transport.daemon=true&transport.trace=false&transport.useKeepAlive=true&transport.useInactivityMonitor=false&transport.needClientAuth=${CLIENT_AUTH_REQUIRED}&transport.verifyHostName=true&transport.connectionTimeout=0&transport.keepAlive=true
+CLIENT_AUTH_REQUIRED: false
+CLIENT_URL_PROPERTIES: daemon=true&trace=false&useInactivityMonitor=false&connectionTimeout=0&keepAlive=true
+
+brokercep:
+  # Broker name, ports and protocol
+  #broker-name: broker
+  broker-port: 61617
+  broker-protocol: ssl
+  #management-connector-port: 1099
+  #bypass-local-broker: true   # Don't use in EMS server
+
+  # Broker connectors
+  broker-url:
+    - ${brokercep.broker-protocol}://0.0.0.0:${brokercep.broker-port}?${BROKER_URL_PROPERTIES}
+    - tcp://0.0.0.0:61616?${BROKER_URL_PROPERTIES}
+    - stomp://0.0.0.0:61610
+
+  # Broker URLs for (EMS) consumer and clients
+  broker-url-for-consumer: tcp://${EMS_SERVER_ADDRESS}:61616?${CLIENT_URL_PROPERTIES}
+  broker-url-for-clients: ${brokercep.broker-protocol}://${EMS_SERVER_ADDRESS}:${brokercep.broker-port}?${CLIENT_URL_PROPERTIES}
+  # Must be a public IP address
+
+  ssl:
+    # Key store settings
+    keystore-file: ${EMS_CONFIG_DIR}/broker-keystore.p12
+    keystore-type: ${control.ssl.keystore-type}
+    keystore-password: ${control.ssl.keystore-password}
+
+    # Trust store settings
+    truststore-file: ${EMS_CONFIG_DIR}/broker-truststore.p12
+    truststore-type: ${control.ssl.truststore-type}
+    truststore-password: ${control.ssl.truststore-password}
+
+    # Certificate settings
+    certificate-file: ${EMS_CONFIG_DIR}/broker.crt
+
+    # EMS key generation settings
+    key-entry-generate: ALWAYS
+    key-entry-name: ${control.ssl.key-entry-name}
+    key-entry-dname: ${control.ssl.key-entry-dname}
+    key-entry-ext-san: ${control.ssl.key-entry-ext-san}
+
+  # Authentication and Authorization settings
+  authentication-enabled: true
+  #additional-broker-credentials: aaa/111, bbb/222, morphemic/morphemic
+  #additional-broker-credentials: ENC(axeJUxNHajYfBffUwvuT3kwTgLTpRliDMz/ZQ9hROZ3BNOv0Idw72NJsawzIZRuZ)
+  authorization-enabled: false
+
+  # Broker instance settings
+  broker-persistence-enabled: false
+  broker-using-jmx: true
+  broker-advisory-support-enabled: true
+  broker-using-shutdown-hook: false
+
+  broker-enable-statistics: true
+  broker-populate-jmsx-user-id: true
+
+  # Message interceptors
+  message-interceptors:
+    - destination: '>'
+      className: 'gr.iccs.imu.ems.brokercep.broker.interceptor.SequentialCompositeInterceptor'
+      params:
+        - '#SourceAddressMessageUpdateInterceptor'
+        - '#LogMessageUpdateInterceptor'
+        - '#MessageForwarderInterceptor'
+
+  message-interceptors-specs:
+    SourceAddressMessageUpdateInterceptor:
+      className: gr.iccs.imu.ems.brokercep.broker.interceptor.SourceAddressMessageUpdateInterceptor
+    LogMessageUpdateInterceptor:
+      className: gr.iccs.imu.ems.brokercep.broker.interceptor.LogMessageUpdateInterceptor
+    MessageForwarderInterceptor:
+      className: gr.iccs.imu.ems.brokercep.broker.interceptor.MessageForwarderInterceptor
+
+  # Message forward destinations (MessageForwarderInterceptor must be included in 'message-interceptors' property)
+  #message-forward-destinations:
+  #  - connection-string: tcp://localhost:51515
+  #    username: AAA
+  #    password: 111
+  #  - connection-string: tcp://localhost:41414
+  #    username: AAA
+  #    password: 111
+
+  # Advisory watcher
+  enable-advisory-watcher: true
+
+  # Memory usage limit
+  usage:
+    memory:
+      jvm-heap-percentage: 20
+      #size: 134217728
+
+  # Event forward settings
+  #maxEventForwardRetries: -1
+  #maxEventForwardDuration: -1
+
+  # Event recorder settings
+  event-recorder:
+    enabled: true
+    #format: JSON
+    file: ${LOGS_DIR:${EMS_CONFIG_DIR}/../logs}/events-%T.%S
+    #filter-mode: ALL | REGISTERED (default) | ALLOWED
+    #allowed-destinations:
+
+
+################################################################################
+###                     EMS - Baguette Server properties                     ###
+################################################################################
+
+baguette.server:
+
+  # Coordinator settings - Old style
+  coordinator-class: gr.iccs.imu.ems.baguette.server.coordinator.cluster.ClusteringCoordinator
+  #coordinatorParameters:
+  #  param1: p1
+  #  param2: p2
+
+  # Coordinator settings - New style
+  coordinator-id: [ clustering, 2level, noop ]
+  coordinatorConfig:
+    clustering:
+      coordinatorClass: gr.iccs.imu.ems.baguette.server.coordinator.cluster.ClusteringCoordinator
+      parameters:
+        zone-management-strategy-class: gr.iccs.imu.ems.baguette.server.coordinator.cluster.DefaultZoneManagementStrategy
+        zone-port-start: 2000
+        zone-port-end: 2999
+        zone-keystore-file-name-formatter: '${LOGS_DIR:logs}/cluster_${DOLLAR}{TIMESTAMP}_${DOLLAR}{ZONE_ID}.p12'
+        #cluster-detector-class: gr.iccs.imu.ems.baguette.server.coordinator.cluster.ClusterZoneDetector
+        #cluster-detector-rules-type: MAP
+        #cluster-detector-rules-separator: ','
+        #cluster-detector-rules: zone, zone-id, region, region-id, cloud, cloud-id, provider, provider-id
+        #default-clusters: DEFAULT_CLUSTER_A, DEFAULT_CLUSTER_B
+        #assignment-to-default-clusters: RANDOM
+    2level:
+      coordinatorClass: gr.iccs.imu.ems.baguette.server.coordinator.TwoLevelCoordinator
+    noop:
+      coordinatorClass: gr.iccs.imu.ems.baguette.server.coordinator.NoopCoordinator
+
+  # Registration settings
+  #number-of-instances: 1
+  registration-window: 30000
+
+  # SSH Server settings
+  address: ${EMS_SERVER_ADDRESS}
+  port: 2222
+  key-file: ${EMS_CONFIG_DIR}/hostkey.pem
+  heartbeat-enabled: true
+  heartbeat-period: 60000
+
+  # SSH Server additional username/passwords
+  #credentials:
+  #  aa: xx
+  #  bb: yy
+
+  # Client Id generation settings
+  #client-address-override-allowed: true
+  client-id-format-escape: '~'
+  client-id-format: '~{type:-_}-~{operatingSystem:-_}-~{id:-_}-~{name:-_}-~{provider:-_}-~{address:-_}-~{random:-_}'
+
+
+################################################################################
+###                 EMS - Baguette Client Install properties                 ###
+################################################################################
+
+baguette.client.install:
+
+  ### OS families
+  osFamilies:
+    LINUX: [ UNKNOWN_OS_FAMILY, CENTOS,DARWIN,DEBIAN,FEDORA ,FREEBSD ,GENTOO,COREOS,AMZN_LINUX,MANDRIVA ,NETBSD,OEL ,OPENBSD,RHEL,SCIENTIFIC,CEL,SLACKWARE,SOLARIS,SUSE,TURBOLINUX,CLOUD_LINUX,UBUNTU ]
+    WINDOWS: [ WINDOWS ]
+
+  ### Workers
+  workers: 5
+
+  ### Installation settings
+  ### --- Root command ---
+  ### E.g. 'echo ${NODE_SSH_PASSWORD} | sudo -S -- '
+  rootCmd: ''
+
+  ### --- Directories and files ---
+  baseDir: ~/baguette-client
+  mkdirs: [ '${baguette.client.install.baseDir}/bin', '${baguette.client.install.baseDir}/conf', '${baguette.client.install.baseDir}/logs' ]
+  touchFiles: [ '${baguette.client.install.baseDir}/logs/output.txt' ]
+  checkInstalledFile: ${baguette.client.install.baseDir}/conf/ok.txt
+
+  ### --- Installation script URL and file (obsolete) ---
+  downloadUrl: '%{BASE_URL}%'
+  #downloadUrl: http://${EMS_SERVER_ADDRESS}:8111/resources
+  apiKey: ${web.security.api-key-authentication.value}
+  installScriptUrl: ${baguette.client.install.downloadUrl}/install.sh
+  installScriptFile: ${baguette.client.install.baseDir}/bin/install.sh
+
+  ### --- Archive copying ---
+  #archiveSourceDir: ${EMS_CONFIG_DIR}/baguette-client
+  #archiveDir: ${EMS_CONFIG_DIR}/baguette-client
+  #archiveFile: baguette-client-conf.tgz
+  #clientConfArchiveFile: ${baguette.client.install.baseDir}/baguette-client-conf.tgz
+
+  ### --- EMS server (HTTPS) certificate file (PEM) ---
+  #serverCertFileAtServer: ${EMS_CONFIG_DIR}/baguette-client/conf/server.pem
+  serverCertFileAtServer: ${EMS_CONFIG_DIR}/server.pem
+  serverCertFileAtClient: ${baguette.client.install.baseDir}/conf/server.pem
+  copyFilesFromServerDir: ${EMS_CONFIG_DIR}/baguette-client/
+  copyFilesToClientDir: ${baguette.client.install.baseDir}/
+
+  ### --- temp. folders ---
+  clientTmpDir: /tmp
+  #serverTmpDir: ${LOGS_DIR:${EMS_CONFIG_DIR}/../logs}/tmp
+  serverTmpDir: ${EMS_HOME}/tmp
+  keepTempFiles: false
+
+  ### Simulation settings
+  #simulateConnection: false
+  #simulateExecution: false
+
+  ### SSH connection settings
+  #maxRetries: 5
+  #retryDelay: 1000
+  #retryBackoffFactor: 1.0
+  #connectTimeout: 10000
+  #authenticateTimeout: 60000
+  #heartbeatInterval: 60000
+  #commandExecutionTimeout: 60000,
+
+  ### -----------------------------------------
+  ### Instruction Set file processing settings
+
+  instructions:
+    LINUX: &install_on_linux
+      # Instructions set files - JSON version
+      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux/check-ignore.json
+      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux/detect.json
+      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux/netdata.json
+      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux/baguette-remove.json
+      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux/jre.json
+      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux/baguette.json
+      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux/baguette-skip.json
+      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux/start-agents.json
+      # Instructions set files - YAML version
+#      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/check-ignore.yml
+#      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/detect.yml
+#      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/netdata.yml
+#      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/jre.yml
+#      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/baguette.yml
+#      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/baguette-skip.yml
+#      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/start-agents.yml
+    WINDOWS:
+      - file:${EMS_CONFIG_DIR}/baguette-client-install/win/win.json
+    VM_LINUX: *install_on_linux
+    DIAGNOSTICS_LINUX:
+      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/detect.yml
+    REMOVE_LINUX:
+      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/stop-agents.yml
+
+  continueOnFail: true
+  sessionRecordingDir: ${LOGS_DIR:${EMS_CONFIG_DIR}/../logs}
+
+  ### Baguette and Netdata installation parameters (for condition checking)
+  parameters:
+
+    #SKIP_IGNORE_CHECK: true
+    #SKIP_DETECTION: true
+    #SKIP_NETDATA_INSTALLATION: true
+    #SKIP_BAGUETTE_INSTALLATION: true
+    #SKIP_JRE_INSTALLATION: true
+    #SKIP_START: true
+
+    BAGUETTE_INSTALLATION_MIN_PROCESSORS: 2
+    BAGUETTE_INSTALLATION_MIN_RAM: 2*1024*1024
+    BAGUETTE_INSTALLATION_MIN_DISK_FREE: 1024*1024
+
+  ### Settings for resolving Node state after baguette client installation
+  #clientInstallVarName: '__EMS_CLIENT_INSTALL__'
+  #clientInstallSuccessPattern: '^INSTALLED($|[\s:=])'
+  #clientInstallErrorPattern: '^ERROR($|[\s:=])'
+  #
+  #skipInstallVarName: '__EMS_CLIENT_INSTALL__'
+  #skipInstallPattern: '^SKIPPED($|[\s:=])'
+  #
+  #ignoreNodeVarName: '__EMS_IGNORE_NODE__'
+  #ignoreNodePattern: '^IGNORED($|[\s:=])'
+  #
+  #ignoreNodeIfVarIsMissing: false
+  #skipInstallIfVarIsMissing: false
+  #clientInstallSuccessIfVarIsMissing: false
+  #clientInstallErrorIfVarIsMissing: true
+
+  installationContextProcessorPlugins:
+    - gr.iccs.imu.ems.baguette.client.install.plugin.AllowedTopicsProcessorPlugin
+    - gr.iccs.imu.ems.baguette.client.install.plugin.PrometheusProcessorPlugin
+
+  clientInstallationReportNodeInfoPatterns:
+    - '^CPU_.+($|[\s:=])'
+    - '^RAM_.+($|[\s:=])'
+    - '^DISK_.+($|[\s:=])'
+#    - '^RAM_TOTAL_KB($|[\s:=])'
+#    - '^DISK_TOTAL_KB($|[\s:=])'
+    - '^OS_.+($|[\s:=])'
+
+### Server-side Self-Healing. Recovers monitoring functionality of registered nodes (i.e. EMS client and/or Netdata agent)
+self.healing:
+  enabled: true
+  mode: INCLUDED
+  recovery:
+    delay: 10000
+    retryDelay: 60000
+    maxRetries: 3
+    file:
+      baguette: file:${EMS_CONFIG_DIR}/baguette-client-install/linux/recover-baguette.json
+      netdata:
+
+
+################################################################################
+###                 EMS - MODEL-to-EPL Translator properties                 ###
+################################################################################
+
+### Translator configuration
+translator:
+  #translatorType: CAMEL_FILE
+  #translatorProperties:
+  #  camelFile:
+  #    modelsDir: /models/
+  #  camelWeb:
+  #    baseUrl: http://models-server:8080/
+  #    modelsDir: /models/web
+  #    deleteFile: false
+
+  leaf-node-grouping: PER_INSTANCE
+  prune-mvv: true
+  add-top-level-metrics: true
+
+  ### IMPORTANT: Pattern must yield valid EPL identifiers
+  #full-name-pattern: '{TYPE}__{CAMEL}__{MODEL}__{ELEM}__{COUNT}'
+  #formula-check-enabled: true
+
+  ### Sensor settings
+  sensor-configuration-annotation: 'MELODICMetadataSchema.ContextAwareSecurityModel.SecurityContextElement.Object.DataArtefact.Configuration.ConfigurationFormat.JSON_FORMAT'
+  sensor-min-interval: 1
+  sensor-default-interval: 60
+
+  # Busy-Status metric settings
+  #busyStatusMetricAnnotation: 'MELODICMetadataSchema.Application_Placement_Model.UtilityNotions.BusyInstanceMetric'
+  busyStatusDestinationNameFormatter: 'busy.%s'
+
+  ### Print results and export switches
+  #print-results: true
+  dag:
+    export-to-dot-enabled: false
+    export-to-file-enabled: false
+
+    ### Graph rendering parameters
+    export-path: ${LOGS_DIR:${EMS_CONFIG_DIR}/../logs}/exports
+    #export-formats: [ 'png', 'svg', 'xdot', 'ps', 'json', 'plain', 'plain_ext' ]
+    #export-formats: [ 'png', 'svg', 'xdot' ]
+    export-formats: [ 'png', 'svg' ]
+    export-image-width: 600
+
+  ### Active sinks (list)
+  #sinks: [ 'JMS' ]
+  #
+  ### Sink configurations
+  #sink-config:
+  #  JMS:
+  #    jms.broker: 'failover:(tcp://localhost:61616)?initialReconnectDelay=1000&warnAfterReconnectAttempts=10'
+  #    jms.topic.selector: 'de.uniulm.omi.cloudiator.visor.reporting.jms.MetricNameTopicSelector'
+  #    jms.message.format: 'de.uniulm.omi.cloudiator.visor.reporting.jms.MelodicJsonEncoding'
+
+################################################################################
