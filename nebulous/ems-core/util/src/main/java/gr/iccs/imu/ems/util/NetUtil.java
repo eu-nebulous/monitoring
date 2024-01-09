@@ -14,6 +14,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.net.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -231,8 +232,8 @@ public class NetUtil {
         return null;
     }
 
-    private static String queryService(String url) throws MalformedURLException, IOException {
-        try (Scanner s = new Scanner(new URL(url).openStream(), "UTF-8").useDelimiter("\\A")) {
+    private static String queryService(String url) throws IOException {
+        try (Scanner s = new Scanner(URI.create(url).toURL().openStream(), StandardCharsets.UTF_8).useDelimiter("\\A")) {
             return s.next().trim();
         }
     }
