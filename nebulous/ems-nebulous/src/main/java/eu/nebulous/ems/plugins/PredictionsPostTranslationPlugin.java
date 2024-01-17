@@ -182,7 +182,7 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
         }
 
         // Convert to Translator-to-Forecasting Methods event format
-        final long currVersion = topicBeacon.getModelVersion();
+        /*final long currVersion = topicBeacon.getModelVersion();
         final TopicBeaconProperties properties = topicBeacon.getProperties();
         final ValueRange allowedPredictionRateRange =
                 ValueRange.of(properties.getPredictionMinAllowedRate(), properties.getPredictionMaxAllowedRate());
@@ -198,12 +198,47 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
                             : properties.getPredictionRate());
             return map;
         }).collect(Collectors.toList());
-        log.debug("Topic Beacon: Transmitting Prediction info: Metric Contexts in event format: {}", payload);
+        log.debug("PredictionsPostTranslationPlugin: Metric Contexts in event format: {}", payload);
 
         // Skip event sending if payload is empty
         if (payload.isEmpty()) {
             return null;
-        }
+        }*/
+
+        // Convert to SLO Severity-based Violation Detector Event Type III format
+        // See: https://158.39.75.54/projects/nebulous-collaboration-hub/wiki/slo-severity-based-violation-detector
+        HashMap<String,Object> payload = new HashMap<>();
+        payload.put("name", "_" + _TC.getModelName());
+        payload.put("version", topicBeacon.getModelVersion());
+        payload.put("metric_list",
+                metricsOfTopLevelNodes.stream().map(mc -> {
+                    HashMap<String, Object> map = new HashMap<>();
+                    map.put("name", NebulousEmsTranslator.nameNormalization.apply( mc.getName() ));
+                    MetricTemplate template = mc.getMetric().getMetricTemplate();
+                    if (template!=null) {
+                        switch (template.getValueType()) {
+                            case FLOAT_TYPE, DOUBLE_TYPE, FloatType, DoubleType -> {
+                                map.put("upper_bound", Double.toString(template.getUpperBound()));
+                                map.put("lower_bound", Double.toString(template.getLowerBound()));
+                            }
+                            case INT_TYPE, IntType -> {
+                                map.put("upper_bound", Integer.toString((int)template.getUpperBound()));
+                                map.put("lower_bound", Integer.toString((int)template.getLowerBound()));
+                            }
+                            default -> {
+                                log.warn("PredictionsPostTranslationPlugin: Metric Template type not supported. Will be ignored: type={}, metric={}",
+                                        template.getValueType(), mc.getMetric());
+                                return null;
+                            }
+                        }
+                    } else {
+                        map.put("upper_bound", Double.toString(Double.POSITIVE_INFINITY));
+                        map.put("lower_bound", Double.toString(Double.NEGATIVE_INFINITY));
+                    }
+                    return map;
+                })
+                .filter(Objects::nonNull)
+                .toList() );
 
         // Serialize payload
         return topicBeacon.toJson(payload);
