@@ -9,7 +9,7 @@ COPY pom.xml        ${BASEDIR}/
 RUN mvn -f ${BASEDIR}/pom.xml -DskipTests clean install
 
 # -----------------   Runtime image   -----------------
-FROM registry.gitlab.com/nebulous-project/ems-main/ems-server:2024-jan
+FROM registry.gitlab.com/nebulous-project/ems-main/ems-server:opendev
 
 COPY --from=builder /app/ems-nebulous/target/ems-nebulous-plugin-1.0.0-SNAPSHOT-jar-with-dependencies.jar /plugins/
 ENV EXTRA_LOADER_PATHS=/plugins/*

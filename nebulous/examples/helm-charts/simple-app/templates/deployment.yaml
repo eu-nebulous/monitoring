@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "simple-app.fullname" . }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "simple-app.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "simple-app.fullname" . }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+          env:
+            #
+            #  K8S cluster node info
+            #
+            - name: K8S_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: K8S_NODE_ADDRESS
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            #
+            #  Pod info
+            #
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_ADDRESS
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            #
+            #  EMS client broker info
+            #
+            - name: 'BROKER_SERVER'
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: 'BROKER_PORT'
+              value: '61610'
+            - name: 'BROKER_USERNAME'
+              valueFrom:
+                configMapKeyRef:
+                  name: monitoring-configmap
+                  key: BROKER_USERNAME
+            - name: 'BROKER_PASSWORD'
+              valueFrom:
+                configMapKeyRef:
+                  name: monitoring-configmap
+                  key: BROKER_PASSWORD
+            #
+            #  Env. vars from Values.yaml
+            #
+            {{- range .Values.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+
+          volumeMounts:
+            {{- range .Values.volumeMounts }}
+            - name: {{ .name }}
+              mountPath: {{ .mountPath | quote }}
+            {{- end }}
