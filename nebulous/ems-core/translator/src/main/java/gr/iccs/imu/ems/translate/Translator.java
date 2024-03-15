@@ -11,4 +11,7 @@ package gr.iccs.imu.ems.translate;
 
 public interface Translator {
     TranslationContext translate(String modelPath);
+    default TranslationContext translate(String modelPath, String applicationId) {
+        return translate(modelPath);
+    }
 }

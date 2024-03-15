@@ -11,8 +11,9 @@
 ### Global settings
 ################################################################################
 
-### Don't touch the next line!!
-EMS_SERVER_ADDRESS=${${control.IP_SETTING}}
+### Don't touch the next lines!!
+EMS_IP_SETTING=${P_EMS_IP_SETTING:PUBLIC_IP}
+EMS_SERVER_ADDRESS=${${EMS_IP_SETTING}}
 DOLLAR=$
 
 ### Password Encoder settings
@@ -111,9 +112,9 @@ control.log-requests = ${EMS_LOG_REQUESTS:false}
 #control.skip-broker-cep = true
 #control.skip-baguette = true
 #control.skip-collectors = true
-#control.skip-metasolver = true
-#control.skip-notification = true
-control.upperware-grouping = GLOBAL
+control.skip-metasolver = true
+control.skip-notification = true
+#control.upperware-grouping = GLOBAL
 
 ### Debug settings - Load/Save translation results
 control.tc-load-file = ${EMS_TC_LOAD_FILE:${EMS_TC_FILE:${LOGS_DIR:${EMS_CONFIG_DIR}/../logs}/_TC.json}}
@@ -319,7 +320,7 @@ brokercep.broker-url[1] = tcp://0.0.0.0:61616?${BROKER_URL_PROPERTIES}
 brokercep.broker-url[2] = stomp://0.0.0.0:61610
 
 # Broker URLs for (EMS) consumer and clients
-brokercep.broker-url-for-consumer = tcp://${EMS_SERVER_ADDRESS}:61616?${CLIENT_URL_PROPERTIES}
+brokercep.broker-url-for-consumer = tcp://127.0.0.1:61616?${CLIENT_URL_PROPERTIES}
 brokercep.broker-url-for-clients = ${brokercep.broker-protocol}://${EMS_SERVER_ADDRESS}:${brokercep.broker-port}?${CLIENT_URL_PROPERTIES}
 # Must be a public IP address
 
@@ -527,9 +528,9 @@ baguette.client.install.sessionRecordingDir = ${LOGS_DIR:${EMS_CONFIG_DIR}/../lo
 #baguette.client.install.parameters.SKIP_JRE_INSTALLATION=true
 #baguette.client.install.parameters.SKIP_START=true
 
-baguette.client.install.parameters.BAGUETTE_INSTALLATION_MIN_PROCESSORS=2
-baguette.client.install.parameters.BAGUETTE_INSTALLATION_MIN_RAM=2*1024*1024
-baguette.client.install.parameters.BAGUETTE_INSTALLATION_MIN_DISK_FREE=1024*1024
+#baguette.client.install.parameters.BAGUETTE_INSTALLATION_MIN_PROCESSORS=2
+#baguette.client.install.parameters.BAGUETTE_INSTALLATION_MIN_RAM=2*1024*1024
+#baguette.client.install.parameters.BAGUETTE_INSTALLATION_MIN_DISK_FREE=1024*1024
 
 ### Settings for resolving Node state after baguette client installation
 #baguette.client.install.clientInstallVarName=__EMS_CLIENT_INSTALL__

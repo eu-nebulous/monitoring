@@ -181,7 +181,7 @@ public abstract class AbstractEndpointCollector<T> implements InitializingBean, 
 
         // collect data from local node
         if (! properties.isSkipLocal()) {
-            log.debug/*info*/("Collectors::{}: Collecting metrics from local node...", collectorId);
+            log.debug("Collectors::{}: Collecting metrics from local node...", collectorId);
             collectAndPublishData("");
         } else {
             log.debug("Collectors::{}: Collection from local node is disabled", collectorId);
@@ -191,8 +191,8 @@ public abstract class AbstractEndpointCollector<T> implements InitializingBean, 
         log.trace("Collectors::{}: Nodes without clients in Zone: {}", collectorId, collectorContext.getNodesWithoutClient());
         log.trace("Collectors::{}: Is Aggregator: {}", collectorId, collectorContext.isAggregator());
         if (collectorContext.isAggregator()) {
-            if (collectorContext.getNodesWithoutClient().size()>0) {
-                log.debug/*info*/("Collectors::{}: Collecting metrics from remote nodes (without EMS client): {}", collectorId,
+            if (! collectorContext.getNodesWithoutClient().isEmpty()) {
+                log.debug("Collectors::{}: Collecting metrics from remote nodes (without EMS client): {}", collectorId,
                         collectorContext.getNodesWithoutClient());
                 for (Object nodeAddress : collectorContext.getNodesWithoutClient()) {
                     // collect data from remote node
@@ -253,7 +253,7 @@ public abstract class AbstractEndpointCollector<T> implements InitializingBean, 
 
     private COLLECTION_RESULT collectAndPublishData(@NonNull String nodeAddress) {
         if (ignoredNodes.containsKey(nodeAddress)) {
-            log.debug/*info*/("Collectors::{}:   Node is in ignore list: {}", collectorId, nodeAddress);
+            log.debug("Collectors::{}:   Node is in ignore list: {}", collectorId, nodeAddress);
             return COLLECTION_RESULT.IGNORED;
         }
 
@@ -322,7 +322,7 @@ public abstract class AbstractEndpointCollector<T> implements InitializingBean, 
             // Remote node data collection URL
             url = String.format(properties.getUrlOfNodesWithoutClient(), nodeAddress);
         }
-        log.debug/*info*/("Collectors::{}:   Collecting data from url: {}", collectorId, url);
+        log.debug("Collectors::{}:   Collecting data from url: {}", collectorId, url);
 
         log.debug("Collectors::{}: Collecting data: {}...", collectorId, url);
         long startTm = System.currentTimeMillis();
@@ -342,8 +342,8 @@ public abstract class AbstractEndpointCollector<T> implements InitializingBean, 
             log.debug("Collectors::{}: Collecting data...ok", collectorId);
             //log.info("Collectors::{}:     Metrics: extracted={}, published={}, failed={}", collectorId,
             //        stats.countSuccess + stats.countErrors, stats.countSuccess, stats.countErrors);
-            if (log.isInfoEnabled())
-                log.debug/*info*/("Collectors::{}:     Publish statistics: {}", collectorId, stats);
+            if (log.isDebugEnabled())
+                log.debug("Collectors::{}:     Publish statistics: {}", collectorId, stats);
             log.debug("Collectors::{}:     Durations: rest-call={}, extract+publish={}, total={}", collectorId,
                     callEndTm-startTm, endTm-callEndTm, endTm-startTm);
         } else {

@@ -89,8 +89,12 @@ public class ClusteringCoordinator extends NoopCoordinator {
                 topLevelGrouping, aggregatorGrouping, lastLevelGrouping);
 
         // Configure Self-Healing manager
-        clusterSelfHealing = new ClusterSelfHealing(server.getSelfHealingManager());
-        server.getSelfHealingManager().setMode(SelfHealingManager.MODE.INCLUDED);
+        if (server.getSelfHealingManager().isEnabled()) {
+            clusterSelfHealing = new ClusterSelfHealing(server.getSelfHealingManager());
+            server.getSelfHealingManager().setMode(SelfHealingManager.MODE.INCLUDED);
+        } else {
+            clusterSelfHealing = null;
+        }
     }
 
     @SneakyThrows
@@ -336,9 +340,11 @@ public class ClusteringCoordinator extends NoopCoordinator {
             log.trace("addNodeInTopology: CSC is in zone: client={}, address={}, zone={}", csc.getId(), csc.getClientIpAddress(), zone.getId());
 
             // Self-healing-related actions
-            List<NodeRegistryEntry> aggregatorCapableNodes = clusterSelfHealing.getAggregatorCapableNodesInZone(zone);
-            clusterSelfHealing.updateNodesSelfHealingMonitoring(zone, aggregatorCapableNodes);
-            clusterSelfHealing.removeResourceLimitedNodeSelfHealingMonitoring(zone, aggregatorCapableNodes);
+            if (clusterSelfHealing!=null && clusterSelfHealing.isEnabled()) {
+                List<NodeRegistryEntry> aggregatorCapableNodes = clusterSelfHealing.getAggregatorCapableNodesInZone(zone);
+                clusterSelfHealing.updateNodesSelfHealingMonitoring(zone, aggregatorCapableNodes);
+                clusterSelfHealing.removeResourceLimitedNodeSelfHealingMonitoring(zone, aggregatorCapableNodes);
+            }
         }
     }
 
@@ -371,11 +377,13 @@ public class ClusteringCoordinator extends NoopCoordinator {
             }
 
             // Self-healing-related actions
-            List<NodeRegistryEntry> aggregatorCapableNodes = clusterSelfHealing.getAggregatorCapableNodesInZone(zone);
-            clusterSelfHealing.updateNodesSelfHealingMonitoring(zone, aggregatorCapableNodes);
-            if (aggregatorCapableNodes.isEmpty())
-                ; //XXX: TODO: ??Reconfigure non-candidate nodes to forward their events to EMS server??
-            clusterSelfHealing.addResourceLimitedNodeSelfHealingMonitoring(zone, aggregatorCapableNodes);
+            if (clusterSelfHealing!=null && clusterSelfHealing.isEnabled()) {
+                List<NodeRegistryEntry> aggregatorCapableNodes = clusterSelfHealing.getAggregatorCapableNodesInZone(zone);
+                clusterSelfHealing.updateNodesSelfHealingMonitoring(zone, aggregatorCapableNodes);
+                if (aggregatorCapableNodes.isEmpty())
+                    ; //XXX: TODO: ??Reconfigure non-candidate nodes to forward their events to EMS server??
+                clusterSelfHealing.addResourceLimitedNodeSelfHealingMonitoring(zone, aggregatorCapableNodes);
+            }
         }
     }
 

@@ -41,9 +41,9 @@ date -Iseconds
 
 # Common variables
 DOWNLOAD_URL=$BASE_URL/baguette-client.tgz
-DOWNLOAD_URL_MD5=$BASE_URL/baguette-client.tgz.md5
+DOWNLOAD_URL_SHA256=$BASE_URL/baguette-client.tgz.sha256
 INSTALL_PACKAGE=/opt/baguette-client/baguette-client.tgz
-INSTALL_PACKAGE_MD5=/opt/baguette-client/baguette-client.tgz.md5
+INSTALL_PACKAGE_SHA256=/opt/baguette-client/baguette-client.tgz.sha256
 INSTALL_DIR=/opt/
 STARTUP_SCRIPT=$BIN_DIRECTORY/baguette-client
 SERVICE_NAME=baguette-client
@@ -86,34 +86,34 @@ fi
 date -Iseconds
 echo "Download installation package...ok"
 
-# Download installation package MD5 checksum
+# Download installation package SHA256 checksum
 echo ""
-echo "Download installation package MD5 checksum..."
+echo "Download installation package SHA256 checksum..."
 date -Iseconds
-wget $SERVER_CERT $DOWNLOAD_URL_MD5 -O $INSTALL_PACKAGE_MD5
+wget $SERVER_CERT $DOWNLOAD_URL_SHA256 -O $INSTALL_PACKAGE_SHA256
 if [ $? != 0 ]; then
   echo "Failed to download installation package ($?)"
   echo "Aborting installation..."
   date -Iseconds
-  echo "ABORT: download MD5: `date -Iseconds`" >> $INSTALL_LOG
+  echo "ABORT: download SHA256: `date -Iseconds`" >> $INSTALL_LOG
   exit 1
 fi
 date -Iseconds
-echo "Download installation package MD5 checksum...ok"
+echo "Download installation package SHA256 checksum...ok"
 
-# Check MD5 checksum
-PACKAGE_MD5=`cat $INSTALL_PACKAGE_MD5`
-PACKAGE_CHECKSUM=`md5sum $INSTALL_PACKAGE |cut -d " " -f 1`
+# Check SHA256 checksum
+PACKAGE_SHA256=`cat $INSTALL_PACKAGE_SHA256`
+PACKAGE_CHECKSUM=`sha256sum $INSTALL_PACKAGE |cut -d " " -f 1`
 echo ""
-echo "Checksum MD5:  $PACKAGE_MD5"
+echo "Checksum SHA256:  $PACKAGE_SHA256"
 echo "Checksum calc: $PACKAGE_CHECKSUM"
-if [ $PACKAGE_CHECKSUM == $PACKAGE_MD5 ]; then
+if [ $PACKAGE_CHECKSUM == $PACKAGE_SHA256 ]; then
   echo "Checksum: ok"
 else
   echo "Checksum: wrong"
   echo "Aborting installation..."
   date -Iseconds
-  echo "ABORT: wrong MD5: `date -Iseconds`" >> $INSTALL_LOG
+  echo "ABORT: wrong SHA256: `date -Iseconds`" >> $INSTALL_LOG
   exit 1
 fi
 

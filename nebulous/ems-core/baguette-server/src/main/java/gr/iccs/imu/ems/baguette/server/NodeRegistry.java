@@ -38,17 +38,22 @@ public class NodeRegistry {
 
         // Get IP address from provided hostname or address
         Throwable errorObj = null;
-        try {
-            log.debug("NodeRegistry.addNode(): Resolving IP address from provided hostname/address: {}", hostnameOrAddress);
-            InetAddress host = InetAddress.getByName(hostnameOrAddress);
-            log.trace("NodeRegistry.addNode(): InetAddress for provided hostname/address: {},  InetAddress: {}", hostnameOrAddress, host);
-            String resolvedIpAddress = host.getHostAddress();
-            log.info("NodeRegistry.addNode(): Provided-Address={},  Resolved-IP-Address={}", hostnameOrAddress, resolvedIpAddress);
-            ipAddress = resolvedIpAddress;
-        } catch (UnknownHostException e) {
-            log.error("NodeRegistry.addNode(): EXCEPTION while resolving IP address from provided hostname/address: {}\n", ipAddress, e);
-            errorObj = e;
-            //throw e;
+        if (StringUtils.isNotBlank(ipAddress)) {
+            try {
+                log.debug("NodeRegistry.addNode(): Resolving IP address from provided hostname/address: {}", hostnameOrAddress);
+                InetAddress host = InetAddress.getByName(hostnameOrAddress);
+                log.trace("NodeRegistry.addNode(): InetAddress for provided hostname/address: {},  InetAddress: {}", hostnameOrAddress, host);
+                String resolvedIpAddress = host.getHostAddress();
+                log.info("NodeRegistry.addNode(): Provided-Address={},  Resolved-IP-Address={}", hostnameOrAddress, resolvedIpAddress);
+                ipAddress = resolvedIpAddress;
+            } catch (UnknownHostException e) {
+                log.error("NodeRegistry.addNode(): EXCEPTION while resolving IP address from provided hostname/address: {}\n", ipAddress, e);
+                errorObj = e;
+                //throw e;
+            }
+        } else {
+            ipAddress = "unknown-address-"+System.currentTimeMillis();    // We don't know POD address
+            nodeInfo.put("address", ipAddress);
         }
         nodeInfo.put("original-address", hostnameOrAddress);
         nodeInfo.put("address", ipAddress);

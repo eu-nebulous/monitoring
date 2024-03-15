@@ -12,17 +12,27 @@
 PREVWORKDIR=`pwd`
 BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )
 cd ${BASEDIR}
+
 EMS_CONFIG_DIR=${BASEDIR}/conf
-PAASAGE_CONFIG_DIR=${BASEDIR}/conf
+#PAASAGE_CONFIG_DIR=${BASEDIR}/conf
 EMS_CONFIG_LOCATION=optional:file:$EMS_CONFIG_DIR/ems-client.yml,optional:file:$EMS_CONFIG_DIR/ems-client.properties,optional:file:$EMS_CONFIG_DIR/baguette-client.yml,optional:file:$EMS_CONFIG_DIR/baguette-client.properties
 LOG_FILE=${BASEDIR}/logs/output.txt
 TEE_FILE=${BASEDIR}/logs/tee.txt
-JASYPT_PASSWORD=password
-JAVA_HOME=${BASEDIR}/jre
-export EMS_CONFIG_DIR PAASAGE_CONFIG_DIR LOG_FILE JASYPT_PASSWORD JAVA_HOME
+#JASYPT_PASSWORD=password
+export HOST_IP=1.2.3.4
+
+[ -z "${JAVA_HOME}" ] && [ -d "${BASEDIR}/jre" ] && JAVA_HOME=${BASEDIR}/jre
+#export EMS_CONFIG_DIR PAASAGE_CONFIG_DIR LOG_FILE JASYPT_PASSWORD JAVA_HOME
+export EMS_CONFIG_DIR LOG_FILE JAVA_HOME
 
 # Update path
 PATH=${JAVA_HOME}/bin:$PATH
+
+# Source external environment variables file
+if [ "$EMS_EXTRA_ENV_VARS_FILE" != "" ]; then
+  echo "Sourcing $EMS_EXTRA_ENV_VARS_FILE..."
+  source $EMS_EXTRA_ENV_VARS_FILE
+fi
 
 # Check if baguette client is already running
 #PID=`jps | grep BaguetteClient | cut -d " " -f 1`
@@ -40,14 +50,15 @@ if [ -f pom.xml ]; then
 	fi
 fi
 
-# Run Baguette client
-JAVA_OPTS=-Djavax.net.ssl.trustStore=${EMS_CONFIG_DIR}/client-broker-truststore.p12
-JAVA_OPTS="${JAVA_OPTS} -Djavax.net.ssl.trustStorePassword=melodic -Djavax.net.ssl.trustStoreType=pkcs12"
-JAVA_OPTS="${JAVA_OPTS} -Djasypt.encryptor.password=$JASYPT_PASSWORD"
+# Set JAVA_OPTS
+#JAVA_OPTS=-Djavax.net.ssl.trustStore=${EMS_CONFIG_DIR}/client-broker-truststore.p12
+#JAVA_OPTS="${JAVA_OPTS} -Djavax.net.ssl.trustStorePassword=melodic -Djavax.net.ssl.trustStoreType=pkcs12"
 #JAVA_OPTS="-Djavax.net.debug=all ${JAVA_OPTS}"
 #JAVA_OPTS="-Dlogging.level.gr.iccs.imu.ems=TRACE ${JAVA_OPTS}"
+JAVA_OPTS="${JAVA_OPTS} -Djasypt.encryptor.password=$JASYPT_PASSWORD"
 JAVA_OPTS="${JAVA_OPTS} --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED"
 
+# Print settings
 echo "Starting baguette client..."
 echo "EMS_CONFIG_DIR=${EMS_CONFIG_DIR}"
 echo "EMS_CONFIG_LOCATION=${EMS_CONFIG_LOCATION}"
@@ -58,14 +69,18 @@ echo "EMS_CONFIG_DIR=${EMS_CONFIG_DIR}" &>> ${LOG_FILE}
 echo "EMS_CONFIG_LOCATION=${EMS_CONFIG_LOCATION}" &>> ${LOG_FILE}
 echo "LOG_FILE=${LOG_FILE}" &>> ${LOG_FILE}
 
+# Run Baguette Client
 if [ "$1" == "--i" ]; then
   echo "Baguette client running in Interactive mode"
-  java ${JAVA_OPTS} -classpath "conf:jars/*:target/classes:target/dependency/*" gr.iccs.imu.ems.baguette.client.BaguetteClient "--spring.config.location=${EMS_CONFIG_LOCATION}" "--logging.config=file:${EMS_CONFIG_DIR}/logback-spring.xml" $* $* 2>&1 | tee ${TEE_FILE}
+  java ${JAVA_OPTS} -classpath "conf:jars/*:target/classes:target/dependency/*" gr.iccs.imu.ems.baguette.client.BaguetteClient "--spring.config.location=${EMS_CONFIG_LOCATION}" "--logging.config=file:${EMS_CONFIG_DIR}/logback-spring.xml" $* 2>&1 | tee ${TEE_FILE}
 else
   java ${JAVA_OPTS} -classpath "conf:jars/*:target/classes:target/dependency/*" gr.iccs.imu.ems.baguette.client.BaguetteClient "--spring.config.location=${EMS_CONFIG_LOCATION}" "--logging.config=file:${EMS_CONFIG_DIR}/logback-spring.xml" $* &>> ${LOG_FILE} &
-  PID=`jps | grep BaguetteClient | cut -d " " -f 1`
-  PID=`ps -ef |grep java |grep BaguetteClient | cut -c 10-14`
-  echo "Baguette client PID: $PID"
+  if command -v jps
+  then
+    PID=`jps | grep BaguetteClient | cut -d " " -f 1`
+    PID=`ps -ef |grep java |grep BaguetteClient | cut -c 10-14`
+    echo "Baguette client PID: $PID"
+  fi
 fi
 
 cd $PREVWORKDIR

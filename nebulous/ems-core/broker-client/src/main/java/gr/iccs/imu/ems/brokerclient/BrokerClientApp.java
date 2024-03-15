@@ -31,6 +31,7 @@ import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import java.io.*;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -98,9 +99,9 @@ public class BrokerClientApp {
             String url = processUrlArg( args[aa++] );
             String topic = args[aa++];
             String type = args[aa].startsWith("-T") ? args[aa++].substring(2) : "text";
+            boolean processPlaceholders = !args[aa].startsWith("-PP") || Boolean.parseBoolean(args[aa++].substring(3));
             String payload = args[aa++];
-            payload = payload
-                    .replaceAll("%TIMESTAMP%|%TS%", ""+System.currentTimeMillis());
+            payload = getPayload(payload, processPlaceholders);
             EventMap event = gson.fromJson(payload, EventMap.class);
             sendEvent(url, username, password, topic, type, event, collectProperties(args, aa));
         } else
@@ -108,9 +109,9 @@ public class BrokerClientApp {
             String url = processUrlArg( args[aa++] );
             String topic = args[aa++];
             String type = args[aa].startsWith("-T") ? args[aa++].substring(2) : "text";
+            boolean processPlaceholders = !args[aa].startsWith("-PP") || Boolean.parseBoolean(args[aa++].substring(3));
             String payload = args[aa++];
-            payload = payload
-                    .replaceAll("%TIMESTAMP%|%TS%", ""+System.currentTimeMillis());
+            payload = getPayload(payload, processPlaceholders);
             Map<String, String> properties = collectProperties(args, aa);
             if ("map".equalsIgnoreCase(type)) {
                 EventMap event = gson.fromJson(payload, EventMap.class);
@@ -222,6 +223,24 @@ public class BrokerClientApp {
             log.error("BrokerClientApp: Unknown command: {}", command);
             usage();
         }
+    }
+
+    private static String getPayload(String payload, boolean processPlaceholders) throws IOException {
+        if (payload==null) return null;
+        String payloadTrim = payload.trim();
+        if (StringUtils.startsWith(payloadTrim, "@")) {
+            payload = Files.readString(Paths.get(StringUtils.substring(payloadTrim, 1)));
+        }
+        if ("-".equals(payloadTrim)) {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+            payload = reader.lines().collect(Collectors.joining("\n"));
+        }
+        if (processPlaceholders) {
+            payload = payload
+                    .replaceAll("%TIMESTAMP%|%TS%", ""+System.currentTimeMillis());
+
+        }
+        return payload;
     }
 
     private static Map<String, String> collectProperties(String[] args, int aa) {
@@ -741,9 +760,11 @@ public class BrokerClientApp {
         log.info("BrokerClientApp: Usage: ");
         log.info("BrokerClientApp: client list [-U<USERNAME> [-P<PASSWORD]] <URL> ");
         log.info("BrokerClientApp: client publish [ -U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] <VALUE> <LEVEL> [<PROPERTY>]*");
-        log.info("BrokerClientApp: client publish2 [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] <JSON-PAYLOAD>  [<PROPERTY>]*");
-        log.info("BrokerClientApp: client publish3 [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] <TEXT-PAYLOAD>  [<PROPERTY>]*");
+        log.info("BrokerClientApp: client publish2 [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] [-PP<true|false>] <JSON-PAYLOAD|-|@file>  [<PROPERTY>]*");
+        log.info("BrokerClientApp: client publish3 [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] [-PP<true|false>] <TEXT-PAYLOAD|-|@file>  [<PROPERTY>]*");
         log.info("BrokerClientApp:     <MSG-TYPE>: text, object, bytes, map");
+        log.info("BrokerClientApp:            -PP: Process placeholders (default 'true')");
+        log.info("BrokerClientApp:  '-' | '@file': Read payload from STDIN | Read payload from file 'file' ");
         log.info("BrokerClientApp:     <PROPERTY>: <Property name>=<Property value>  (use quotes if needed)");
         log.info("BrokerClientApp: client receive [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> ");
         log.info("BrokerClientApp: client subscribe [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> ");

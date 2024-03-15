@@ -12,12 +12,14 @@ package gr.iccs.imu.ems.brokerclient.event;
 import gr.iccs.imu.ems.brokerclient.BrokerClient;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiFunction;
 
 @Slf4j
 @Data
@@ -25,6 +27,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Scope(value = ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class EventGenerator implements Runnable {
     private final static AtomicLong counter = new AtomicLong();
+    private final BiFunction<String,EventMap,Boolean> eventPublisher;
     private final BrokerClient client;
     private String brokerUrl;
     private String brokerUsername;
@@ -37,6 +40,16 @@ public class EventGenerator implements Runnable {
     private int level;
 
     private transient boolean keepRunning;
+
+    public EventGenerator(@NonNull BiFunction<String,EventMap,Boolean> eventPublisher) {
+        this.eventPublisher = eventPublisher;
+        this.client = null;
+    }
+
+    public EventGenerator(@NonNull BrokerClient brokerClient) {
+        this.eventPublisher = null;
+        this.client = brokerClient;
+    }
 
     @PostConstruct
     public void printCounter() {
@@ -65,7 +78,10 @@ public class EventGenerator implements Runnable {
                 double newValue = Math.random() * valueRangeWidth + lowerValue;
                 EventMap event = new EventMap(newValue, level, System.currentTimeMillis());
                 log.info("EventGenerator.run(): Sending event #{}: {}", countSent + 1, event);
-                client.publishEventWithCredentials(brokerUrl, brokerUsername, brokerPassword, destinationName, event);
+                if (eventPublisher!=null)
+                    eventPublisher.apply(destinationName, event);
+                else
+                    client.publishEventWithCredentials(brokerUrl, brokerUsername, brokerPassword, destinationName, event);
                 countSent++;
                 if (countSent == howMany) keepRunning = false;
                 log.info("EventGenerator.run(): Event sent #{}: {}", countSent, event);

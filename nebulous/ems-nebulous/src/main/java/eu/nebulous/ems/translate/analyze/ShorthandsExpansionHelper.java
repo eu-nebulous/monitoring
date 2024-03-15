@@ -12,15 +12,29 @@ import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.ParseContext;
+import eu.nebulous.ems.translate.analyze.antlr4.ConstraintsBaseVisitor;
+import eu.nebulous.ems.translate.analyze.antlr4.ConstraintsLexer;
+import eu.nebulous.ems.translate.analyze.antlr4.ConstraintsParser;
+import gr.iccs.imu.ems.translate.model.MetricTemplate;
+import gr.iccs.imu.ems.translate.model.ValueType;
+import gr.iccs.imu.ems.util.EmsConstant;
+import lombok.Getter;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CodePointCharStream;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.tree.ParseTree;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static eu.nebulous.ems.translate.analyze.AnalysisUtils.*;
 
@@ -28,8 +42,8 @@ import static eu.nebulous.ems.translate.analyze.AnalysisUtils.*;
 @Service
 @RequiredArgsConstructor
 public class ShorthandsExpansionHelper {
-    private final static Pattern METRIC_CONSTRAINT_PATTERN =
-            Pattern.compile("^([^<>=!]+)([<>]=|=[<>]|<>|!=|[=><])(.+)$");
+    /*private final static Pattern METRIC_CONSTRAINT_PATTERN =
+            Pattern.compile("^([^<>=!]+)([<>]=|=[<>]|<>|!=|[=><])(.+)$");*/
     private final static Pattern METRIC_WINDOW_PATTERN =
             Pattern.compile("^\\s*(\\w+)\\s+(\\d+(?:\\.\\d*)?|\\.\\d+)\\s*(?:(\\w+)\\s*)?");
     private final static Pattern METRIC_WINDOW_SIZE_PATTERN =
@@ -39,7 +53,7 @@ public class ShorthandsExpansionHelper {
     private final static Pattern METRIC_OUTPUT_SCHEDULE_PATTERN =
             Pattern.compile("^\\s*(\\d+(?:\\.\\d*)?|\\.\\d+)\\s*(\\w+)\\s*");
     private final static Pattern METRIC_SENSOR_PATTERN =
-            Pattern.compile("^\\s*(\\w+)\\s+(\\w+)\\s*");
+            Pattern.compile("^\\s*(\\w+)\\s+(\\w[\\w\\.]+\\w)\\s*");
 
     // ------------------------------------------------------------------------
     //  Methods for expanding shorthand expressions
@@ -57,9 +71,24 @@ public class ShorthandsExpansionHelper {
         List<Object> expandedConstraints = asList(ctx
                 .read("$.spec.*.*.requirements.*[?(@.constraint)]", List.class)).stream()
                 .filter(item -> JsonPath.read(item, "$.constraint") instanceof String)
-                .peek(this::expandConstraint)
+//                .peek(this::expandConstraint)
+                .peek(this::expandConstraintExpression)
                 .toList();
         log.debug("ShorthandsExpansionHelper: Constraints expanded: {}", expandedConstraints);
+
+        // ----- Read Metric templates -----
+        Map<Object, Map> templateSpecs = new LinkedHashMap<>();
+        templateSpecs.putAll( readMetricTemplate("$.templates.*", ctx) );
+        templateSpecs.putAll( readMetricTemplate("$.spec.templates.*", ctx) );
+        log.debug("ShorthandsExpansionHelper: Metric Templates found: {}", templateSpecs);
+
+        // ----- Expand Metric templates in Metric specifications -----
+        List<Object> expandedTemplates = asList(ctx
+                .read("$.spec.*.*.metrics.*[?(@.template)]", List.class)).stream()
+                .filter(item -> JsonPath.read(item, "$.template") instanceof String)
+                .peek(item -> expandTemplate(item, templateSpecs))
+                .toList();
+        log.debug("ShorthandsExpansionHelper: Templates expanded: {}", expandedTemplates);
 
         // ----- Expand Metric windows -----
         List<Object> expandedWindows = asList(ctx
@@ -98,6 +127,56 @@ public class ShorthandsExpansionHelper {
                 .peek(this::expandSensor)
                 .toList();
         log.debug("ShorthandsExpansionHelper: Sensors expanded: {}", expandedSensors);
+    }
+
+    private static Map<String, Map> readMetricTemplate(@NonNull String path, @NonNull DocumentContext ctx) {
+        try {
+            return asList(ctx
+                    .read(path, List.class)).stream()
+                    .filter(x -> x instanceof Map)
+                    .map(x -> (Map) x)
+                    .filter(x -> x.get("id") != null)
+                    .collect(Collectors.toMap(x -> x.get("id").toString(), x -> x));
+        } catch (Exception e) {
+            log.debug("ShorthandsExpansionHelper.readMetricTemplate: Not found metric templates in path: {}", path);
+            return Collections.emptyMap();
+        }
+    }
+
+    private void expandTemplate(Object spec, Map<Object, Map> templateSpecs) {
+        log.debug("ShorthandsExpansionHelper.expandTemplate: {}", spec);
+        String templateId = JsonPath.read(spec, "$.template").toString().trim();
+        Object tplSpec = templateSpecs.get(templateId);
+        if (tplSpec!=null) {
+            asMap(spec).put("template", tplSpec);
+        } else {
+            List<String> parts = Arrays.asList(templateId.split("[ \t\r\n]+"));
+            if (parts.size()>=4) {
+                MetricTemplate newTemplate;
+                if (StringUtils.equalsAnyIgnoreCase(parts.get(0), "double", "float")) {
+                    asMap(spec).put("template", MetricTemplate.builder()
+                            .valueType(ValueType.DOUBLE_TYPE)
+                            .lowerBound("-inf".equalsIgnoreCase(parts.get(1))
+                                    ? Double.NEGATIVE_INFINITY : Double.parseDouble(parts.get(1)))
+                            .upperBound(StringUtils.equalsAnyIgnoreCase(parts.get(2), "inf", "+inf")
+                                    ? Double.POSITIVE_INFINITY : Double.parseDouble(parts.get(2)))
+                            .unit(parts.get(3))
+                            .build());
+                } else
+                if (StringUtils.equalsAnyIgnoreCase(parts.get(0), "int", "integer")) {
+                    asMap(spec).put("template", MetricTemplate.builder()
+                            .valueType(ValueType.INT_TYPE)
+                            .lowerBound("-inf".equalsIgnoreCase(parts.get(1))
+                                    ? Integer.MIN_VALUE : Integer.parseInt(parts.get(1)))
+                            .upperBound(StringUtils.equalsAnyIgnoreCase(parts.get(2), "inf", "+inf")
+                                    ? Integer.MAX_VALUE : Integer.parseInt(parts.get(2)))
+                            .unit(parts.get(3))
+                            .build());
+                } else
+                    throw createException("Invalid Metric template shorthand expression: " + templateId);
+            } else
+                throw createException("Metric template id not found: " + templateId);
+        }
     }
 
     private void expandWindow(Object spec) {
@@ -163,15 +242,20 @@ public class ShorthandsExpansionHelper {
         if (matcher.matches()) {
             asMap(spec).put("sensor", Map.of(
                     "type", matcher.group(1),
-                    "config", Map.of("mapping", matcher.group(2))
+                    "config", Map.of(
+                            EmsConstant.NETDATA_METRIC_KEY, matcher.group(2)
+                    )
             ));
         } else
             throw createException("Invalid metric sensor shorthand expression: "+spec);
     }
 
-    private void expandConstraint(Object spec) {
+    /*private void expandConstraint(Object spec) {
         log.debug("ShorthandsExpansionHelper.expandConstraint: {}", spec);
         String constraintStr = JsonPath.read(spec, "$.constraint").toString().trim();
+        log.trace("ShorthandsExpansionHelper.expandConstraint: BEFORE removeOuterBrackets: {}", constraintStr);
+        constraintStr = removeOuterBrackets(constraintStr);
+        log.trace("ShorthandsExpansionHelper.expandConstraint:  AFTER removeOuterBrackets: {}", constraintStr);
         Matcher matcher = METRIC_CONSTRAINT_PATTERN.matcher(constraintStr);
         if (matcher.matches()) {
             String g1 = matcher.group(1);
@@ -204,5 +288,290 @@ public class ShorthandsExpansionHelper {
             asMap(spec).put("constraint", constrMap);
         } else
             throw createException("Invalid metric constraint shorthand expression: "+spec);
+    }
+
+    private String removeOuterBrackets(String s) {
+        if (s==null) return null;
+        s = s.trim();
+        if (s.isEmpty()) return s;
+        while (s.startsWith("(") && s.endsWith(")")
+            || s.startsWith("[") && s.endsWith("]")
+            || s.startsWith("{") && s.endsWith("}"))
+        {
+            s = s.substring(1, s.length() - 1).trim();
+            if (s.isEmpty()) return s;
+        }
+        return s;
+    }*/
+
+    public void expandConstraintExpression(Object spec) {
+        log.debug("ShorthandsExpansionHelper.expandConstraintExpression: {}", spec);
+
+        // Get constraint string
+        String constraintStr = JsonPath.read(spec, "$.constraint").toString().trim();
+        log.debug("ShorthandsExpansionHelper.expandConstraintExpression: constraint-expression: {}", constraintStr);
+
+        // Create a CharStream that reads from standard input
+        CodePointCharStream input = CharStreams.fromString(constraintStr);
+
+        // create a lexer that feeds off of input CharStream
+        ConstraintsLexer lexer = new ConstraintsLexer(input);
+
+        // create a buffer of tokens pulled from the lexer
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+
+        // create a parser that feeds off the tokens buffer
+        ConstraintsParser parser = new ConstraintsParser(tokens);
+
+        ParseTree tree = parser.constraintExpression();
+        if (log.isTraceEnabled())
+            // print LISP-style tree
+            log.trace("ShorthandsExpansionHelper.expandConstraintExpression: parse-tree: {}", tree.toStringTree(parser));
+
+        // Create expanded constraint specification
+        ConstraintVisitor visitor = new ConstraintVisitor();
+        Map<String, Object> map = visitor.visit(tree);
+        log.trace("ShorthandsExpansionHelper.expandConstraintExpression: resulting-map: {}", map);
+
+        asMap(spec).put("constraint", map);
+        log.trace("ShorthandsExpansionHelper.expandConstraintExpression: Spec AFTER update: {}", spec);
+    }
+
+    @Getter
+    @Setter
+    private static class ConstraintVisitor extends ConstraintsBaseVisitor<Map<String,Object>> {
+        private boolean optimize = true;
+        private boolean logAnyway = false;
+
+        @Override
+        public Map<String,Object> visitConstraintExpression(ConstraintsParser.ConstraintExpressionContext ctx) {
+            log(ctx, "ConstraintExpression: {}", ctx.children.size());
+            return visitOrConstraint(ctx.orConstraint());
+        }
+
+        @Override
+        public Map<String,Object> visitOrConstraint(ConstraintsParser.OrConstraintContext ctx) {
+            if (optimize && ctx.andConstraint().size()==1)
+                return visitAndConstraint(ctx.andConstraint(0));
+            log(ctx, "OrConstraint: {} -- and: {}", ctx.children.size(), ctx.andConstraint().size());
+            ArrayList<Map<String,Object>> childMapList = new ArrayList<>();
+            for (ConstraintsParser.AndConstraintContext constraintContext : ctx.andConstraint()) {
+                Map<String, Object> childMap = visitAndConstraint(constraintContext);
+                childMapList.add(childMap);
+            }
+            return makeMap(ctx,
+                    "type", "logical",
+                    "operator", "or",
+                    "constraints", childMapList
+            );
+        }
+
+        @Override
+        public Map<String,Object> visitAndConstraint(ConstraintsParser.AndConstraintContext ctx) {
+            if (optimize && ctx.constraint().size()==1)
+                return visitConstraint(ctx.constraint(0));
+            log(ctx, "AndConstraint: {} -- cons: {}", ctx.children.size(), ctx.constraint().size());
+            ArrayList<Map<String,Object>> childMapList = new ArrayList<>();
+            for (ConstraintsParser.ConstraintContext constraintContext : ctx.constraint()) {
+                Map<String, Object> childMap = visitConstraint(constraintContext);
+                childMapList.add(childMap);
+            }
+            return makeMap(ctx,
+                    "type", "logical",
+                    "operator", "and",
+                    "constraints", childMapList
+            );
+        }
+
+        @Override
+        public Map<String,Object> visitConstraint(ConstraintsParser.ConstraintContext ctx) {
+            if (ctx.PARENTHESES_OPEN()!=null) {
+                if (!optimize) log(ctx, "Constraint: PARENTHESES");
+                return visitOrConstraint(ctx.orConstraint());
+            }
+
+            if (ctx.metricConstraint()!=null) {
+                if (!optimize) log(ctx, "Constraint: METRIC CONSTRAINT");
+                return visitMetricConstraint(ctx.metricConstraint());
+            }
+            if (ctx.notConstraint()!=null) {
+                if (!optimize) log(ctx, "Constraint: NOT CONSTRAINT");
+                return visitNotConstraint(ctx.notConstraint());
+            }
+            if (ctx.conditionalConstraint()!=null) {
+                if (!optimize) log(ctx, "Constraint: CONDITIONAL CONSTRAINT");
+                return visitConditionalConstraint(ctx.conditionalConstraint());
+            }
+
+            // error
+            log(ctx, true, "Constraint: ERROR: ");
+            for (ParseTree child : ctx.children) {
+                log(ctx, true, "Constraint: ERROR: --> {}", child.getText());
+            }
+            throw new IllegalArgumentException("Unexpected constraint type encountered: "+ctx.getText());
+        }
+
+        @Override
+        public Map<String,Object> visitMetricConstraint(ConstraintsParser.MetricConstraintContext ctx) {
+            log(ctx, "MetricConstraint: {}", ctx.children.size());
+            String metric = ctx.ID().getText();
+            Double threshold = Double.parseDouble( ctx.NUM().getText() );
+            String operator = ctx.comparisonOperator().getText();
+
+            // Check if first child is NOT the 'metric' (i.e. NUM op METRIC)
+            if (! ctx.getChild(0).getText().equals(metric)) {
+                // Inverse operator (implies METRIC inverted-op NUM)
+                if (! "<>".equals(operator)) {
+                    operator = operator.contains("<")
+                            ? operator.replace("<", ">")
+                            : operator.replace(">", "<");
+                }
+            }
+
+            return makeMap(ctx,
+                    "type", "metric",
+                    "metric", metric,
+                    "threshold", threshold,
+                    "operator", operator
+            );
+        }
+
+        @Override
+        public Map<String,Object> visitNotConstraint(ConstraintsParser.NotConstraintContext ctx) {
+            log(ctx, "NotConstraint: {}", ctx.children.size());
+            Map<String, Object> childMap = visitConstraint(ctx.constraint());
+            log(ctx, "NotConstraint: --> Constraint to be NEGATED: {}", childMap);
+            /*return makeMap(ctx,
+                    "type", "logical",
+                    "operator", "not",
+                    "constraints", List.of( childMap )
+            );*/
+
+            childMap = negateConstraint(childMap);
+            log(ctx, "NotConstraint: --> Constraint NEGATED: {}", childMap);
+            return childMap;
+        }
+
+        private Map<String,Object> negateConstraint(Map<String, Object> map) {
+            log.trace("ConstraintVisitor.negateConstraint: BEGIN: {}", map);
+            if (map==null) return null;
+
+            String type = map.get("type").toString();
+            log.trace("ConstraintVisitor.negateConstraint: type: {}", type);
+            if (StringUtils.isBlank(type))
+                throw new IllegalArgumentException("Missing constraint type: map: "+map);
+
+            if ("metric".equalsIgnoreCase(type)) {
+                String operator = map.get("operator").toString();
+                log.error("ConstraintVisitor.negateConstraint: METRIC-CONSTRAINT: operator-BEFORE: {}", operator);
+
+                // Negate comparison operator
+                if (StringUtils.equalsAny(operator, "=", "==")) operator = "<>";
+                else if (StringUtils.equalsAny(operator, "<>")) operator = "=";
+                else if (StringUtils.equalsAny(operator, "<")) operator = ">=";
+                else if (StringUtils.equalsAny(operator, "<=", "=<")) operator = ">";
+                else if (StringUtils.equalsAny(operator, ">")) operator = "<=";
+                else if (StringUtils.equalsAny(operator, ">=", "=>")) operator = "<";
+                else
+                    throw new IllegalArgumentException("Invalid comparison operator: "+operator);
+
+                log.error("ConstraintVisitor.negateConstraint: METRIC-CONS: operator-AFTER: {}", operator);
+                map.put("operator", operator);
+                return map;
+            } else
+            if ("logical".equalsIgnoreCase(type)) {
+                String operator = map.get("operator").toString();
+                log.trace("ConstraintVisitor.negateConstraint: LOGICAL-CONSTRAINT: operator-BEFORE: {}", operator);
+
+                // Negate (second) Not-constraint
+                if ("not".equalsIgnoreCase(operator)) {
+                    Map<String, Object> result = (Map<String, Object>) asList(map.get("constraints")).get(0);
+                    log.trace("ConstraintVisitor.negateConstraint: NOT-CONSTRAINT: END: {}", result);
+                    return result;
+                }
+
+                // Negate and/or constraint
+                if ("and".equalsIgnoreCase(operator))
+                    operator = "or";
+                if ("or".equalsIgnoreCase(operator))
+                    operator = "and";
+                log.trace("ConstraintVisitor.negateConstraint: LOGICAL-CONSTRAINT: operator-AFTER: {}", operator);
+                map.put("operator", operator);
+                asList(map.get("constraints")).forEach(c -> negateConstraint((Map<String,Object>)c));
+                return map;
+            } else
+            if ("conditional".equalsIgnoreCase(type)) {
+                log.trace("ConstraintVisitor.negateConstraint: CONDITIONAL-CONSTRAINT: ");
+
+                // IF-THEN      <==> IF AND THEN                      --- Negation: IF AND NOT(THEN)  (See: https://www.math.toronto.edu/preparing-for-calculus/3_logic/we_3_negation.html)
+                // IF-ELSE      <==> NOT(IF) AND ELSE                 --- Negation: NOT(IF) AND NOT(ELSE)
+                // IF-THEN-ELSE <==> IF AND THEN XOR NOT(IF) AND ELSE --- Negation: IF AND NOT(THEN) XOR NOT(IF) AND NOT(ELSE)  ?????
+
+                Map<String, Object> ifConstraint = asMap(map.get("if"));
+                Map<String, Object> thenConstraint = asMap(map.get("then"));
+                Map<String, Object> elseConstraint = asMap(map.get("else"));
+                ////ifConstraint = negateConstraint(ifConstraint);
+                thenConstraint = negateConstraint(thenConstraint);
+                elseConstraint = negateConstraint(elseConstraint);
+                map.put("if",   ifConstraint);
+                map.put("then", thenConstraint);
+                map.put("else", elseConstraint);
+                return map;
+            } else
+                throw new IllegalArgumentException("Invalid constraint type: "+type);
+        }
+
+        @Override
+        public Map<String,Object> visitConditionalConstraint(ConstraintsParser.ConditionalConstraintContext ctx) {
+            log(ctx, "ConditionalConstraint: {}", ctx.children.size());
+            Map<String, Object> ifMap = visitOrConstraint(ctx.orConstraint(0));
+            Map<String, Object> thenMap = visitOrConstraint(ctx.orConstraint(1));
+            Map<String, Object> elseMap = ctx.orConstraint().size()>2
+                    ? visitOrConstraint(ctx.orConstraint(2)) : null;
+
+            return elseMap!=null
+                    ? makeMap(ctx, "type", "conditional",
+                            "if", ifMap,
+                            "then", thenMap,
+                            "else", elseMap)
+                    : makeMap(ctx, "type", "conditional",
+                            "if", ifMap,
+                            "then", thenMap);
+        }
+
+        // --------------------------------------------------------------------
+
+        private void log(ParserRuleContext ctx, String formatter, Object...args) {
+            log(ctx, false, formatter, args);
+        }
+
+        private void log(ParserRuleContext ctx, boolean isError, String formatter, Object...args) {
+            if (isError || logAnyway || log.isDebugEnabled()) {
+                String indent = StringUtils.repeat(' ', 2 * (ctx.depth() - 1));
+                if (isError) {
+                    log.error("ConstraintVisitor: " + indent + formatter, args);
+                } else if (logAnyway) {
+                    log.warn("ConstraintVisitor: " + indent + formatter + " [::] " + ctx.getText(), args);
+                } else {
+                    log.debug("ConstraintVisitor: " + indent + formatter + " [::] " + ctx.getText(), args);
+                }
+            }
+        }
+
+        private Map<String,Object> makeMap(ParserRuleContext ctx, Object...args) {
+            if (args.length%2==1)
+                throw new IllegalArgumentException("makeMap argument number is not even: "+args.length);
+            LinkedHashMap<String,Object> map = new LinkedHashMap<>();
+            for (int i=0, n=args.length; i<n; i+=2) {
+                if (args[i]==null || args[i+1]==null)
+                    throw new IllegalArgumentException("makeMap arguments cannot be null: pos="+i);
+                if (args[i] instanceof String key)
+                    map.put(key, args[i+1]);
+                else
+                    throw new IllegalArgumentException("makeMap argument at key position is not a string: pos="+i);
+            }
+            log(ctx, "--> result: {}", map);
+            return map;
+        }
     }
 }

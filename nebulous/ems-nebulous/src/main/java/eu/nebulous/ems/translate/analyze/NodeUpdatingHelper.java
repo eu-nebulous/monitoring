@@ -126,7 +126,8 @@ class NodeUpdatingHelper extends AbstractHelper {
                 Set<String> components = $$(_TC).slosToComponentsMap.get(NamesKey.create(slo.getName()));
                 log.trace("Updating DAG node components: slo-name={}, slo-components={}", slo.getName(),  components);
                 tlNode.getProperties().put("components", components);
-                updateComponents(_TC, tlNode);
+                if (components!=null)
+                    updateComponents(_TC, tlNode);
             } else if (tlNode.getElement() instanceof BusyStatusMetricVariable bsMv) {
                 if (log.isTraceEnabled())
                     log.trace("Updating DAG node components: BS-name={}, BS-components={}, BS-metric={}",

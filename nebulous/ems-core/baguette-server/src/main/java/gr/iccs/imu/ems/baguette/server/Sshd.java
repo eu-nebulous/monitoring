@@ -142,6 +142,20 @@ public class Sshd {
         log.info("SSH server: Stopped");
     }
 
+    public Map<String,String> getServerConnectionInfo() {
+        Map.Entry<String, String> credentials = configuration.getCredentials().getPreferredPair();
+        return Map.of(
+                "BAGUETTE_SERVER_ADDRESS", configuration.getServerAddress(),
+                "BAGUETTE_SERVER_PORT", Integer.toString(configuration.getServerPort()),
+                "BAGUETTE_SERVER_PUBKEY", StringEscapeUtils.unescapeJson(serverPubkey),
+                "BAGUETTE_SERVER_PUBKEY_FINGERPRINT", serverPubkeyFingerprint,
+                "BAGUETTE_SERVER_PUBKEY_ALGORITHM", serverPubkeyAlgorithm,
+                "BAGUETTE_SERVER_PUBKEY_FORMAT", serverPubkeyFormat,
+                "BAGUETTE_SERVER_USERNAME", credentials.getKey(),
+                "BAGUETTE_SERVER_PASSWORD", credentials.getValue()
+        );
+    }
+
     public void startHeartbeat(long period) {
         heartbeatOn = true;
         Thread heartbeat = new Thread(

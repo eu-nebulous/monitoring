@@ -1,0 +1,13 @@
+- name: Update containers.conf configuration
+  hosts: all
+  tasks:
+    - name: Add default_ulimits configuration to containers.conf
+      ansible.builtin.blockinfile:
+        path: "{{ ansible_user_dir }}/.config/containers/containers.conf"
+        block: |
+          [containers]
+          default_ulimits = [
+            "nofile=5000:10000",
+          ]
+        marker: "# {mark} ANSIBLE MANAGED BLOCK for default_ulimits"
+        create: yes

@@ -13,12 +13,18 @@ package gr.iccs.imu.ems.util;
  * EMS constant
  */
 public class EmsConstant {
-    public final static String EMS_PROPERTIES_PREFIX = ""; //""ems.";
+    public final static String EMS_PROPERTIES_PREFIX = ""; //"ems.";
     public final static String EVENT_PROPERTY_SOURCE_ADDRESS = "producer-host";
     public final static String EVENT_PROPERTY_ORIGINAL_DESTINATION = "original-destination";
     public final static String EVENT_PROPERTY_EFFECTIVE_DESTINATION = "effective-destination";
+    public final static String EVENT_PROPERTY_KEY = "destination-key";
+    public final static String NETDATA_METRIC_KEY = "_netdata_metric";
 
     public final static String COLLECTOR_DESTINATION_ALIASES = "destination-aliases";
     public final static String COLLECTOR_DESTINATION_ALIASES_DELIMITERS = "[,;: \t\r\n]+";
     public final static String COLLECTOR_ALLOWED_TOPICS_VAR = "COLLECTOR_ALLOWED_TOPICS";
+    public static final String COLLECTOR_CONFIGURATIONS_VAR = "COLLECTOR_CONFIGURATIONS";
+
+    public final static String EMS_CLIENT_K8S_CONFIG_MAP_FILE = "ems-client-configmap.json";
+    public final static String EMS_CLIENT_K8S_CONFIG_MAP_FORMAT = "json";
 }

@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 public class MathUtil {
     static {
         License.iConfirmNonCommercialUse("EMS-"+ NetUtil.getIpAddress());
+        mXparser.disableImpliedMultiplicationMode();
     }
     private static final Map<String, Function> functions = new HashMap<>();
     private static final Map<String, Constant> constants = new HashMap<>();
@@ -118,8 +119,20 @@ public class MathUtil {
 
         // Get token names
         List<Token> initTokens = e.getCopyOfInitialTokens();
-        log.debug("MathUtil: initial-tokens={}", initTokens);
         if (log.isTraceEnabled()) {
+            log.trace("MathUtil: initial-tokens={}", initTokens.stream()
+                    .map(token -> Map.of(
+                            "tokenId", token.tokenId,
+                            "tokenType", token.tokenTypeId,
+                            "tokenStr", token.tokenStr,
+                            "tokenValue", token.tokenValue,
+                            "looksLike", token.looksLike,
+                            "keyWord", token.keyWord,
+                            "tokenLevel", token.tokenLevel,
+                            "is-identifier", token.isIdentifier()
+                            )
+                    ).toList()
+            );
             mXparser.consolePrintTokens(initTokens);
         }
 

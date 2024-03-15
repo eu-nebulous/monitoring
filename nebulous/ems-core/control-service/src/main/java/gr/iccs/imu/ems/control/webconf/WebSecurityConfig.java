@@ -46,10 +46,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.security.InvalidParameterException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @Order(1)
@@ -400,11 +397,11 @@ public class WebSecurityConfig implements InitializingBean {
                         log.debug("jwtAuthorizationFilter: Parsing Authorization header...");
                         Claims claims = jwtTokenService.parseToken(jwtValue);
                         String user = claims.getSubject();
-                        String audience  = claims.getAudience();
+                        Set<String> audience = claims.getAudience();
                         log.debug("jwtAuthorizationFilter: Authorization header -->     user: {}", user);
                         log.debug("jwtAuthorizationFilter: Authorization header --> audience: {}", audience);
                         if (user!=null && audience!=null) {
-                            if (JwtTokenService.AUDIENCE_UPPERWARE.equals(audience)) {
+                            if (audience.contains(JwtTokenService.AUDIENCE_UPPERWARE)) {
                                 log.debug("jwtAuthorizationFilter: JWT token is valid");
                                 UsernamePasswordAuthenticationToken authentication =
                                         new UsernamePasswordAuthenticationToken(user, null,

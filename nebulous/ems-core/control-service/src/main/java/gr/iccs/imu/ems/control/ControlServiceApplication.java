@@ -12,10 +12,7 @@ package gr.iccs.imu.ems.control;
 import com.ulisesbocchio.jasyptspringboot.environment.StandardEncryptableEnvironment;
 import gr.iccs.imu.ems.control.controller.ControlServiceCoordinator;
 import gr.iccs.imu.ems.control.properties.ControlServiceProperties;
-import gr.iccs.imu.ems.util.EventBus;
-import gr.iccs.imu.ems.util.KeystoreUtil;
-import gr.iccs.imu.ems.util.PasswordUtil;
-import gr.iccs.imu.ems.util.StrUtil;
+import gr.iccs.imu.ems.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.catalina.connector.Connector;
@@ -62,6 +59,8 @@ public class ControlServiceApplication {
     private final PasswordUtil passwordUtil;
 
     public static void main(String[] args) {
+        System.out.println(EmsRelease.EMS_DESCRIPTION);
+
         long initStartTime = System.currentTimeMillis();
 
         // Start EMS server

@@ -11,7 +11,7 @@ package gr.iccs.imu.ems.baguette.client.selfhealing;
 
 import gr.iccs.imu.ems.baguette.client.install.ClientInstallationProperties;
 import gr.iccs.imu.ems.baguette.client.install.ClientInstallationTask;
-import gr.iccs.imu.ems.baguette.client.install.SshClientInstaller;
+import gr.iccs.imu.ems.baguette.client.install.installer.SshClientInstaller;
 import gr.iccs.imu.ems.baguette.client.install.helper.InstallationHelperFactory;
 import gr.iccs.imu.ems.baguette.server.BaguetteServer;
 import gr.iccs.imu.ems.baguette.server.ClientShellCommand;

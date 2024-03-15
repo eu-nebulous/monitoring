@@ -13,10 +13,12 @@ import com.google.gson.GsonBuilder;
 import gr.iccs.imu.ems.baguette.server.BaguetteServer;
 import gr.iccs.imu.ems.baguette.server.NodeRegistry;
 import gr.iccs.imu.ems.baguette.server.ServerCoordinator;
+import gr.iccs.imu.ems.baguette.server.coordinator.NoopCoordinator;
 import gr.iccs.imu.ems.brokercep.BrokerCepService;
 import gr.iccs.imu.ems.brokercep.BrokerCepStatementSubscriber;
 import gr.iccs.imu.ems.brokercep.event.EventMap;
 import gr.iccs.imu.ems.control.collector.netdata.ServerNetdataCollector;
+import gr.iccs.imu.ems.control.plugin.AppModelPlugin;
 import gr.iccs.imu.ems.control.plugin.MetasolverPlugin;
 import gr.iccs.imu.ems.control.plugin.PostTranslationPlugin;
 import gr.iccs.imu.ems.control.plugin.TranslationContextPlugin;
@@ -73,6 +75,8 @@ public class ControlServiceCoordinator implements InitializingBean {
     private final PasswordUtil passwordUtil;
     private final EventBus<String,Object,Object> eventBus;
 
+    private final List<AppModelPlugin> appModelPluginList;
+
     private final List<Translator> translatorImplementations;
     private Translator translator;                      // Will be populated in 'afterPropertiesSet()'
     private final List<PostTranslationPlugin> postTranslationPlugins;
@@ -106,8 +110,11 @@ public class ControlServiceCoordinator implements InitializingBean {
 
     @Override
     public void afterPropertiesSet() throws Exception {
+        setCurrentEmsState(EMS_STATE.INITIALIZING, "Starting ControlServiceCoordinator...");
+
         initTranslator();
         initMvvService();
+        startBaguetteServer();
 
         // Run configuration checks and throw exceptions early (before actually using EMS)
         if (properties.isSkipTranslation()) {
@@ -119,6 +126,8 @@ public class ControlServiceCoordinator implements InitializingBean {
         log.debug("ControlServiceCoordinator.afterPropertiesSet():    Post-translation plugins: {}", postTranslationPlugins);
         log.debug("ControlServiceCoordinator.afterPropertiesSet():  TranslationContext plugins: {}", translationContextPlugins);
         log.debug("ControlServiceCoordinator.afterPropertiesSet():          MetaSolver plugins: {}", metasolverPlugins);
+
+        setCurrentEmsState(EMS_STATE.IDLE, "ControlServiceCoordinator started");
     }
 
     private void initMvvService() {
@@ -142,7 +151,7 @@ public class ControlServiceCoordinator implements InitializingBean {
     private void initTranslator() {
         log.debug("ControlServiceCoordinator.initTranslator():  Translator implementations: {}", translatorImplementations);
         if (translatorImplementations.size() == 1) {
-            translator = translatorImplementations.get(0);
+            translator = translatorImplementations.getFirst();
         } else if (translatorImplementations.isEmpty()) {
             throw new IllegalArgumentException("No Translator implementations found");
         } else {
@@ -154,6 +163,15 @@ public class ControlServiceCoordinator implements InitializingBean {
         log.debug("ControlServiceCoordinator.initTranslator():  Translator implementation selected: {}", translator);
 
         log.info("ControlServiceCoordinator.initTranslator(): Effective translator: {}", translator.getClass().getName());
+    }
+
+    private void startBaguetteServer() {
+        log.debug("ControlServiceCoordinator.startBaguetteServer(): Starting Baguette Server...");
+        try {
+            baguetteServer.startServer(new NoopCoordinator());
+        } catch (Exception ex) {
+            log.error("ControlServiceCoordinator.startBaguetteServer(): EXCEPTION while starting Baguette server: ", ex);
+        }
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -247,10 +265,17 @@ public class ControlServiceCoordinator implements InitializingBean {
             return;
         }
 
+        // Execute callback after acquiring lock
         try {
             callback.run();
         } catch (Exception ex) {
-            setCurrentEmsState(EMS_STATE.ERROR, ex.getMessage());
+            StringBuilder sb = new StringBuilder(ex.getClass().getName()).append(": ").append(ex.getMessage());
+            Throwable t = ex;
+            while (t.getCause()!=null) {
+                t = t.getCause();
+                sb.append(", caused by: ").append(t.getClass().getName()).append(": ").append(t.getMessage());
+            }
+            setCurrentEmsState(EMS_STATE.ERROR, sb.toString());
 
             String mesg = "ControlServiceCoordinator."+caller+": EXCEPTION: " + ex;
             log.error(mesg, ex);
@@ -263,6 +288,15 @@ public class ControlServiceCoordinator implements InitializingBean {
             // Release lock of this coordinator
             inUse.compareAndSet(true, false);
         }
+
+        // Invoke requestInfo callback if provided
+        if (requestInfo.getCallback()!=null) {
+            requestInfo.getCallback().accept(Map.of(
+                    "ems-state", StringUtils.defaultIfBlank(getCurrentEmsState().name(), "UNKNOWN"),
+                    "ems-state-message", StringUtils.defaultIfBlank(getCurrentEmsStateMessage(), ""),
+                    "ems-state-change-timestamp", getCurrentEmsStateChangeTimestamp()
+            ));
+        }
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -270,17 +304,28 @@ public class ControlServiceCoordinator implements InitializingBean {
     protected void _processAppModels(String appModelId, String appExecModelId, ControlServiceRequestInfo requestInfo) {
         log.info("ControlServiceCoordinator._processAppModel(): BEGIN: app-model-id={}, app-exec-model-id={}, request-info={}", appModelId, appExecModelId, requestInfo);
 
+        // Run pre-processing plugins
+        log.debug("ControlServiceCoordinator._processAppModel(): appModelPluginList: {}", appModelPluginList);
+        if (appModelPluginList!=null) {
+            for (AppModelPlugin plugin : appModelPluginList) {
+                if (plugin!=null) {
+                    log.debug("ControlServiceCoordinator._processAppModel():   Calling preProcessingNewAppModel on plugin: {}", plugin);
+                    plugin.preProcessingNewAppModel(appModelId, requestInfo);
+                }
+            }
+        }
+
         // Translate model into Translation Context (with EPL rules etc.)
         TranslationContext _TC;
         if (!properties.isSkipTranslation()) {
-            _TC = translateAppModelAndStore(appModelId);
+            _TC = translateAppModelAndStore(appModelId, requestInfo.getApplicationId());
         } else {
             log.warn("ControlServiceCoordinator._processAppModel(): Skipping translation due to configuration");
             _TC = loadStoredTranslationContext(appModelId);
         }
 
         // Run TranslationContext plugins
-        if (translationContextPlugins!=null && translationContextPlugins.size()>0) {
+        if (translationContextPlugins!=null && !translationContextPlugins.isEmpty()) {
             log.info("ControlServiceCoordinator._processAppModel(): Running {} TranslationContext plugins", translationContextPlugins.size());
             translationContextPlugins.stream().filter(Objects::nonNull).forEach(plugin -> {
                 log.debug("ControlServiceCoordinator._processAppModel(): Calling TranslationContext plugin: {}", plugin.getClass().getName());
@@ -356,6 +401,17 @@ public class ControlServiceCoordinator implements InitializingBean {
             log.warn("ControlServiceCoordinator._processAppModel(): Skipping notification due to configuration");
         }
 
+        // Run post-processing plugins
+        log.debug("ControlServiceCoordinator._processAppModel(): appModelPluginList: {}", appModelPluginList);
+        if (appModelPluginList!=null) {
+            for (AppModelPlugin plugin : appModelPluginList) {
+                if (plugin!=null) {
+                    log.debug("ControlServiceCoordinator._processAppModel():   Calling postProcessingNewAppModel on plugin: {}", plugin);
+                    plugin.postProcessingNewAppModel(appModelId, requestInfo, _TC);
+                }
+            }
+        }
+
         this.currentTC = _TC;
         log.info("ControlServiceCoordinator._processAppModel(): END: app-model-id={}", appModelId);
 
@@ -418,13 +474,13 @@ public class ControlServiceCoordinator implements InitializingBean {
         setCurrentEmsState(EMS_STATE.READY, null);
     }
 
-    private TranslationContext translateAppModelAndStore(String appModelId) {
+    private TranslationContext translateAppModelAndStore(String appModelId, String applicationId) {
         final TranslationContext _TC;
         setCurrentEmsState(EMS_STATE.INITIALIZING, "Retrieving and translating model");
 
         // Translate application model into a TranslationContext object
         log.info("ControlServiceCoordinator.translateAppModelAndStore(): Model translation: model-id={}", appModelId);
-        _TC = translator.translate(appModelId);
+        _TC = translator.translate(appModelId, applicationId);
         _TC.populateTopLevelMetricNames();
         log.debug("ControlServiceCoordinator.translateAppModelAndStore(): Model translation: RESULTS: {}", _TC);
 
@@ -548,7 +604,7 @@ public class ControlServiceCoordinator implements InitializingBean {
             log.debug("ControlServiceCoordinator.configureBrokerCep(): Broker-CEP: Upperware grouping: {}", upperwareGrouping);
             Set<String> eventTypeNames = _TC.getG2T().get(upperwareGrouping);
             log.debug("ControlServiceCoordinator.configureBrokerCep(): Broker-CEP: Configuration of Event Types: {}", eventTypeNames);
-            if (eventTypeNames == null || eventTypeNames.size() == 0)
+            if (eventTypeNames == null || eventTypeNames.isEmpty())
                 throw new RuntimeException("Broker-CEP: No event types for GLOBAL grouping");
 
             // Clear any previous event types, statements or function definitions and register the new ones

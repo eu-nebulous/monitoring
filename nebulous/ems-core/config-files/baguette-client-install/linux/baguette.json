@@ -48,18 +48,18 @@
       "match": false
     },
     {
-      "description": "Upload installation package MD5 checksum",
+      "description": "Upload installation package SHA256 checksum",
       "taskType": "COPY",
-      "fileName": "/tmp/baguette-client.tgz.md5",
-      "localFileName": "${EMS_PUBLIC_DIR}/resources/baguette-client.tgz.md5",
+      "fileName": "/tmp/baguette-client.tgz.sha256",
+      "localFileName": "${EMS_PUBLIC_DIR}/resources/baguette-client.tgz.sha256",
       "executable": false,
       "exitCode": 0,
       "match": false
     },
     {
-      "description": "Check MD5 checksum of installation package",
+      "description": "Check SHA256 checksum of installation package",
       "taskType": "CHECK",
-      "command": "[[ `cat /tmp/baguette-client.tgz.md5` != `md5sum /tmp/baguette-client.tgz | cut -d ' ' -f 1 ` ]] && exit 99",
+      "command": "[[ `cat /tmp/baguette-client.tgz.sha256` != `sha256sum /tmp/baguette-client.tgz | cut -d ' ' -f 1 ` ]] && exit 99",
       "executable": false,
       "exitCode": 99,
       "match": true

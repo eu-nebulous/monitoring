@@ -69,8 +69,17 @@ public class ControlServiceController {
             throw new RestControllerException(400, "Request does not contain an application id");
         }
 
+        // Get applicationId (if provided)
+        String applicationId = Optional.ofNullable(jObj.get("applicationId")).map(je -> stripQuotes(je.toString())).orElse(null);
+        if (StringUtils.isBlank(appExecModelId)) {
+            applicationId = appModelId;
+            log.warn("ControlServiceController.newAppModel(): No 'applicationId' found. Using App model id instead: {}", applicationId);
+        } else {
+            log.info("ControlServiceController.newAppModel(): Found 'applicationId': {}", applicationId);
+        }
+
         // Start translation and component reconfiguration in a worker thread
-        coordinator.processAppModel(appModelId, appExecModelId, ControlServiceRequestInfo.create(null, null, jwtToken));
+        coordinator.processAppModel(appModelId, appExecModelId, ControlServiceRequestInfo.create(applicationId, null, null, jwtToken, null));
         log.debug("ControlServiceController.newAppModel(): Model translation dispatched to a worker thread");
 
         return "OK";

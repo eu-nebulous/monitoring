@@ -16,5 +16,6 @@ import gr.iccs.imu.ems.util.Plugin;
  * TopicBeacon plugin
  */
 public interface BeaconPlugin extends Plugin {
+    default void init(TopicBeacon.BeaconContext context) { }
     void transmit(TopicBeacon.BeaconContext context);
 }

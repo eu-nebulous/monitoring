@@ -1,6 +1,7 @@
 - job:
     name: nebulous-monitoring-build-container-images
     parent: nebulous-build-container-images
+    pre-run: playbooks/ulimit/run_setup.yaml
     dependencies:
       - name: opendev-buildset-registry
         soft: false
@@ -22,6 +23,7 @@
 - job:
     name: nebulous-monitoring-upload-container-images
     parent: nebulous-upload-container-images
+    pre-run: playbooks/ulimit/run_setup.yaml
     dependencies:
       - name: opendev-buildset-registry
         soft: false

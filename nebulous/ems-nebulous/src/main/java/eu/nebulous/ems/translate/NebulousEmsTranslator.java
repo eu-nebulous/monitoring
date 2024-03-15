@@ -53,6 +53,11 @@ public class NebulousEmsTranslator implements Translator, InitializingBean {
 
 	@Override
 	public TranslationContext translate(String metricModelPath) {
+		return translate(metricModelPath, null);
+	}
+
+	@Override
+	public TranslationContext translate(String metricModelPath, String applicationId) {
 		if (StringUtils.isBlank(metricModelPath)) {
 			log.error("NebulousEmsTranslator: No metric model specified");
 			throw new NebulousEmsTranslationException("No metric model specified");
@@ -72,7 +77,7 @@ public class NebulousEmsTranslator implements Translator, InitializingBean {
 
 			// -- Translate model ---------------------------------------------
 			log.info("NebulousEmsTranslator: Translating metric model: {}", metricModelPath);
-			TranslationContext _TC = translate(modelObj, metricModelPath);
+			TranslationContext _TC = translate(modelObj, metricModelPath, applicationId);
 			log.info("NebulousEmsTranslator: Translating metric model completed: {}", metricModelPath);
 
 			return _TC;
@@ -85,7 +90,7 @@ public class NebulousEmsTranslator implements Translator, InitializingBean {
 	// ================================================================================================================
 	// Private methods
 
-	private TranslationContext translate(Object modelObj, String modelFileName) throws Exception {
+	private TranslationContext translate(Object modelObj, String modelFileName, String appId) throws Exception {
 		log.debug("NebulousEmsTranslator.translate():  BEGIN: metric-model={}", modelObj);
 
 		// Get model name
@@ -93,6 +98,7 @@ public class NebulousEmsTranslator implements Translator, InitializingBean {
 
 		// Initialize data structures
 		TranslationContext _TC = new TranslationContext(modelName, modelFileName);
+		_TC.setAppId(appId);
 
 		// -- Expand shorthand expressions ------------------------------------
 		log.debug("NebulousEmsTranslator.translate(): Expanding shorthand expressions: {}", modelName);

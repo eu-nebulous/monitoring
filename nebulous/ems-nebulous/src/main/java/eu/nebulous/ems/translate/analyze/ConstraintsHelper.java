@@ -136,7 +136,7 @@ class ConstraintsHelper extends AbstractHelper {
         NamesKey constraintNamesKey = createNamesKey(parentNamesKey, constraintName);
 
         // Further field checks
-        if (! isLogicalOperator(logicalOperator))
+        if (! isLogicalOperator(logicalOperator) && ! isNotOperator(logicalOperator))
             throw createException("Unknown logical operator '"+logicalOperator+"' in metric constraint: "+ constraintSpec);
         if (composingConstraints==null || composingConstraints.isEmpty())
             throw createException("At least one composing constraint must be provided in logical constraint: "+ constraintSpec);
@@ -152,8 +152,7 @@ class ConstraintsHelper extends AbstractHelper {
         // Decompose composing constraints
         List<Constraint> composingConstraintsList = new ArrayList<>();
         for (Object cc : composingConstraints) {
-            String sloName = cc.toString();
-            Constraint childConstraint = decomposeComposingConstraint(_TC, sloName, parentNamesKey, logicalConstraint);
+            Constraint childConstraint = decomposeComposingConstraint(_TC, cc, parentNamesKey, logicalConstraint);
             composingConstraintsList.add(childConstraint);
         }
         logicalConstraint.setConstraints(composingConstraintsList);
@@ -173,9 +172,13 @@ class ConstraintsHelper extends AbstractHelper {
         NamesKey constraintNamesKey = createNamesKey(parentNamesKey, constraintName);
 
         // Get the referenced constraints names (their SLOs' actually)
-        String   ifSloName = getMandatorySpecField(constraintSpec, "if", "Unspecified IF part in conditional constraint '"+constraintNamesKey.name()+"': "+ constraintSpec);
-        String thenSloName = getMandatorySpecField(constraintSpec, "then", "Unspecified THEN part in conditional constraint '"+constraintNamesKey.name()+"': "+ constraintSpec);
-        String elseSloName = getSpecField(constraintSpec, "else");
+//        String   ifSloName = getMandatorySpecField(constraintSpec, "if", "Unspecified IF part in conditional constraint '"+constraintNamesKey.name()+"': "+ constraintSpec);
+//        String thenSloName = getMandatorySpecField(constraintSpec, "then", "Unspecified THEN part in conditional constraint '"+constraintNamesKey.name()+"': "+ constraintSpec);
+//        String elseSloName = getSpecField(constraintSpec, "else");
+        // Get the constraints (spec or referenced by name (their SLOs' actually))
+        Object   ifSlo = getMandatorySpecFieldAsObject(constraintSpec, "if", "Unspecified IF part in conditional constraint '" + constraintNamesKey.name() + "': " + constraintSpec);
+        Object thenSlo = getMandatorySpecFieldAsObject(constraintSpec, "then", "Unspecified THEN part in conditional constraint '" + constraintNamesKey.name() + "': " + constraintSpec);
+        Object elseSlo = getSpecFieldAsObject(constraintSpec, "else");
 
         // Update TC
         IfThenConstraint conditionalConstraint = IfThenConstraint.builder()
@@ -185,10 +188,10 @@ class ConstraintsHelper extends AbstractHelper {
         _TC.getDAG().addNode(parent, conditionalConstraint);
 
         // Decompose the composing metrics
-        Constraint   ifConstraint = decomposeComposingConstraint(_TC,   ifSloName, parentNamesKey, conditionalConstraint);
-        Constraint thenConstraint = decomposeComposingConstraint(_TC, thenSloName, parentNamesKey, conditionalConstraint);
-        Constraint elseConstraint = StringUtils.isNotBlank(elseSloName)
-                ? decomposeComposingConstraint(_TC, elseSloName, parentNamesKey, conditionalConstraint) : null;
+        Constraint   ifConstraint = decomposeComposingConstraint(_TC,   ifSlo, parentNamesKey, conditionalConstraint);
+        Constraint thenConstraint = decomposeComposingConstraint(_TC, thenSlo, parentNamesKey, conditionalConstraint);
+        Constraint elseConstraint = elseSlo!=null
+                ? decomposeComposingConstraint(_TC, elseSlo, parentNamesKey, conditionalConstraint) : null;
 
         // Update the conditional (main) constraint
         conditionalConstraint.setIfConstraint(ifConstraint);
@@ -200,6 +203,14 @@ class ConstraintsHelper extends AbstractHelper {
         _TC.addIfThenConstraint(conditionalConstraint);
 
         return conditionalConstraint;
+    }
+
+    private Constraint decomposeComposingConstraint(TranslationContext _TC, @NonNull Object o, NamesKey parentNamesKey, Constraint parentConstraint) {
+        if (o instanceof String sloName)
+            return decomposeComposingConstraint(_TC, sloName, parentNamesKey, parentConstraint);
+        if (o instanceof Map spec)
+            return decomposeComposingConstraintSpec(_TC, spec, parentNamesKey, parentConstraint);
+        throw createException("Invalid 'composing constraint' type: "+o.getClass()+" -- cc: "+o);
     }
 
     private Constraint decomposeComposingConstraint(TranslationContext _TC, String sloName, NamesKey parentNamesKey, Constraint parentConstraint) {
@@ -214,5 +225,14 @@ class ConstraintsHelper extends AbstractHelper {
 
         // Decompose composing constraint
         return decomposeConstraint(_TC, constraintSpec, sloNamesKey, parentConstraint);
+    }
+
+    private Constraint decomposeComposingConstraintSpec(TranslationContext _TC, Map spec, NamesKey parentNamesKey, Constraint parentConstraint) {
+        // Construct SLO namesKey
+        String name = "random-"+System.currentTimeMillis();
+        NamesKey namesKey = NamesKey.create(getContainerName(spec), name);
+
+        // Decompose composing constraint
+        return decomposeConstraint(_TC, spec, namesKey, parentConstraint);
     }
 }

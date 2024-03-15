@@ -164,9 +164,23 @@ public class ClientShellCommand implements Command, Runnable, ServerSessionAware
         if (entry!=null) {
             setNodeRegistryEntry(entry);
         } else {
-            log.error("{}--> initNodeRegistryEntry: No node registry entry found for client: address={}", id, address);
-            log.error("{}--> initNodeRegistryEntry: Marked client session for immediate close: address={}", id, address);
-            setCloseConnection(true);
+            log.info("{}--> initNodeRegistryEntry: No node registry entry found for client: address={}", id, address);
+            if (coordinator.allowNotPreregisteredNode(this)) {
+                try {
+                    log.info("{}--> initNodeRegistryEntry: Preregistering new client: address={}", id, address);
+                    HashMap<String, String> nodeInfo = new HashMap<>();
+                    nodeInfo.put("address", address);
+                    entry = coordinator.getServer().registerClient(nodeInfo);
+                    setNodeRegistryEntry(entry);
+                } catch (Exception e) {
+                    log.error("{}--> initNodeRegistryEntry: Exception while registering new client: address={}, EXCEPTION: ", id, address, e);
+                    log.error("{}--> initNodeRegistryEntry: Marked client session for immediate close: address={}", id, address);
+                    setCloseConnection(true);
+                }
+            } else {
+                log.error("{}--> initNodeRegistryEntry: Marked client session for immediate close: address={}", id, address);
+                setCloseConnection(true);
+            }
         }
     }
 

@@ -14,6 +14,8 @@ import gr.iccs.imu.ems.brokercep.cep.CepService;
 import gr.iccs.imu.ems.brokercep.event.EventMap;
 import gr.iccs.imu.ems.brokercep.properties.BrokerCepProperties;
 import gr.iccs.imu.ems.util.StrUtil;
+import jakarta.jms.*;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.activemq.broker.BrokerService;
@@ -27,11 +29,12 @@ import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 
-import jakarta.jms.*;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -58,6 +61,9 @@ public class BrokerCepConsumer implements MessageListener, InitializingBean, App
     private boolean shuttingDown;
 
     private final EventCache eventCache;
+
+    @Getter
+    private final List<MessageListener> listeners = new LinkedList<>();
 
     @Override
     public void afterPropertiesSet() {
@@ -123,36 +129,28 @@ public class BrokerCepConsumer implements MessageListener, InitializingBean, App
     }
 
     public synchronized void addQueue(String queueName) {
-        log.debug("BrokerCepConsumer.addQueue(): Adding queue: {}", queueName);
-        if (addedDestinations.containsKey(queueName)) {
-            log.debug("BrokerCepConsumer.addQueue(): Queue already added: {}", queueName);
-            return;
-        }
-        try {
-            Queue queue = session.createQueue(queueName);
-            MessageConsumer consumer = session.createConsumer(queue);
-            consumer.setMessageListener(this);
-            addedDestinations.put(queueName, consumer);
-            log.debug("BrokerCepConsumer.addQueue(): Added queue: {}", queueName);
-        } catch (Exception ex) {
-            log.error("BrokerCepConsumer.addQueue(): EXCEPTION: ", ex);
-        }
+        addDestinationAndListener(queueName, false, this);
     }
 
     public synchronized void addTopic(String topicName) {
-        log.debug("BrokerCepConsumer.addTopic(): Adding topic: {}", topicName);
-        if (addedDestinations.containsKey(topicName)) {
-            log.debug("BrokerCepConsumer.addTopic(): Topic already added: {}", topicName);
+        addDestinationAndListener(topicName, true, this);
+    }
+
+    private synchronized void addDestinationAndListener(String destinationName, boolean isTopic, MessageListener listener) {
+        log.debug("BrokerCepConsumer.addDestinationAndListener(): Adding destination: {}", destinationName);
+        if (addedDestinations.containsKey(destinationName)) {
+            log.debug("BrokerCepConsumer.addDestinationAndListener(): Destination already added: {}", destinationName);
             return;
         }
         try {
-            Topic topic = session.createTopic(topicName);
-            MessageConsumer consumer = session.createConsumer(topic);
-            consumer.setMessageListener(this);
-            addedDestinations.put(topicName, consumer);
-            log.debug("BrokerCepConsumer.addTopic(): Added topic: {}", topicName);
+            Destination destination = isTopic
+                    ? session.createTopic(destinationName) : session.createQueue(destinationName);
+            MessageConsumer consumer = session.createConsumer(destination);
+            consumer.setMessageListener(listener);
+            addedDestinations.put(destinationName, consumer);
+            log.debug("BrokerCepConsumer.addDestinationAndListener(): Added destination: {}", destinationName);
         } catch (Exception ex) {
-            log.error("BrokerCepConsumer.addTopic(): EXCEPTION: ", ex);
+            log.error("BrokerCepConsumer.addDestinationAndListener(): EXCEPTION: ", ex);
         }
     }
 
@@ -224,6 +222,10 @@ public class BrokerCepConsumer implements MessageListener, InitializingBean, App
                 log.warn("BrokerCepConsumer.onMessage(): Message ignored: type={}", message.getClass().getName());
             }
             eventCounter.incrementAndGet();
+
+            // Notify listeners
+            listeners.forEach(l -> l.onMessage(message));
+
         } catch (Exception ex) {
             log.error("BrokerCepConsumer.onMessage(): EXCEPTION: ", ex);
             eventFailuresCounter.incrementAndGet();

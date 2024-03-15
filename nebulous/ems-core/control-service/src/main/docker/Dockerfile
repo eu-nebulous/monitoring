@@ -22,16 +22,6 @@ RUN java -Djarmode=layertools -jar control-service.jar extract
 # -----------------   Run image   -----------------
 FROM $RUN_IMAGE:$RUN_IMAGE_TAG
 
-# Setup environment
-ENV BASEDIR /opt/ems-server
-ENV EMS_HOME ${BASEDIR}
-ENV EMS_CONFIG_DIR ${BASEDIR}/config
-
-ENV BIN_DIR ${BASEDIR}/bin
-ENV CONFIG_DIR ${BASEDIR}/config
-ENV LOGS_DIR ${BASEDIR}/logs
-ENV PUBLIC_DIR ${BASEDIR}/public_resources
-
 # Install required and optional packages
 RUN wget --progress=dot:giga -O /usr/local/bin/dumb-init \
           https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_x86_64 && \
@@ -42,13 +32,23 @@ RUN wget --progress=dot:giga -O /usr/local/bin/dumb-init \
 
 # Add an EMS user
 ARG EMS_USER=emsuser
+ARG EMS_HOME=/opt/ems-server
 RUN mkdir ${EMS_HOME} && \
     addgroup ${EMS_USER} && \
     adduser --home ${EMS_HOME} --no-create-home --ingroup ${EMS_USER} --disabled-password ${EMS_USER} && \
     chown ${EMS_USER}:${EMS_USER} ${EMS_HOME}
 
 USER ${EMS_USER}
-WORKDIR ${BASEDIR}
+WORKDIR ${EMS_HOME}
+
+# Setup environment
+ENV BASEDIR ${EMS_HOME}
+ENV EMS_CONFIG_DIR ${BASEDIR}/config
+
+ENV BIN_DIR ${BASEDIR}/bin
+ENV CONFIG_DIR ${BASEDIR}/config
+ENV LOGS_DIR ${BASEDIR}/logs
+ENV PUBLIC_DIR ${BASEDIR}/public_resources
 
 # Download a JRE suitable for running EMS clients, and
 # offer it for download
@@ -61,8 +61,10 @@ COPY --chown=${EMS_USER}:${EMS_USER} bin ${BIN_DIR}
 COPY --chown=${EMS_USER}:${EMS_USER} config ${CONFIG_DIR}
 COPY --chown=${EMS_USER}:${EMS_USER} public_resources ${PUBLIC_DIR}
 
+# Create 'logs', and 'models' directories. Make bin/*.sh scripts executable
 RUN mkdir ${LOGS_DIR} && \
-    chmod +rx ${BIN_DIR}/*.sh
+    chmod +rx ${BIN_DIR}/*.sh && \
+    mkdir -p ${EMS_HOME}/models
 
 # Copy files from builder container
 COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-server-builder /app/dependencies          ${BASEDIR}

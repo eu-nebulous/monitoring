@@ -139,9 +139,9 @@ class MetricsHelper extends AbstractHelper {
         _TC.getDAG().addNode(parent, rawMetric);
 
         // Process child blocks
-        Sensor sensor = sensorsHelper.processSensor(_TC, sensorSpec, metricNamesKey, rawMetric);
         Schedule schedule = outputSpec!=null
                 ? processSchedule(outputSpec, metricNamesKey) : null;
+        Sensor sensor = sensorsHelper.processSensor(_TC, sensorSpec, metricNamesKey, rawMetric, schedule);
 
         // Complete TC update
         rawMetric.setSensor(sensor);
@@ -192,8 +192,13 @@ class MetricsHelper extends AbstractHelper {
         List<MetricContext> childMetricsList = new ArrayList<>();
         for (String childMetricName : formulaArgs) {
             NamesKey childMetricNamesKey = getNamesKey(metricSpec, childMetricName);
+            Map<String, Object> childMetricSpec = asMap($$(_TC).allMetrics.get(childMetricNamesKey));
+            log.trace("decomposeCompositeMetric: {}: Checking formula arg={} -- key: {}, spec: {}", metricNamesKey.name(), childMetricName, childMetricNamesKey, childMetricSpec);
+            if (childMetricSpec==null)
+                throw createException("Formula argument in metric '" + metricName + "' not found: "+childMetricName+", formula: " + formula);
             MetricContext childMetric = decomposeMetric(
-                    _TC, asMap($$(_TC).allMetrics.get(childMetricNamesKey)), metricNamesKey, compositeMetric);
+                    _TC, childMetricSpec, metricNamesKey, compositeMetric);
+            log.trace("decomposeCompositeMetric: {}: Checking formula arg={} -- childMetric: {}", metricNamesKey.name(), childMetricName, childMetric);
             if (childMetric!=null)
                 childMetricsList.add(childMetric);
         }

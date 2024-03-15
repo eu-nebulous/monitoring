@@ -27,6 +27,10 @@ public class ClusterSelfHealing {
     // Server-side self-healing methods
     // ------------------------------------------------------------------------
 
+    public boolean isEnabled() {
+        return selfHealingManager.isEnabled();
+    }
+
     List<NodeRegistryEntry> getAggregatorCapableNodesInZone(IClusterZone zone) {
         // Get the normal nodes in the zone that can be Aggregators (i.e. Aggregator and candidates)
         List<NodeRegistryEntry> aggregatorCapableNodes = zone.findAggregatorCapableNodes();

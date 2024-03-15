@@ -23,11 +23,10 @@ import gr.iccs.imu.ems.translate.TranslationContext;
 import gr.iccs.imu.ems.util.CredentialsMap;
 import gr.iccs.imu.ems.util.NetUtil;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringSubstitutor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -44,6 +43,7 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class VmInstallationHelper extends AbstractInstallationHelper {
     private final static SimpleDateFormat tsW3C = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
     private final static SimpleDateFormat tsUTC = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
@@ -54,10 +54,19 @@ public class VmInstallationHelper extends AbstractInstallationHelper {
         tsFile.setTimeZone(TimeZone.getDefault());
     }
 
-    @Autowired
-    private ResourceLoader resourceLoader;
-    @Autowired
-    private ClientInstallationProperties clientInstallationProperties;
+    private static VmInstallationHelper instance;
+
+    private final ClientInstallationProperties clientInstallationProperties;
+
+    public static AbstractInstallationHelper getInstance() {
+        return instance;
+    }
+
+    @Override
+    public void afterPropertiesSet() {
+        log.debug("VmInstallationHelper.afterPropertiesSet(): configuration: {}", properties);
+        instance = this;
+    }
 
     @Override
     public ClientInstallationTask createClientInstallationTask(NodeRegistryEntry entry, TranslationContext translationContext) throws IOException {

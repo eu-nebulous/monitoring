@@ -97,7 +97,7 @@ public class NoopCoordinator implements ServerCoordinator {
         if (!checkStarted && started) {
             log.warn("{}: {}(): Coordinator is already running{}", className, methodName, str);
         } else {
-            log.info("{}: {}(): Method invoked{}", className, methodName, str);
+            log.debug("{}: {}(): Method invoked{}", className, methodName, str);
         }
         return started;
     }

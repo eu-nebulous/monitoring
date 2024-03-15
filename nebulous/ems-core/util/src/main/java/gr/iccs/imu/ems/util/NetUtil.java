@@ -9,6 +9,7 @@
 
 package gr.iccs.imu.ems.util;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
@@ -29,6 +30,11 @@ public class NetUtil {
     private final static String DATAGRAM_ADDRESS;
 
     private final static String[][] PUBLIC_ADDRESS_DISCOVERY_SERVICES;
+
+    @Getter
+    private final static boolean usePublic;
+    @Getter
+    private final static boolean useDefault;
 
     static {
         // Configure Address Filters
@@ -69,6 +75,12 @@ public class NetUtil {
             servicesList.add(Arrays.asList("WhatIsMyIpAddress", "http://bot.whatismyipaddress.com/").toArray(new String[0]));
         }
         PUBLIC_ADDRESS_DISCOVERY_SERVICES = servicesList.toArray(new String[0][]);
+
+        // Configure IP address setting
+        String s = System.getenv("IP_SETTING");
+        s = s!=null ? s.trim() : "";
+        useDefault = "DEFAULT_IP".equalsIgnoreCase(s);
+        usePublic = ! useDefault;
     }
 
     // ------------------------------------------------------------------------
@@ -268,6 +280,12 @@ public class NetUtil {
             socket.connect(InetAddress.getByName(address), 10002);
             return socket.getLocalAddress().getHostAddress();
         }
+    }
+
+    // ------------------------------------------------------------------------
+
+    public static String getIpSettingAddress() {
+        return usePublic ? getPublicIpAddress() : getDefaultIpAddress();
     }
 
     // ------------------------------------------------------------------------

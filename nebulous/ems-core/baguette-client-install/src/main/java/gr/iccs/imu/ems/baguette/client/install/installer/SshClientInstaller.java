@@ -7,8 +7,9 @@
  * https://www.mozilla.org/en-US/MPL/2.0/
  */
 
-package gr.iccs.imu.ems.baguette.client.install;
+package gr.iccs.imu.ems.baguette.client.install.installer;
 
+import gr.iccs.imu.ems.baguette.client.install.*;
 import gr.iccs.imu.ems.baguette.client.install.instruction.INSTRUCTION_RESULT;
 import gr.iccs.imu.ems.baguette.client.install.instruction.Instruction;
 import gr.iccs.imu.ems.baguette.client.install.instruction.InstructionsService;
@@ -32,6 +33,9 @@ import org.apache.sshd.mina.MinaServiceFactoryFactory;
 import org.apache.sshd.scp.client.DefaultScpClientCreator;
 import org.apache.sshd.scp.client.ScpClient;
 import org.apache.sshd.scp.client.ScpClientCreator;
+import org.bouncycastle.openssl.PEMKeyPair;
+import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
 
@@ -212,10 +216,12 @@ public class SshClientInstaller implements ClientInstallerPlugin {
                     .verify(connectTimeout)
                     .getSession();
             if (StringUtils.isNotBlank(privateKey)) {
-                PrivateKey privKey = getPrivateKey(privateKey);
+                /*PrivateKey privKey = getPrivateKey(privateKey);
                 //PublicKey pubKey = getPublicKey(publicKeyStr);
                 PublicKey pubKey = getPublicKey(privKey);
                 KeyPair keyPair = new KeyPair(pubKey, privKey);
+                */
+                KeyPair keyPair = getKeyPairFromPEM(privateKey);
                 session.addPublicKeyIdentity(keyPair);
             }
             if (StringUtils.isNotBlank(password)) {
@@ -247,6 +253,28 @@ public class SshClientInstaller implements ClientInstallerPlugin {
         }
         //PKCS8EncodedKeySpec keySpecPKCS8 = new PKCS8EncodedKeySpec(Base64.decode(privateKeyContent.replaceAll("\\n", "").replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", "")));
         //PrivateKey privKey = kf.generatePrivate(keySpecPKCS8);
+    }
+
+    private KeyPair getKeyPairFromPEM(String pemStr) throws IOException {
+        // Load the PEM file containing the private key
+        log.trace("SshClientInstaller: getKeyPairFromPEM: pemStr: {}", pemStr);
+        pemStr = pemStr.replace("\\n", "\n");
+        try (StringReader keyReader = new StringReader(pemStr); PEMParser pemParser = new PEMParser(keyReader)) {
+            // Parse the PEM encoded private key
+            Object pemObject = pemParser.readObject();
+            log.trace("SshClientInstaller: getKeyPairFromPEM: pemObject: {}", pemObject);
+
+            // Convert the PEM object to a KeyPair
+            JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
+            if (pemObject instanceof PEMKeyPair pemKeyPair) {
+                KeyPair keyPair = converter.getKeyPair(pemKeyPair);
+                log.trace("SshClientInstaller: getKeyPairFromPEM: keyPair: {}", keyPair);
+                return keyPair;
+            } else {
+                log.warn("SshClientInstaller: getKeyPairFromPEM: Failed to parse PEM private key");
+                throw new RuntimeException("Failed to parse PEM private key");
+            }
+        }
     }
 
     private PublicKey getPublicKey(PrivateKey privateKey) throws NoSuchAlgorithmException, InvalidKeySpecException {

@@ -1,0 +1,56 @@
+#
+# Copyright (C) 2017-2025 Institute of Communication and Computer Systems (imu.iccs.gr)
+#
+# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0.
+# If a copy of the MPL was not distributed with this file, You can obtain one at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+
+services:
+  ems-client:
+    image: ems-client:2024-feb-nebulous
+    environment:
+      # Logging settings
+#      - LOGGING_LEVEL_GR_ICCS_IMU_EMS_BAGUETTE_CLIENT=TRACE
+
+      # Mode of operation - Common settings
+      - IP_SETTING=DEFAULT_IP
+      - SELF_HEALING_ENABLED=false
+      #- JASYPT_PASSWORD=
+      #- BAGUETTE_CLIENT_BASE_DIR=/opt/baguette-client
+
+      # This Node info
+      - NODE_CLIENT_ID=localhost
+      - BAGUETTE_CLIENT_ID=localhost
+
+      - EMS_CLIENT_ADDRESS=localhost
+      - NODE_ADDRESS=localhost
+      - NODE_ADDRESS_PUBLIC=localhost
+      - NODE_ADDRESS_PRIVATE=localhost
+      - zone-id=
+      - provider=
+
+      # EMS server SSH info and credentials
+      - BAGUETTE_SERVER_ADDRESS=host.docker.internal
+      - BAGUETTE_SERVER_PORT=2222
+      - BAGUETTE_SERVER_PUBKEY=-----BEGIN PUBLIC KEY-----\nMIICRjCCAbkGByqGSM49AgEwggGsAgEBME0GByqGSM49AQECQgH/////////////\n////////////////////////////////////////////////////////////////\n/////////zCBiARCAf//////////////////////////////////////////////\n///////////////////////////////////////8BEIAUZU+uWGOHJofkpohoLaF\nQO6i2nJbmbMV87i0iZGO8QnhVhk5Uex+k3sWUsC9O7G/BzVz34g9LDTx70Uf1GtQ\nPwAEgYUEAMaFjga3BATpzZ4+y2YjlbRCnGSBOQU/tSH4KK9ga009uqFLXnfv51ko\n/h3BJ6L/qN4zSLPBhWpCm/l+fjHC5b1mARg5KWp4mjvABFyKX7QsfRvZmPVESVeb\nRGgXr70XJz5mLJfucple9CZAxVC5AT+tB2E1PHCGonLCQIi+lHaf0WZQAkIB////\n///////////////////////////////////////6UYaHg78vlmt/zAFI9wml0Du1\nybiJnEeuu2+3HpE4ZAkCAQEDgYYABAHedQ6pZnbUFjw+/5B2MQGl/WQsUcRFS0Dy\n7RmSTOsfBlRnEaga7KWPT/lGaSwJfi3OdEMwZYdAN/I7A1HsvqemBgEYUuN96ENP\nGskWCX2qNmfDjxsDpPPXr7lsR9pzafXFpP7PLIvQSFb5UnlzI7edbF6UNVjfjkSY\nY8KnManEvzaMeQ\=\=\n-----END PUBLIC KEY-----
+      - BAGUETTE_SERVER_PUBKEY_FINGERPRINT=SHA256\:GPn9rx9WWPr+JXlUw0cq8I8tvYLiyadVZswfCevzpN0
+      - BAGUETTE_SERVER_PUBKEY_ALGORITHM=EC
+      - BAGUETTE_SERVER_PUBKEY_FORMAT=X.509
+      - BAGUETTE_SERVER_USERNAME=user-45cb8e46-c6bf-4a4b-8e7a-354f7b6d8fc1
+      - BAGUETTE_SERVER_PASSWORD=tTUjicVJfrfCurbjecGfBOTxdshA9dOLLjIEo
+
+      # Collectors settings
+      - COLLECTOR_NETDATA_ENABLE=false
+      - COLLECTOR_PROMETHEUS_ENABLE=false
+      - COLLECTOR_ALLOWED_TOPICS=
+
+      # AMQ broker settings
+      - EMS_KEYSTORE_PASSWORD=
+      - EMS_TRUSTSTORE_PASSWORD=
+      - EMS_CLIENT_ADDITIONAL_BROKER_CREDENTIALS=
+    ports:
+      - 11016:61616
+      - 11017:61617
+      - 11010:61610
+#      - 1099:19999

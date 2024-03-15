@@ -83,6 +83,8 @@ server-password: ${BAGUETTE_SERVER_PASSWORD}
 
 #collector-classes: gr.iccs.imu.ems.baguette.client.collector.netdata.NetdataCollector
 
+collector-configurations: ${COLLECTOR_CONFIGURATIONS}
+
 collector:
   netdata:
     enable: true
@@ -95,7 +97,7 @@ collector:
     error-limit: 3
     pause-period: 60
   prometheus:
-    enable: false
+    enable: true
     delay: 10000
     url: http://127.0.0.1:9090/metrics
     urlOfNodesWithoutClient: http://%s:9090/metrics
@@ -174,8 +176,8 @@ brokercep:
   # Broker connectors
   broker-url:
     - ${brokercep.broker-protocol}://0.0.0.0:${brokercep.broker-port}?${BROKER_URL_PROPERTIES}
-    - tcp://127.0.0.1:61616?${BROKER_URL_PROPERTIES}
-    - stomp://127.0.0.1:61610?${BROKER_URL_PROPERTIES}
+    - tcp://${BROKER_URL_ADDRESS_INSECURE:127.0.0.1}:61616?${BROKER_URL_PROPERTIES}
+    - stomp://${BROKER_URL_ADDRESS_INSECURE:127.0.0.1}:61610?${BROKER_URL_PROPERTIES}
 
   # Broker URLs for (EMS) consumer and clients
   broker-url-for-consumer: tcp://127.0.0.1:61616?${CLIENT_URL_PROPERTIES}
@@ -186,18 +188,20 @@ brokercep:
     # Key store settings
     keystore-file: ${EMS_CONFIG_DIR}/client-broker-keystore.p12
     keystore-type: PKCS12
-    keystore-password: 'ENC(ISMbn01HVPbtRPkqm2Lslg==)'  # melodic
+    #keystore-password: 'ENC(ISMbn01HVPbtRPkqm2Lslg==)'  # melodic
+    keystore-password: ${EMS_KEYSTORE_PASSWORD:${random.value}}
 
     # Trust store settings
     truststore-file: ${EMS_CONFIG_DIR}/client-broker-truststore.p12
     truststore-type: PKCS12
-    truststore-password: 'ENC(ISMbn01HVPbtRPkqm2Lslg==)'  # melodic
+    #truststore-password: 'ENC(ISMbn01HVPbtRPkqm2Lslg==)'  # melodic
+    truststore-password: ${EMS_TRUSTSTORE_PASSWORD:${random.value}}
 
     # Certificate settings
     certificate-file: ${EMS_CONFIG_DIR}/client-broker.crt
 
     # key generation settings
-    key-entry-generate: IF-IP-CHANGED
+    key-entry-generate: ALWAYS
     key-entry-name: ${EMS_CLIENT_ADDRESS}
     key-entry-dname: 'CN=${EMS_CLIENT_ADDRESS},OU=Information Management Unit (IMU),O=Institute of Communication and Computer Systems (ICCS),L=Athens,ST=Attika,C=GR'
     key-entry-ext-san: 'dns:localhost,ip:127.0.0.1,ip:${DEFAULT_IP},ip:${PUBLIC_IP}'
@@ -205,7 +209,8 @@ brokercep:
   # Authentication and Authorization settings
   authentication-enabled: true
   #additional-broker-credentials: aaa/111, bbb/222, morphemic/morphemic
-  additional-broker-credentials: 'ENC(axeJUxNHajYfBffUwvuT3kwTgLTpRliDMz/ZQ9hROZ3BNOv0Idw72NJsawzIZRuZ)'
+  #additional-broker-credentials: 'ENC(axeJUxNHajYfBffUwvuT3kwTgLTpRliDMz/ZQ9hROZ3BNOv0Idw72NJsawzIZRuZ)'
+  additional-broker-credentials: ${EMS_CLIENT_ADDITIONAL_BROKER_CREDENTIALS}
   authorization-enabled: false
 
   # Broker instance settings

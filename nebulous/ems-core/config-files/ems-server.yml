@@ -11,8 +11,9 @@
 ### Global settings
 ################################################################################
 
-### Don't touch the next line!!
-EMS_SERVER_ADDRESS: ${${control.IP_SETTING}}
+### Don't touch the next lines!!
+EMS_IP_SETTING: ${P_EMS_IP_SETTING:PUBLIC_IP}
+EMS_SERVER_ADDRESS: ${${EMS_IP_SETTING}}
 DOLLAR: '$'
 
 ### Password Encoder settings
@@ -114,9 +115,9 @@ control:
   #skip-broker-cep: true
   #skip-baguette: true
   #skip-collectors: true
-  #skip-metasolver: true
-  #skip-notification: true
-  upperware-grouping: GLOBAL
+  skip-metasolver: true
+  skip-notification: true
+  #upperware-grouping: GLOBAL
 
   ### Debug settings - Load/Save translation results
   tc-load-file: ${EMS_TC_LOAD_FILE:${EMS_TC_FILE:${LOGS_DIR:${EMS_CONFIG_DIR}/../logs}/_TC.json}}
@@ -329,7 +330,7 @@ brokercep:
     - stomp://0.0.0.0:61610
 
   # Broker URLs for (EMS) consumer and clients
-  broker-url-for-consumer: tcp://${EMS_SERVER_ADDRESS}:61616?${CLIENT_URL_PROPERTIES}
+  broker-url-for-consumer: tcp://127.0.0.1:61616?${CLIENT_URL_PROPERTIES}
   broker-url-for-clients: ${brokercep.broker-protocol}://${EMS_SERVER_ADDRESS}:${brokercep.broker-port}?${CLIENT_URL_PROPERTIES}
   # Must be a public IP address
 
@@ -569,7 +570,7 @@ baguette.client.install:
   sessionRecordingDir: ${LOGS_DIR:${EMS_CONFIG_DIR}/../logs}
 
   ### Baguette and Netdata installation parameters (for condition checking)
-  parameters:
+  #parameters:
 
     #SKIP_IGNORE_CHECK: true
     #SKIP_DETECTION: true
@@ -578,9 +579,9 @@ baguette.client.install:
     #SKIP_JRE_INSTALLATION: true
     #SKIP_START: true
 
-    BAGUETTE_INSTALLATION_MIN_PROCESSORS: 2
-    BAGUETTE_INSTALLATION_MIN_RAM: 2*1024*1024
-    BAGUETTE_INSTALLATION_MIN_DISK_FREE: 1024*1024
+    #BAGUETTE_INSTALLATION_MIN_PROCESSORS: 2
+    #BAGUETTE_INSTALLATION_MIN_RAM: 2*1024*1024
+    #BAGUETTE_INSTALLATION_MIN_DISK_FREE: 1024*1024
 
   ### Settings for resolving Node state after baguette client installation
   #clientInstallVarName: '__EMS_CLIENT_INSTALL__'

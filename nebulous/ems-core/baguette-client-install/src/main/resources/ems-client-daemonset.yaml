@@ -1,0 +1,156 @@
+#
+# Copyright (C) 2017-2025 Institute of Communication and Computer Systems (imu.iccs.gr)
+#
+# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+# Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+# If a copy of the MPL was not distributed with this file, you can obtain one at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ${EMS_CLIENT_DAEMONSET_NAME}
+  labels:
+    app.kubernetes.io/name: ${EMS_CLIENT_DAEMONSET_NAME}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ${EMS_CLIENT_DAEMONSET_NAME}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ${EMS_CLIENT_DAEMONSET_NAME}
+    spec:
+      hostNetwork: true
+
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: "${EMS_CLIENT_DAEMONSET_NAME}"
+          image: "${EMS_CLIENT_DAEMONSET_IMAGE_REPOSITORY}:${EMS_CLIENT_DAEMONSET_IMAGE_TAG}"
+          imagePullPolicy: "${EMS_CLIENT_DAEMONSET_IMAGE_PULL_POLICY}"
+          env:
+            #
+            # K8S cluster node info
+            #
+            - name: K8S_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: K8S_NODE_ADDRESS
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            #
+            # Pod info
+            #
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_ADDRESS
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            #
+            # EMS client settings
+            #
+            - name: IP_SETTING
+              value: 'DEFAULT_IP'
+            - name: BAGUETTE_CLIENT_BASE_DIR
+              value: '/opt/baguette-client'
+            - name: BAGUETTE_CLIENT_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: NODE_CLIENT_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: NODE_ADDRESS
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: SELF_HEALING_ENABLED
+              value: "false"
+            - name: COLLECTOR_NETDATA_ENABLE
+              value: "true"
+            - name: COLLECTOR_NETDATA_URL
+              value: 'http://${K8S_NODE_ADDRESS}:19999/api/v1/allmetrics?format=json'
+            - name: COLLECTOR_PROMETHEUS_ENABLE
+              value: "false"
+            - name: COLLECTOR_ALLOWED_TOPICS
+              valueFrom:
+                configMapKeyRef:
+                  name: "${EMS_CLIENT_CONFIG_MAP_NAME}"
+                  key: COLLECTOR_ALLOWED_TOPICS
+                  optional: true
+            - name: EMS_KEYSTORE_PASSWORD
+              value: "${EMS_CLIENT_KEYSTORE_SECRET}"
+            - name: EMS_TRUSTSTORE_PASSWORD
+              value: "${EMS_CLIENT_TRUSTSTORE_SECRET}"
+            #
+            # EMS client Broker settings
+            #
+            - name: BROKER_URL_ADDRESS_INSECURE
+              value: "0.0.0.0"
+            - name: BROKERCEP_ADDITIONAL_BROKER_CREDENTIALS
+              value: "${EMS_CLIENT_ADDITIONAL_BROKER_CREDENTIALS}"
+            #
+            # Baguette Server connection info. Can be retrieved from EMS server:
+            # https://ems-server:8111/baguette/connectionInfo
+            #
+            - name: BAGUETTE_SERVER_ADDRESS
+              valueFrom:
+                configMapKeyRef:
+                  name: "${EMS_CLIENT_CONFIG_MAP_NAME}"
+                  key: BAGUETTE_SERVER_ADDRESS
+            - name: BAGUETTE_SERVER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: "${EMS_CLIENT_CONFIG_MAP_NAME}"
+                  key: BAGUETTE_SERVER_PORT
+            - name: BAGUETTE_SERVER_PUBKEY
+              valueFrom:
+                configMapKeyRef:
+                  name: "${EMS_CLIENT_CONFIG_MAP_NAME}"
+                  key: BAGUETTE_SERVER_PUBKEY
+            - name: BAGUETTE_SERVER_PUBKEY_FINGERPRINT
+              valueFrom:
+                configMapKeyRef:
+                  name: "${EMS_CLIENT_CONFIG_MAP_NAME}"
+                  key: BAGUETTE_SERVER_PUBKEY_FINGERPRINT
+            - name: BAGUETTE_SERVER_PUBKEY_FORMAT
+              valueFrom:
+                configMapKeyRef:
+                  name: "${EMS_CLIENT_CONFIG_MAP_NAME}"
+                  key: BAGUETTE_SERVER_PUBKEY_FORMAT
+            - name: BAGUETTE_SERVER_PUBKEY_ALGORITHM
+              valueFrom:
+                configMapKeyRef:
+                  name: "${EMS_CLIENT_CONFIG_MAP_NAME}"
+                  key: BAGUETTE_SERVER_PUBKEY_ALGORITHM
+            - name: BAGUETTE_SERVER_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: "${EMS_CLIENT_CONFIG_MAP_NAME}"
+                  key: BAGUETTE_SERVER_USERNAME
+            - name: BAGUETTE_SERVER_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: "${EMS_CLIENT_CONFIG_MAP_NAME}"
+                  key: BAGUETTE_SERVER_PASSWORD
+          ports:
+            - name: openwire
+              containerPort: 61616
+              protocol: TCP
+            - name: openwire-tls
+              containerPort: 61617
+              protocol: TCP
+            - name: stomp
+              containerPort: 61610
+              protocol: TCP

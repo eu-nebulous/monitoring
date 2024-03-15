@@ -12,5 +12,7 @@ package gr.iccs.imu.ems.baguette.client;
 import gr.iccs.imu.ems.util.Plugin;
 
 public interface Collector extends Plugin {
+    String getName();
+    void setConfiguration(Object config);
     void activeGroupingChanged(String oldGrouping, String newGrouping);
 }

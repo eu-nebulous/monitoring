@@ -11,7 +11,6 @@ package eu.nebulous.ems.plugins;
 
 import eu.nebulous.ems.translate.NebulousEmsTranslator;
 import gr.iccs.imu.ems.control.plugin.PostTranslationPlugin;
-import gr.iccs.imu.ems.control.properties.TopicBeaconProperties;
 import gr.iccs.imu.ems.control.util.TopicBeacon;
 import gr.iccs.imu.ems.translate.TranslationContext;
 import gr.iccs.imu.ems.translate.dag.DAGNode;
@@ -22,7 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
-import java.time.temporal.ValueRange;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -30,7 +29,9 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
+    public final static String PREDICTION_SLO_METRIC_DECOMPOSITION_MAP = "NEBULOUS_PREDICTION_SLO_METRIC_DECOMPOSITION_MAP";
     public final static String PREDICTION_SLO_METRIC_DECOMPOSITION = "NEBULOUS_PREDICTION_SLO_METRIC_DECOMPOSITION";
+    public final static String PREDICTION_TOP_LEVEL_NODES_METRICS_MAP = "NEBULOUS_PREDICTION_TOP_LEVEL_NODES_METRICS_MAP";
     public final static String PREDICTION_TOP_LEVEL_NODES_METRICS = "NEBULOUS_PREDICTION_TOP_LEVEL_NODES_METRICS";
 
     @PostConstruct
@@ -42,15 +43,27 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
     public void processTranslationResults(TranslationContext translationContext, TopicBeacon topicBeacon) {
         log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): BEGIN");
 
-        String sloMetricDecompositions = getSLOMetricDecompositionPayload(translationContext, topicBeacon);
-        translationContext.getAdditionalResults().put(PREDICTION_SLO_METRIC_DECOMPOSITION, sloMetricDecompositions);
-        log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): SLO metrics decompositions: model={}, decompositions={}",
-                translationContext.getModelName(), sloMetricDecompositions);
+        // PREDICTION_SLO_METRIC_DECOMPOSITION
+        Map<String, Object> sloMetricDecompositionsMap = getSLOMetricDecompositionPayload(translationContext, topicBeacon);
+        translationContext.getAdditionalResults().put(PREDICTION_SLO_METRIC_DECOMPOSITION_MAP, sloMetricDecompositionsMap);
+        log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): SLO metrics decompositions: model={}, decompositions-map={}",
+                translationContext.getModelName(), sloMetricDecompositionsMap);
 
-        String metricsOfTopLevelNodes = getMetricsForPredictionPayload(translationContext, topicBeacon);
-        translationContext.getAdditionalResults().put(PREDICTION_TOP_LEVEL_NODES_METRICS, metricsOfTopLevelNodes);
+        String sloMetricDecompositionsStr = topicBeacon.toJson(sloMetricDecompositionsMap);
+        translationContext.getAdditionalResults().put(PREDICTION_SLO_METRIC_DECOMPOSITION, sloMetricDecompositionsStr);
+        log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): SLO metrics decompositions: model={}, decompositions={}",
+                translationContext.getModelName(), sloMetricDecompositionsStr);
+
+        // PREDICTION_TOP_LEVEL_NODES_METRICS
+        HashMap<String, Object> metricsOfTopLevelNodesMap = getMetricsForPredictionPayload(translationContext, topicBeacon);
+        translationContext.getAdditionalResults().put(PREDICTION_TOP_LEVEL_NODES_METRICS_MAP, metricsOfTopLevelNodesMap);
+        log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): Metrics of Top-Level nodes of model: model={}, metrics-map={}",
+                translationContext.getModelName(), metricsOfTopLevelNodesMap);
+
+        String metricsOfTopLevelNodesStr = topicBeacon.toJson(metricsOfTopLevelNodesMap);
+        translationContext.getAdditionalResults().put(PREDICTION_TOP_LEVEL_NODES_METRICS, metricsOfTopLevelNodesStr);
         log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): Metrics of Top-Level nodes of model: model={}, metrics={}",
-                translationContext.getModelName(), metricsOfTopLevelNodes);
+                translationContext.getModelName(), metricsOfTopLevelNodesMap);
 
         log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): END");
     }
@@ -75,7 +88,7 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
                 .collect(Collectors.toSet());
     }*/
 
-    public String getSLOMetricDecompositionPayload(TranslationContext translationContext, TopicBeacon topicBeacon) {
+    public Map<String, Object> getSLOMetricDecompositionPayload(TranslationContext translationContext, TopicBeacon topicBeacon) {
         List<Object> slos = _getSLOMetricDecomposition(translationContext);
         if (slos.isEmpty()) {
             return null;
@@ -87,7 +100,7 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
         result.put("constraints", slos);
         result.put("version", topicBeacon.getModelVersion());
 
-        return topicBeacon.toJson(result);
+        return result;
     }
 
     private @NonNull List<Object> _getSLOMetricDecomposition(TranslationContext translationContext) {
@@ -133,7 +146,7 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
             MetricConstraint mc = mcMap.get(elementName);
             return Map.of(
                     "name", NebulousEmsTranslator.nameNormalization.apply(mc.getName()),
-                    "comparisonOperator", mc.getComparisonOperator(),
+                    "operator", mc.getComparisonOperator().getOperator(),
                     "threshold", mc.getThreshold());
         } else
         if (constraintNode instanceof LogicalConstraint) {
@@ -175,7 +188,7 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
 
     // ------------------------------------------------------------------------
 
-    private String getMetricsForPredictionPayload(@NonNull TranslationContext _TC, TopicBeacon topicBeacon) {
+    private HashMap<String, Object> getMetricsForPredictionPayload(@NonNull TranslationContext _TC, TopicBeacon topicBeacon) {
         HashSet<MetricContext> metricsOfTopLevelNodes = getMetricsForPrediction(_TC);
         if (metricsOfTopLevelNodes.isEmpty()) {
             return null;
@@ -240,8 +253,7 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
                 .filter(Objects::nonNull)
                 .toList() );
 
-        // Serialize payload
-        return topicBeacon.toJson(payload);
+        return payload;
     }
 
     private @NonNull HashSet<MetricContext> getMetricsForPrediction(@NonNull TranslationContext _TC) {

@@ -65,25 +65,45 @@ public class CredentialsController {
         response.put("password", brokerPassword);
         response.put("certificate", brokerCertificatePem);
         HttpEntity<Map> entity = coordinator.createHttpEntity(Map.class, response, jwtToken);
-        log.info("CredentialsController.getBrokerCredentials(): Response: {}", response);
+        log.debug("CredentialsController.getBrokerCredentials(): Response: {}",
+                encodeMapFields(response, "password", "certificate"));
 
         //return response;
         return entity;
     }
 
 //    @PreAuthorize(ROLES_ALLOWED_JWT_TOKEN_OR_API_KEY)
+    @GetMapping(value = "/baguette/connectionInfo")
+    public HttpEntity<Map> getBaguetteConnectionInfo(
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String jwtToken)
+    {
+        log.info("CredentialsController.getBaguetteConnectionInfo(): BEGIN");
+        log.trace("CredentialsController.getBaguetteConnectionInfo(): JWT token: {}", jwtToken);
+
+        // Retrieve sensor information
+        Map<String,String> response = coordinator.getBaguetteServer().getServerConnectionInfo();
+
+        // Prepare response
+        HttpEntity<Map> entity = coordinator.createHttpEntity(Map.class, response, jwtToken);
+        log.debug("CredentialsController.getBaguetteConnectionInfo(): Response: {}",
+                encodeMapFields(response, "BAGUETTE_SERVER_PASSWORD", "BAGUETTE_SERVER_PUBKEY"));
+
+        return entity;
+    }
+
+//    @PreAuthorize(ROLES_ALLOWED_JWT_TOKEN_OR_API_KEY)
     @GetMapping(value = "/baguette/ref/{ref}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public HttpEntity<Map> getNodeCredentials(@PathVariable String optRef,
+    public HttpEntity<Map> getNodeCredentials(@PathVariable String ref,
                                               @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String jwtToken)
     {
-        log.info("CredentialsController.getNodeCredentials(): BEGIN: ref={}", optRef);
+        log.info("CredentialsController.getNodeCredentials(): BEGIN: ref={}", ref);
         log.trace("CredentialsController.getNodeCredentials(): JWT token: {}", jwtToken);
 
-        if (StringUtils.isBlank(optRef))
+        if (StringUtils.isBlank(ref))
             throw new IllegalArgumentException("The 'ref' parameter is mandatory");
 
         // Check if it is EMS server ref
-        if (credentialsCoordinator.getReference().equals(optRef)) {
+        if (credentialsCoordinator.getReference().equals(ref)) {
             if (coordinator.getBaguetteServer()==null || !coordinator.getBaguetteServer().isServerRunning()) {
                 log.warn("CredentialsController.getNodeCredentials(): Baguette Server is not started");
                 return null;
@@ -101,7 +121,7 @@ public class CredentialsController {
             }
             String key = coordinator.getBaguetteServer().getServerPubkey();
 
-            log.debug("CredentialsController.getNodeCredentials(): Retrieved EMS server connection info by reference: ref={}", optRef);
+            log.debug("CredentialsController.getNodeCredentials(): Retrieved EMS server connection info by reference: ref={}", ref);
 
             // Prepare response
             Map<String,String> response = new HashMap<>();
@@ -117,11 +137,11 @@ public class CredentialsController {
         }
 
         // Retrieve node credentials
-        NodeRegistryEntry entry = coordinator.getBaguetteServer().getNodeRegistry().getNodeByReference(optRef);
+        NodeRegistryEntry entry = coordinator.getBaguetteServer().getNodeRegistry().getNodeByReference(ref);
         if (entry==null) {
-            throw new IllegalArgumentException("Not found Node with reference: "+optRef);
+            throw new IllegalArgumentException("Not found Node with reference: "+ref);
         }
-        log.debug("CredentialsController.getNodeCredentials(): Retrieved node by reference: ref={}", optRef);
+        log.debug("CredentialsController.getNodeCredentials(): Retrieved node by reference: ref={}", ref);
 
         // Prepare response
         Map<String,String> response = new HashMap<>();
@@ -131,9 +151,18 @@ public class CredentialsController {
         response.put("password", entry.getPreregistration().get("ssh.password"));
         response.put("private-key", entry.getPreregistration().get("ssh.key"));
         HttpEntity<Map> entity = coordinator.createHttpEntity(Map.class, response, jwtToken);
-        log.debug("CredentialsController.getNodeCredentials(): Response: ** Not shown because it contains credentials **");
+        //log.debug("CredentialsController.getNodeCredentials(): Response: ** Not shown because it contains credentials **");
+        log.debug("CredentialsController.getNodeCredentials(): Response: {}", encodeMapFields(response, "password", "private-key"));
 
         return entity;
+    }
+
+    private HashMap<String, String> encodeMapFields(Map<String, String> response, String...keys) {
+        HashMap<String, String> map = new HashMap<>(response);
+        for (String k : keys) {
+            map.put(k, passwordUtil.encodePassword(map.getOrDefault(k, "")));
+        }
+        return map;
     }
 
 

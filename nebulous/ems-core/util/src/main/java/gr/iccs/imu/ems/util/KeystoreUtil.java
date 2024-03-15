@@ -30,6 +30,7 @@ import java.math.BigInteger;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.*;
 import java.security.cert.Certificate;
@@ -473,11 +474,26 @@ public class KeystoreUtil {
         log.debug("    Entry SAN:   {}", properties.getKeyEntryExtSAN());
         log.debug("    Entry Gen.:  {}", properties.getKeyEntryGenerate());
 
-        IKeystoreAndCertificateProperties.KEY_ENTRY_GENERATE keyGen = properties.getKeyEntryGenerate();
-        boolean gen = (keyGen==IKeystoreAndCertificateProperties.KEY_ENTRY_GENERATE.YES || keyGen==IKeystoreAndCertificateProperties.KEY_ENTRY_GENERATE.ALWAYS);
+        IKeystoreAndCertificateProperties.KEY_ENTRY_GENERATE keyGenerationStrategy = properties.getKeyEntryGenerate();
+        boolean generateKey = (keyGenerationStrategy==IKeystoreAndCertificateProperties.KEY_ENTRY_GENERATE.YES
+                || keyGenerationStrategy==IKeystoreAndCertificateProperties.KEY_ENTRY_GENERATE.ALWAYS);
+
+        // If ALWAYS then remove previous keystore and truststore files
+        if (generateKey) {
+            Path oldKeystoreFile = Path.of(properties.getKeystoreFile());
+            if (Files.exists(oldKeystoreFile))
+                Files.deleteIfExists(oldKeystoreFile);
+            Path oldTruststoreFile = Path.of(properties.getTruststoreFile());
+            if (Files.exists(oldTruststoreFile))
+                Files.deleteIfExists(oldTruststoreFile);
+            Path oldCertificateFile = Path.of(properties.getCertificateFile());
+            if (Files.exists(oldCertificateFile))
+                Files.deleteIfExists(oldCertificateFile);
+            log.debug("    Removed old Keystore, Truststore and Certificate files");
+        }
 
         // Check if key entry is missing
-        if (keyGen==IKeystoreAndCertificateProperties.KEY_ENTRY_GENERATE.IF_MISSING) {
+        if (keyGenerationStrategy==IKeystoreAndCertificateProperties.KEY_ENTRY_GENERATE.IF_MISSING) {
             // Check if keystore and truststore files exist (and create if they don't)
             KeystoreUtil
                     .getKeystore(properties.getKeystoreFile(), properties.getKeystoreType(), properties.getKeystorePassword())
@@ -497,12 +513,12 @@ public class KeystoreUtil {
                 log.debug("    Keystore already contains entry: {}", properties.getKeyEntryName());
             } else {
                 log.debug("    Keystore does not contain entry: {}", properties.getKeyEntryName());
-                gen = true;
+                generateKey = true;
             }
         }
 
         // Check if IP address is in subject CN or SAN list
-        if (keyGen==IKeystoreAndCertificateProperties.KEY_ENTRY_GENERATE.IF_IP_CHANGED) {
+        if (keyGenerationStrategy==IKeystoreAndCertificateProperties.KEY_ENTRY_GENERATE.IF_IP_CHANGED) {
             // Check if keystore and truststore files exist (and create if they don't)
             KeystoreUtil
                     .getKeystore(properties.getKeystoreFile(), properties.getKeystoreType(), properties.getKeystorePassword())
@@ -527,13 +543,13 @@ public class KeystoreUtil {
             // check if Default and Public IP addresses are contained in 'addrList'
             boolean defaultFound = addrList.stream().anyMatch(s -> s.equals(defaultIp));
             boolean publicFound = addrList.stream().anyMatch(s -> s.equals(publicIp));
-            gen = !defaultFound || !publicFound;
+            generateKey = !defaultFound || !publicFound;
             log.debug("    Address has changed: {}  (default-ip-found={}, public-ip-found={})",
-                    gen, defaultFound, publicFound);
+                    generateKey, defaultFound, publicFound);
         }
 
         // Generate new key pair and certificate, and update keystore and trust store
-        if (gen) {
+        if (generateKey) {
             log.debug("    Generating new Key pair and Certificate for: {}", properties.getKeyEntryName());
 
             KeystoreUtil ksUtil = KeystoreUtil

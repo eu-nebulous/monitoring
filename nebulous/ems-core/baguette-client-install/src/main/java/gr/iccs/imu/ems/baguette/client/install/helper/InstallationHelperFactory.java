@@ -39,8 +39,12 @@ public class InstallationHelperFactory implements InitializingBean {
 
     public InstallationHelper createInstallationHelper(NodeRegistryEntry entry) {
         String nodeType = entry.getPreregistration().get("type");
+        log.debug("InstallationHelperFactory: Node type: {}", nodeType);
         if ("VM".equalsIgnoreCase(nodeType) || "baremetal".equalsIgnoreCase(nodeType)) {
             return createVmInstallationHelper(entry);
+        } else
+        if ("K8S".equalsIgnoreCase(nodeType)) {
+            return createK8sInstallationHelper(entry);
         }
         throw new IllegalArgumentException("Unsupported or missing Node type: "+nodeType);
     }
@@ -58,6 +62,12 @@ public class InstallationHelperFactory implements InitializingBean {
     }
 
     private InstallationHelper createVmInstallationHelper(NodeRegistryEntry entry) {
+        log.debug("InstallationHelperFactory: Returning VmInstallationHelper");
         return VmInstallationHelper.getInstance();
+    }
+
+    private InstallationHelper createK8sInstallationHelper(NodeRegistryEntry entry) {
+        log.debug("InstallationHelperFactory: Returning K8sInstallationHelper");
+        return K8sInstallationHelper.getInstance();
     }
 }

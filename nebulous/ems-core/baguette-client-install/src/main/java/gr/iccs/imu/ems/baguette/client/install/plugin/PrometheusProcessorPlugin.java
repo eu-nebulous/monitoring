@@ -83,7 +83,7 @@ public class PrometheusProcessorPlugin implements InstallationContextProcessorPl
                                 // Get monitor interval
                                 Interval interval = monitor.getSensor().pullSensor().getInterval();
                                 if (interval != null) {
-                                    int period = interval.getPeriod();
+                                    long period = interval.getPeriod();
                                     TimeUnit unit = TimeUnit.SECONDS;
                                     if (interval.getUnit() != null) {
                                         unit = TimeUnit.valueOf( interval.getUnit().name() );

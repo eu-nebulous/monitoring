@@ -64,7 +64,7 @@ class SensorsHelper extends AbstractHelper implements InitializingBean {
         log.debug("SensorsHelper: Sensor Type Registry: {}", sensorTypePluginsRegistry);
     }
 
-    Sensor processSensor(TranslationContext _TC, Map<String, Object> sensorSpec, NamesKey parentNamesKey, NamedElement parent) {
+    Sensor processSensor(TranslationContext _TC, Map<String, Object> sensorSpec, NamesKey parentNamesKey, NamedElement parent, Schedule schedule) {
         // Get needed fields
         String sensorName = getSpecName(sensorSpec);
         String sensorType = getSpecField(sensorSpec, "type");
@@ -100,7 +100,7 @@ class SensorsHelper extends AbstractHelper implements InitializingBean {
         // Create pull or push sensor
         Sensor sensor;
         if (isPull) {
-            sensor = createPullSensor(sensorSpec, sensorName, sensorNamesKey, configuration);
+            sensor = createPullSensor(sensorSpec, sensorName, sensorNamesKey, configuration, schedule);
         } else {
             sensor = createPushSensor(sensorSpec, sensorName, sensorNamesKey, configuration);
         }
@@ -125,7 +125,7 @@ class SensorsHelper extends AbstractHelper implements InitializingBean {
         return sensor;
     }
 
-    private Sensor createPullSensor(Map<String, Object> sensorSpec, String sensorName, NamesKey sensorNamesKey, LinkedHashMap<String, Object> configuration) {
+    private Sensor createPullSensor(Map<String, Object> sensorSpec, String sensorName, NamesKey sensorNamesKey, LinkedHashMap<String, Object> configuration, Schedule schedule) {
         // Convert Map<String,Object> to Map<String,String>
         Map<String, String> cfgMapWithStr = configuration.entrySet().stream()
                 .filter(e -> e.getValue() != null)
@@ -137,12 +137,16 @@ class SensorsHelper extends AbstractHelper implements InitializingBean {
         String intervalUnitStr = StrUtil.getWithVariations(cfgMapWithStr, "intervalUnit", "").trim();
 
         // Get interval
-        int period = StrUtil.strToInt(intervalPeriodStr,
-                (int)properties.getSensorDefaultInterval(), (i)->i>=properties.getSensorMinInterval(), false,
+        long period = StrUtil.strToLong(intervalPeriodStr,
+                schedule!=null ? schedule.getInterval() : properties.getSensorDefaultInterval(),
+                (i) -> i>=properties.getSensorMinInterval(),
+                false,
                 String.format("    createPullSensor(): Invalid interval period in configuration: sensor=%s, configuration=%s\n",
                         sensorName, cfgMapWithStr));
         Interval.UnitType periodUnit = StrUtil.strToEnum(intervalUnitStr,
-                Interval.UnitType.class, Interval.UnitType.SECONDS, false,
+                Interval.UnitType.class,
+                schedule!=null ? Interval.UnitType.valueOf(schedule.getTimeUnit().toUpperCase()) : Interval.UnitType.SECONDS,
+                false,
                 String.format("    createPullSensor(): Invalid interval unit in configuration: sensor=%s, configuration=%s\n",
                         sensorName, cfgMapWithStr));
         Interval interval = Interval.builder()

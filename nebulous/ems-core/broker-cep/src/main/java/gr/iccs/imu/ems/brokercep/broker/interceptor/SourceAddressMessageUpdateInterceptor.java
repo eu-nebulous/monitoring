@@ -46,8 +46,9 @@ public class SourceAddressMessageUpdateInterceptor extends AbstractMessageInterc
             boolean isLocal = StringUtils.isBlank(address) || NetUtil.isLocalAddress(address.trim());
             if (isLocal) {
                 log.trace("SourceAddressMessageUpdateInterceptor:  Producer host is local. Getting our public IP address");
-                address = NetUtil.getPublicIpAddress();
-                log.trace("SourceAddressMessageUpdateInterceptor:  Producer host (public): {}", address);
+                address = NetUtil.getIpSettingAddress();
+                log.trace("SourceAddressMessageUpdateInterceptor:  Producer host ({}): {}",
+                        NetUtil.isUsePublic() ? "public" : "default", address);
             } else {
                 log.trace("SourceAddressMessageUpdateInterceptor:  Producer host is not local. Ok");
             }

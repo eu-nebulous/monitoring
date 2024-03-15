@@ -11,7 +11,6 @@ package gr.iccs.imu.ems.control.util.jwt;
 
 import gr.iccs.imu.ems.util.PasswordUtil;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Header;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -21,8 +20,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
+import javax.crypto.SecretKey;
 import java.security.Key;
-import java.util.*;
+import java.util.Base64;
+import java.util.Date;
+import java.util.InvalidPropertiesFormatException;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -50,10 +53,10 @@ public class JwtTokenService {
     }
 
     @SneakyThrows
-    protected Key getKeyFromProperties() {
+    protected SecretKey getKeyFromProperties() {
         if (StringUtils.isBlank(jwtTokenProperties.getSecret()))
             throw new InvalidPropertiesFormatException("JWT token secret key is blank. Check 'jwt.secret' property.");
-        Key key = Keys.hmacShaKeyFor(Base64.getDecoder().decode(jwtTokenProperties.getSecret()));
+        SecretKey key = Keys.hmacShaKeyFor(Base64.getDecoder().decode(jwtTokenProperties.getSecret()));
         log.debug("JwtTokenService.getKeyFromProperties(): algorithm={}, format={}, key-size={}, base64-encoded-key={}",
                 key.getAlgorithm(), key.getFormat(), key.getEncoded().length, passwordUtil.encodePassword(keyToString(key)));
         return key;
@@ -68,11 +71,11 @@ public class JwtTokenService {
     // ------------------------------------------------------------------------
 
     public Claims parseToken(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(getKeyFromProperties())
+        return Jwts.parser()
+                .verifyWith(getKeyFromProperties())
                 .build()
-                .parseClaimsJws(token.replace(TOKEN_PREFIX, ""))
-                .getBody();
+                .parseSignedClaims(token.replace(TOKEN_PREFIX, ""))
+                .getPayload();
     }
 
     public String createToken(String userName) {
@@ -81,22 +84,20 @@ public class JwtTokenService {
 
     public String createToken(String userName, Key key) {
         return Jwts.builder()
-                .setSubject(userName)
-                .setAudience(AUDIENCE_UPPERWARE)
-                .setExpiration(new Date(System.currentTimeMillis() + jwtTokenProperties.getExpirationTime()))
+                .subject(userName)
+                .audience().add(AUDIENCE_UPPERWARE).and()
+                .expiration(new Date(System.currentTimeMillis() + jwtTokenProperties.getExpirationTime()))
                 .signWith(key)
                 .compact();
     }
 
     public String createRefreshToken(String userName) {
-        Map<String, Object> header = new HashMap<>();
-        header.put(Header.CONTENT_TYPE, REFRESH_HEADER_STRING);
         return Jwts.builder()
-                .setSubject(userName)
-                .setHeader(header)
-                .setAudience(AUDIENCE_JWT)
-                .setId(UUID.randomUUID().toString())
-                .setExpiration(new Date(System.currentTimeMillis() + jwtTokenProperties.getRefreshTokenExpirationTime()))
+                .subject(userName)
+                .header().contentType(REFRESH_HEADER_STRING).and()
+                .audience().add(AUDIENCE_JWT).and()
+                .id(UUID.randomUUID().toString())
+                .expiration(new Date(System.currentTimeMillis() + jwtTokenProperties.getRefreshTokenExpirationTime()))
                 .signWith(getKeyFromProperties())
                 .compact();
     }

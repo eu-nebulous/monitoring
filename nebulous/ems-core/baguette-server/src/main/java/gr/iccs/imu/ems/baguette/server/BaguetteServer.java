@@ -49,6 +49,7 @@ public class BaguetteServer implements InitializingBean, EventBus.EventConsumer<
     @Getter
     private final SelfHealingManager<NodeRegistryEntry> selfHealingManager;
     private final TaskScheduler taskScheduler;
+    private final ConfigWriteService configWriteService;
 
     private Sshd server;
 
@@ -147,6 +148,8 @@ public class BaguetteServer implements InitializingBean, EventBus.EventConsumer<
 
     public BrokerCepService getBrokerCepService() { return brokerCepService; }
 
+    public Map<String, String> getServerConnectionInfo() { return server.getServerConnectionInfo(); }
+
     public String getServerPubkey() { return server.getPublicKey(); }
 
     public String getServerPubkeyFingerprint() { return server.getPublicKeyFingerprint(); }
@@ -162,13 +165,26 @@ public class BaguetteServer implements InitializingBean, EventBus.EventConsumer<
         if (server == null) {
             eventBus.subscribe(RecoveryConstant.SELF_HEALING_RECOVERY_GIVE_UP, this);
 
+            // Start SSH server
             log.info("BaguetteServer.startServer(): Starting SSH server...");
             nodeRegistry.setCoordinator(coordinator);
             Sshd server = new Sshd();
             server.start(config, coordinator, eventBus, nodeRegistry);
-            server.setNodeRegistry(getNodeRegistry());
+            //server.setNodeRegistry(getNodeRegistry());
             this.server = server;
             log.info("BaguetteServer.startServer(): Starting SSH server... done");
+
+            // Store Baguette Server connection info in a properties file
+            try {
+                configWriteService
+                        .getOrCreateConfigFile(
+                                EmsConstant.EMS_CLIENT_K8S_CONFIG_MAP_FILE,
+                                EmsConstant.EMS_CLIENT_K8S_CONFIG_MAP_FORMAT)
+                        .putAll(server.getServerConnectionInfo());
+            } catch (Exception e) {
+                log.error("BaguetteServer.startServer(): Failed to store connection info in ems-client-config-map: {}, Exception: ",
+                        EmsConstant.EMS_CLIENT_K8S_CONFIG_MAP_FILE, e);
+            }
         } else {
             log.info("BaguetteServer.startServer(): SSH server is already running");
         }

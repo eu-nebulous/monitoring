@@ -32,7 +32,7 @@ public class NebulousEmsTranslatorProperties implements InitializingBean {
     private boolean skipModelValidation;
 
     // Translator parameters
-    private String modelsDir = "/models";
+    private String modelsDir = "models";
 
     // Sensor processing parameters
     private long sensorMinInterval;

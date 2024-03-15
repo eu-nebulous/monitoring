@@ -13,7 +13,7 @@ set PWD=%~dp0
 cd %PWD%..
 set BASEDIR=%cd%
 IF NOT DEFINED EMS_CONFIG_DIR set EMS_CONFIG_DIR=%BASEDIR%\config-files
-IF NOT DEFINED PAASAGE_CONFIG_DIR set PAASAGE_CONFIG_DIR=%BASEDIR%\config-files
+:: IF NOT DEFINED PAASAGE_CONFIG_DIR set PAASAGE_CONFIG_DIR=%BASEDIR%\config-files
 IF NOT DEFINED JARS_DIR set JARS_DIR=%BASEDIR%\control-service\target
 IF NOT DEFINED LOGS_DIR set LOGS_DIR=%BASEDIR%\logs
 IF NOT DEFINED PUBLIC_DIR set PUBLIC_DIR=%BASEDIR%\public_resources
@@ -31,7 +31,7 @@ if "%EMS_SECRETS_FILE%"=="" (
     set EMS_SECRETS_FILE=%EMS_CONFIG_DIR%\secrets.properties
 )
 if "%EMS_CONFIG_LOCATION%"=="" (
-    set EMS_CONFIG_LOCATION=classpath:rule-templates.yml,optional:file:%EMS_CONFIG_DIR%\ems-server.yml,optional:file:%EMS_CONFIG_DIR%\ems-server.properties,optional:file:%EMS_CONFIG_DIR%\ems.yml,optional:file:%EMS_CONFIG_DIR%\ems.properties,optional:file:%EMS_SECRETS_FILE%
+    set EMS_CONFIG_LOCATION=optional:classpath:rule-templates.yml,optional:file:%EMS_CONFIG_DIR%\ems-server.yml,optional:file:%EMS_CONFIG_DIR%\ems-server.properties,optional:file:%EMS_CONFIG_DIR%\ems.yml,optional:file:%EMS_CONFIG_DIR%\ems.properties,optional:file:%EMS_SECRETS_FILE%
 )
 
 :: Check logger configuration
@@ -45,6 +45,9 @@ if "%LOG_FILE%"=="" (
 
 :: Set shell encoding to UTF-8 (in order to display banner correctly)
 chcp 65001
+
+:: Create default models directory
+mkdir %BASEDIR%\models
 
 :: Run EMS server
 rem Uncomment next line to set JAVA runtime options

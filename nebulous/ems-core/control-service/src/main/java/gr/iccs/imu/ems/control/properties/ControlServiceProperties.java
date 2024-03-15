@@ -9,6 +9,7 @@
 
 package gr.iccs.imu.ems.control.properties;
 
+import gr.iccs.imu.ems.util.GROUPING;
 import gr.iccs.imu.ems.util.KeystoreAndCertificateProperties;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -48,7 +49,7 @@ public class ControlServiceProperties {
     private IpSetting ipSetting = IpSetting.PUBLIC_IP;
     private ExecutionWare executionware = ExecutionWare.PROACTIVE;
 
-    private String upperwareGrouping;
+    private String upperwareGrouping = GROUPING.GLOBAL.name();
     private String metasolverConfigurationUrl;
     private String notificationUrl;
 

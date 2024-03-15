@@ -7,22 +7,42 @@
 # https://www.mozilla.org/en-US/MPL/2.0/
 #
 
-ARG BUILDER_IMAGE=eclipse-temurin:21.0.1_12-jre-alpine
-ARG RUN_IMAGE=eclipse-temurin:21.0.1_12-jre-alpine
+ARG BUILDER_IMAGE=eclipse-temurin
+ARG BUILDER_IMAGE_TAG=21.0.1_12-jre
+ARG RUN_IMAGE=eclipse-temurin
+ARG RUN_IMAGE_TAG=21.0.1_12-jre
 
 # ----------------- Builder image -----------------
-FROM $BUILDER_IMAGE as ems-server-builder
+FROM $BUILDER_IMAGE:$BUILDER_IMAGE_TAG as ems-server-builder
 #FROM vegardit/graalvm-maven:latest-java17
 WORKDIR /app
 COPY jars/control-service.jar .
 RUN java -Djarmode=layertools -jar control-service.jar extract
 
 # -----------------   Run image   -----------------
-FROM $RUN_IMAGE
+FROM $RUN_IMAGE:$RUN_IMAGE_TAG
+
+# Install required and optional packages
+RUN wget --progress=dot:giga -O /usr/local/bin/dumb-init \
+          https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_x86_64 && \
+    chmod +x /usr/local/bin/dumb-init
+#RUN apk update && \
+#    apk add bash netcat-openbsd vim iputils-ping
+#
+
+# Add an EMS user
+ARG EMS_USER=emsuser
+ARG EMS_HOME=/opt/ems-server
+RUN mkdir ${EMS_HOME} && \
+    addgroup ${EMS_USER} && \
+    adduser --home ${EMS_HOME} --no-create-home --ingroup ${EMS_USER} --disabled-password ${EMS_USER} && \
+    chown ${EMS_USER}:${EMS_USER} ${EMS_HOME}
+
+USER ${EMS_USER}
+WORKDIR ${EMS_HOME}
 
 # Setup environment
-ENV BASEDIR /opt/ems-server
-ENV EMS_HOME ${BASEDIR}
+ENV BASEDIR ${EMS_HOME}
 ENV EMS_CONFIG_DIR ${BASEDIR}/config
 
 ENV BIN_DIR ${BASEDIR}/bin
@@ -30,36 +50,21 @@ ENV CONFIG_DIR ${BASEDIR}/config
 ENV LOGS_DIR ${BASEDIR}/logs
 ENV PUBLIC_DIR ${BASEDIR}/public_resources
 
-# Install required and optional packages
-RUN apk update && \
-    apk add curl bash netcat-openbsd vim iputils-ping
-RUN wget -O /usr/local/bin/dumb-init \
-          https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_x86_64 && \
-    chmod +x /usr/local/bin/dumb-init
-
-# Add an EMS user
-ARG EMS_USER=emsuser
-RUN mkdir ${EMS_HOME} && \
-    addgroup ${EMS_USER} && \
-    adduser --home ${EMS_HOME} --no-create-home --ingroup ${EMS_USER} --disabled-password ${EMS_USER} && \
-    chown ${EMS_USER}:${EMS_USER} ${EMS_HOME}
-
-USER ${EMS_USER}
-WORKDIR ${BASEDIR}
-
 # Download a JRE suitable for running EMS clients, and
 # offer it for download
 ENV JRE_LINUX_PACKAGE zulu21.30.15-ca-jre21.0.1-linux_x64.tar.gz
 RUN mkdir -p ${PUBLIC_DIR}/resources && \
-    curl https://cdn.azul.com/zulu/bin/${JRE_LINUX_PACKAGE} --output ${PUBLIC_DIR}/resources/${JRE_LINUX_PACKAGE}
+    wget --progress=dot:giga -O ${PUBLIC_DIR}/resources/${JRE_LINUX_PACKAGE} https://cdn.azul.com/zulu/bin/${JRE_LINUX_PACKAGE}
 
 # Copy resource files to image
-ADD --chown=${EMS_USER}:${EMS_USER} bin ${BIN_DIR}
-ADD --chown=${EMS_USER}:${EMS_USER} config ${CONFIG_DIR}
-ADD --chown=${EMS_USER}:${EMS_USER} public_resources ${PUBLIC_DIR}
+COPY --chown=${EMS_USER}:${EMS_USER} bin ${BIN_DIR}
+COPY --chown=${EMS_USER}:${EMS_USER} config ${CONFIG_DIR}
+COPY --chown=${EMS_USER}:${EMS_USER} public_resources ${PUBLIC_DIR}
 
-RUN mkdir ${LOGS_DIR}
-RUN chmod +rx ${BIN_DIR}/*.sh
+# Create 'logs', and 'models' directories. Make bin/*.sh scripts executable
+RUN mkdir ${LOGS_DIR} && \
+    chmod +rx ${BIN_DIR}/*.sh && \
+    mkdir -p ${EMS_HOME}/models
 
 # Copy files from builder container
 COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-server-builder /app/dependencies          ${BASEDIR}

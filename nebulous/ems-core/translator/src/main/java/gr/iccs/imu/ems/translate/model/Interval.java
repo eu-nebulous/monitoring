@@ -25,5 +25,5 @@ public class Interval extends AbstractInterfaceRootObject {
     public enum UnitType { DAYS, HOURS, MINUTES, SECONDS, MILLISECONDS, MICROSECONDS, NANOSECONDS }
 
     private UnitType unit;
-    private int period;
+    private long period;
 }

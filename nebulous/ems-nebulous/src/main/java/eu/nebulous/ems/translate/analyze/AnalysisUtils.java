@@ -29,6 +29,7 @@ public class AnalysisUtils {
             List.of("<", "<=", "=<", ">", ">=", "=<", "=", "<>", "!=");
     final static List<String> LOGICAL_OPERATORS =
             List.of("and", "or");
+    final static String NOT_OPERATOR = "not";
 
     // ------------------------------------------------------------------------
     //  Exceptions and Casting method
@@ -97,6 +98,31 @@ public class AnalysisUtils {
 
     static String getMandatorySpecField(Object o, String field, String exceptionMessage) {
         String val = getSpecField(o, field, exceptionMessage);
+        if (val==null)
+            throw createException(exceptionMessage.formatted(field) + o);
+        return val;
+    }
+
+    static Object getSpecFieldAsObject(Object o, String field) {
+        return getSpecFieldAsObject(o, field, "Block '%s' is not String or Map: ");
+    }
+
+    static Object getSpecFieldAsObject(Object o, String field, String exceptionMessage) {
+        try {
+            Map<String, Object> spec = asMap(o);
+            Object oValue = spec.get(field);
+            if (oValue == null)
+                return null;
+            if (oValue instanceof String || oValue instanceof Map)
+                return oValue;
+            throw createException(exceptionMessage.formatted(field) + spec);
+        } catch (Exception e) {
+            throw createException(exceptionMessage.formatted(field) + o, e);
+        }
+    }
+
+    static Object getMandatorySpecFieldAsObject(Object o, String field, String exceptionMessage) {
+        Object val = getSpecFieldAsObject(o, field, exceptionMessage);
         if (val==null)
             throw createException(exceptionMessage.formatted(field) + o);
         return val;
@@ -217,6 +243,10 @@ public class AnalysisUtils {
 
     static boolean isLogicalOperator(String s) {
         return LOGICAL_OPERATORS.contains(s);
+    }
+
+    static boolean isNotOperator(String s) {
+        return NOT_OPERATOR.equalsIgnoreCase(s);
     }
 
 }

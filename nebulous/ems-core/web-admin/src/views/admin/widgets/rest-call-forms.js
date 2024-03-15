@@ -45,10 +45,11 @@ export const FORM_TYPE_OPTIONS = [
             'text': 'Credentials',
             'priority': 1001,
             'options': [
-                { 'id': 'get-cred', 'text': 'EMS server Broker credentials', 'url': '/broker/credentials', 'method': 'GET', 'form': '', 'priority': 1 },
-                { 'id': 'get-ref', 'text': 'VM credentials by Ref', 'url': '/baguette/ref/{ref}', 'method': 'GET', 'form': 'ref-form', 'priority': 2 },
-                { 'id': 'new-otp', 'text': 'New OTP', 'url': '/ems/otp/new', 'method': 'GET', 'form': '', 'priority': 3 },
-                { 'id': 'del-otp', 'text': 'Delete OTP', 'url': '/ems/otp/remove/{otp}', 'method': 'GET', 'form': 'otp-form', 'priority': 4 },
+                { 'id': 'get-bc-cred', 'text': 'EMS server Broker credentials', 'url': '/broker/credentials', 'method': 'GET', 'form': '', 'priority': 1 },
+                { 'id': 'get-bs-cred', 'text': 'Baguette Server connection info', 'url': '/baguette/connectionInfo', 'method': 'GET', 'form': '', 'priority': 2 },
+                { 'id': 'get-ref', 'text': 'VM credentials by Ref', 'url': '/baguette/ref/{ref}', 'method': 'GET', 'form': 'ref-form', 'priority': 3 },
+                { 'id': 'new-otp', 'text': 'New OTP', 'url': '/ems/otp/new', 'method': 'GET', 'form': '', 'priority': 4 },
+                { 'id': 'del-otp', 'text': 'Delete OTP', 'url': '/ems/otp/remove/{otp}', 'method': 'GET', 'form': 'otp-form', 'priority': 5 },
             ]
         },
 

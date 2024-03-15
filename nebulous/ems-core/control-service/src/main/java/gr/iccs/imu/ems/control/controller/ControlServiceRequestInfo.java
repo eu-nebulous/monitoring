@@ -25,11 +25,28 @@ public class ControlServiceRequestInfo {
     @ToString.Exclude
     private final String jwtToken;
 
+    private final String applicationId;
+    private final java.util.function.Consumer<Object> callback;
+
     public static ControlServiceRequestInfo create(String notificationUri, String requestUuid, String jwtToken) {
         return ControlServiceRequestInfo.builder()
                 .notificationUri(notificationUri)
                 .requestUuid(requestUuid)
                 .jwtToken(jwtToken)
+                .applicationId(null)
+                .callback(null)
+                .build();
+    }
+
+    public static ControlServiceRequestInfo create(String applicationId, String notificationUri, String requestUuid,
+                                                   String jwtToken, java.util.function.Consumer<Object> callback)
+    {
+        return ControlServiceRequestInfo.builder()
+                .notificationUri(notificationUri)
+                .requestUuid(requestUuid)
+                .jwtToken(jwtToken)
+                .applicationId(applicationId)
+                .callback(callback)
                 .build();
     }
 }

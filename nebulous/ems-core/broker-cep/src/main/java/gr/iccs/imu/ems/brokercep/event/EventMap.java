@@ -10,6 +10,7 @@
 package gr.iccs.imu.ems.brokercep.event;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import gr.iccs.imu.ems.util.StrUtil;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -29,7 +30,7 @@ import java.util.stream.Collectors;
 @EqualsAndHashCode(callSuper = false)
 public class EventMap extends LinkedHashMap<String, Object> implements Serializable {
 
-    private static Gson gson;
+    private static Gson gson = new GsonBuilder().create();
     private static AtomicLong eventIdSequence = new AtomicLong(0);
 
     // Standard/Known Event fields configuration

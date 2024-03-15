@@ -20,11 +20,11 @@
     <name>EMS - Control Service</name>
 
     <properties>
-        <!--<hawtio.version>3.0-M8</hawtio.version>-->
-        <spring.boot.admin.version>3.1.3</spring.boot.admin.version>
-        <micrometer.registry.prometheus.version>1.11.2</micrometer.registry.prometheus.version>
-        <springdoc.version>2.1.0</springdoc.version>
-        <jjwt.version>0.11.5</jjwt.version>
+        <hawtio.version>4.0-M4</hawtio.version>
+        <spring.boot.admin.version>3.2.2</spring.boot.admin.version>
+        <micrometer.registry.prometheus.version>1.12.4</micrometer.registry.prometheus.version>
+        <springdoc.version>2.3.0</springdoc.version>
+        <jjwt.version>0.12.5</jjwt.version>
         <!-- Build timestamp -->
         <timestamp>${maven.build.timestamp}</timestamp>
         <maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
@@ -33,10 +33,12 @@
         <docker.esperJar>esper-${esper.version}.jar</docker.esperJar>
 
         <!-- io.fabricat8 docker-maven-plugin properties -->
-        <docker-maven-plugin.version>0.43.2</docker-maven-plugin.version>
+        <docker-maven-plugin.version>0.44.0</docker-maven-plugin.version>
         <docker.image.name>ems-server</docker.image.name>
         <!--<docker.image.tag>${revision}</docker.image.tag>
         <build.description></build.description>-->
+        <docker.user>emsuser</docker.user>
+        <docker.user.home>/opt/ems-server</docker.user.home>
 
         <!-- EMS server main class -->
         <start-class>gr.iccs.imu.ems.control.ControlServiceApplication</start-class>
@@ -176,13 +178,11 @@
         </dependency>-->
 
         <!-- Hawtio console dependency (https://hawt.io/docs/get-started/) -->
-        <!-- XXX: Causes 'BeanPostProcessorChecker' warnings -->
-        <!--XXX: TODO: Temporarily disabled because Jolokia does not follow Spring Boot 3 changes (see https://adevait.com/java/spring-boot-3-0)
         <dependency>
             <groupId>io.hawt</groupId>
             <artifactId>hawtio-springboot</artifactId>
             <version>${hawtio.version}</version>
-        </dependency>-->
+        </dependency>
 
         <!-- Springdoc: OpenAPI UI and Swagger -->
         <dependency>
@@ -206,43 +206,6 @@
                     <artifactId>*</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-
-        <!-- Maven plugin dependencies -->
-
-        <!-- https://mvnrepository.com/artifact/net.nicoulaj.maven.plugins/checksum-maven-plugin -->
-        <dependency>
-            <groupId>net.nicoulaj.maven.plugins</groupId>
-            <artifactId>checksum-maven-plugin</artifactId>
-            <version>1.11</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.bouncycastle</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.codehaus.plexus</groupId>
-                    <artifactId>plexus-utils</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.google.guava</groupId>
-                    <artifactId>guava</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>commons-io</groupId>
-                    <artifactId>commons-io</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.codehaus.plexus</groupId>
-            <artifactId>plexus-utils</artifactId>
-            <version>4.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>commons-io</groupId>
-            <artifactId>commons-io</artifactId>
-            <version>2.15.1</version>
         </dependency>
 
     </dependencies>
@@ -291,7 +254,7 @@
             <plugin>
                 <groupId>io.github.git-commit-id</groupId>
                 <artifactId>git-commit-id-maven-plugin</artifactId>
-                <version>6.0.0</version>
+                <version>7.0.0</version>
                 <!--<executions>
                     <execution>
                         <id>get-the-git-infos</id>
@@ -419,7 +382,7 @@
                         </fileSet>
                     </fileSets>
                     <algorithms>
-                        <algorithm>MD5</algorithm>
+                        <algorithm>SHA256</algorithm>
                     </algorithms>
                     <individualFiles>true</individualFiles>
                     <failOnError>true</failOnError>
@@ -477,12 +440,16 @@
                                     <destinationFile>../public_resources/resources/baguette-client.tgz</destinationFile>
                                 </fileSet>
                                 <fileSet>
-                                    <sourceFile>${project.build.directory}/baguette-client-installation-package.tgz.md5</sourceFile>
-                                    <destinationFile>../public_resources/resources/baguette-client.tgz.md5</destinationFile>
+                                    <sourceFile>${project.build.directory}/baguette-client-installation-package.tgz.sha256</sourceFile>
+                                    <destinationFile>../public_resources/resources/baguette-client.tgz.sha256</destinationFile>
                                 </fileSet>
                                 <fileSet>
                                     <sourceFile>../baguette-client/bin/install.sh</sourceFile>
                                     <destinationFile>../public_resources/resources/install.sh</destinationFile>
+                                </fileSet>
+                                <fileSet>
+                                    <sourceFile>../baguette-client/bin/jre-install.sh</sourceFile>
+                                    <destinationFile>../public_resources/resources/jre-install.sh</destinationFile>
                                 </fileSet>
                             </fileSets>
                             <ignoreFileNotFoundOnIncremental>true</ignoreFileNotFoundOnIncremental>
@@ -700,6 +667,10 @@
                                     <name>${docker.image.name}:${docker.image.tag}</name>
                                     <build>
                                         <contextDir>${project.build.directory}/docker-context</contextDir>
+                                        <args>
+                                            <EMS_USER>${docker.user}</EMS_USER>
+                                            <EMS_HOME>${docker.user.home}</EMS_HOME>
+                                        </args>
                                     </build>
                                 </image>
                             </images>
@@ -739,7 +710,38 @@
                                             <name>docker.image.tag</name>
                                             <value>${docker.image.tag}</value>
                                         </property>
+                                        <property>
+                                            <name>docker.user</name>
+                                            <value>${docker.user}</value>
+                                        </property>
+                                        <property>
+                                            <name>docker.user.home</name>
+                                            <value>${docker.user.home}</value>
+                                        </property>
                                     </properties>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-install-plugin</artifactId>
+                        <version>3.1.1</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>install-file</goal>
+                                </goals>
+                                <phase>install</phase>
+                                <configuration>
+                                    <file>${project.build.directory}/docker-image.properties</file>
+                                    <artifactId>${project.artifactId}</artifactId>
+                                    <groupId>${project.groupId}</groupId>
+                                    <version>${project.version}</version>
+                                    <classifier>docker-image</classifier>
+                                    <packaging>pom</packaging>
+                                    <generatePom>false</generatePom>
                                 </configuration>
                             </execution>
                         </executions>

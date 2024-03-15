@@ -300,7 +300,7 @@ public class BrokerConfig implements InitializingBean {
         List<BrokerPlugin> plugins = new ArrayList<>();
         if (getBrokerAuthenticationPlugin()!=null) plugins.add(getBrokerAuthenticationPlugin());
         if (getBrokerAuthorizationPlugin()!=null) plugins.add(getBrokerAuthorizationPlugin());
-        if (plugins.size() > 0) {
+        if (!plugins.isEmpty()) {
             brokerService.setPlugins(plugins.toArray(new BrokerPlugin[0]));
         }
 

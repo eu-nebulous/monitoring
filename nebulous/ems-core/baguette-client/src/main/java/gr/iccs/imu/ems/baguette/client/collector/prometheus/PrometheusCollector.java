@@ -21,11 +21,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Collects measurements from Prometheus exporter
@@ -33,6 +31,8 @@ import java.util.stream.Collectors;
 @Slf4j
 @Component
 public class PrometheusCollector extends gr.iccs.imu.ems.common.collector.prometheus.PrometheusCollector implements Collector {
+    private List<Map<String,Object>> configuration;
+
     public PrometheusCollector(@NonNull PrometheusCollectorProperties properties,
                                @NonNull CollectorContext collectorContext,
                                @NonNull TaskScheduler taskScheduler,
@@ -41,6 +41,22 @@ public class PrometheusCollector extends gr.iccs.imu.ems.common.collector.promet
         super("PrometheusCollector", properties, collectorContext, taskScheduler, eventBus);
         if (!(collectorContext instanceof ClientCollectorContext))
             throw new IllegalArgumentException("Invalid CollectorContext provided. Expected: ClientCollectorContext, but got "+collectorContext.getClass().getName());
+    }
+
+    @Override
+    public String getName() {
+        return "prometheus";
+    }
+
+    @Override
+    public void setConfiguration(Object config) {
+        if (config instanceof List sensorConfigList) {
+            configuration = sensorConfigList.stream()
+                    .filter(o -> o instanceof Map)
+                    .filter(map -> ((Map)map).keySet().stream().allMatch(k->k instanceof String))
+                    .toList();
+            log.info("Collectors::Prometheus: setConfiguration: {}", configuration);
+        }
     }
 
     public synchronized void activeGroupingChanged(String oldGrouping, String newGrouping) {
