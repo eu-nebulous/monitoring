@@ -1,0 +1,43 @@
+#
+# Copyright (C) 2017-2025 Institute of Communication and Computer Systems (imu.iccs.gr)
+#
+# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0.
+# If a copy of the MPL was not distributed with this file, you can obtain one at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+
+#
+#  Instructions Set for deploying Netdata
+#  at a Nebulous K8S app. cluster
+#
+
+---
+os: LINUX
+description: Netdata deployment at application cluster
+condition: " '${APPLICATION_ID:-na}' ne 'na'  &&  '${APPLICATION_ID:-na}' != '' "
+instructions:
+  - description: Check if Netdata is already deployed at app. cluster
+    taskType: CHECK
+    command: '[[ $( helm list |grep netdata |wc -l ) > 0 ]] && exit 99 || exit 0'
+    executable: false
+    exitCode: 99
+    match: true
+    message: Netdata is already deployed at app. cluster
+  - description: Deploying Netdata at app. cluster...
+    taskType: LOG
+    message: Deploying Netdata at app. cluster...
+  - description: Run Helm chart for Netdata deployment
+    taskType: CMD
+    command: >
+      helm repo add netdata https://netdata.github.io/helmchart/ &&
+      helm install netdata netdata/netdata
+    executable: false
+    exitCode: 0
+    match: false
+    executionTimeout: 300000
+  - description: Print running pods
+    taskType: CMD
+    command: 'KUBECONFIG=~/.kube/config  kubectl get pods -o wide'
+    executable: false
+    exitCode: 0
+    match: false

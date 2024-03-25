@@ -174,7 +174,7 @@ public class BaguetteServer implements InitializingBean, EventBus.EventConsumer<
             this.server = server;
             log.info("BaguetteServer.startServer(): Starting SSH server... done");
 
-            // Store Baguette Server connection info in a properties file
+            // Store Baguette Server connection info in config service
             try {
                 configWriteService
                         .getOrCreateConfigFile(

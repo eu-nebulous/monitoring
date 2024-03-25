@@ -76,7 +76,7 @@ public class BaguetteServerProperties implements InitializingBean {
     private String keyFile = "hostkey.pem";
     public String getServerKeyFile() { return keyFile; }
 
-    private String connectionInfoFile = "baguette-server-connection-info.json";
+//    private String connectionInfoFile = "baguette-server-connection-info.json";
 
     private boolean heartbeatEnabled;
     @Min(-1)

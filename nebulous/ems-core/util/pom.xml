@@ -50,22 +50,28 @@
             <groupId>org.cryptacular</groupId>
             <artifactId>cryptacular</artifactId>
             <version>${cryptacular.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.bouncycastle</groupId>
+                    <artifactId>bcprov-jdk18on</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- Bouncy Castle cryptography used in Baguette Server and Client -->
         <dependency>
             <groupId>org.bouncycastle</groupId>
-            <artifactId>bcpg-jdk18on</artifactId>
+            <artifactId>bcpg-lts8on</artifactId>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
-            <artifactId>bcpkix-jdk18on</artifactId>
+            <artifactId>bcpkix-lts8on</artifactId>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk18on</artifactId>
+            <artifactId>bcprov-lts8on</artifactId>
         </dependency>
     </dependencies>
 

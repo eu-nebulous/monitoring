@@ -14,7 +14,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.3</version>
+        <version>3.2.4</version>
         <relativePath></relativePath>
     </parent>
 
@@ -60,7 +60,7 @@
         <!-- Apache SSHD version -->
         <apache-sshd.version>2.12.1</apache-sshd.version>
         <!-- Bouncy Castle version -->
-        <bouncy-castle.version>1.77</bouncy-castle.version>
+        <bouncy-castle.version>2.73.5</bouncy-castle.version>
         <!-- Guava version -->
         <guava.version>33.0.0-jre</guava.version>
         <!-- Apache Commons-CSV -->
@@ -111,17 +111,17 @@
 
             <dependency>
                 <groupId>org.bouncycastle</groupId>
-                <artifactId>bcpg-jdk18on</artifactId>
+                <artifactId>bcpg-lts8on</artifactId>
                 <version>${bouncy-castle.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.bouncycastle</groupId>
-                <artifactId>bcpkix-jdk18on</artifactId>
+                <artifactId>bcpkix-lts8on</artifactId>
                 <version>${bouncy-castle.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.bouncycastle</groupId>
-                <artifactId>bcprov-jdk18on</artifactId>
+                <artifactId>bcprov-lts8on</artifactId>
                 <version>${bouncy-castle.version}</version>
             </dependency>
         </dependencies>

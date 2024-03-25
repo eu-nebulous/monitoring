@@ -333,7 +333,7 @@ public class InfoServiceController implements InitializingBean {
         webAdminPlugins.stream().filter(Objects::nonNull).forEach(plugin->{
             WebAdminPlugin.RestCallCommandGroup commandGroup = plugin.restCallCommands();
             List<WebAdminPlugin.RestCallCommand> cmdList = commandGroup.getCommands();
-            if (cmdList!=null && cmdList.size()>0 && StringUtils.isNotBlank(commandGroup.getId())) {
+            if (cmdList!=null && ! cmdList.isEmpty() && StringUtils.isNotBlank(commandGroup.getId())) {
                 commandGroups.add( Map.of(
                         "id", commandGroup.getId(),
                         "text", commandGroup.getText(),

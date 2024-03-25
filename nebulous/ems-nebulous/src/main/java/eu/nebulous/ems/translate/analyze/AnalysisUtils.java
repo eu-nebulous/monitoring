@@ -194,10 +194,10 @@ public class AnalysisUtils {
     //  Unit normalization methods
     // ------------------------------------------------------------------------
 
-    static ChronoUnit normalizeTimeUnit(String s) {
+    public static ChronoUnit normalizeTimeUnit(String s) {
         s = s.trim().toLowerCase();
         return switch (s) {
-            case "ms", "msec", "millisecond", "milliseconds" -> ChronoUnit.MILLIS;
+            case "ms", "msec", "milli", "millis", "millisecond", "milliseconds" -> ChronoUnit.MILLIS;
             case "s", "sec", "second", "seconds" -> ChronoUnit.SECONDS;
             case "m", "min", "minute", "minutes" -> ChronoUnit.MINUTES;
             case "h", "hr", "hrs", "hour", "hours" -> ChronoUnit.HOURS;

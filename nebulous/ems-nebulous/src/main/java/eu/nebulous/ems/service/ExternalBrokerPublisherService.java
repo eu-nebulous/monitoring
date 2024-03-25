@@ -46,7 +46,7 @@ public class ExternalBrokerPublisherService extends AbstractExternalBrokerServic
 	private final BrokerCepService brokerCepService;
 	private final Map<String, String> additionalTopicsMap = new HashMap<>();
 	private final Gson gson = new Gson();
-	private Map<String, Publisher> publishersMap;
+	private Map<String, Publisher> publishersMap = Map.of();
 	private String applicationId;
 	private Set<String> sloSet;
 
@@ -77,13 +77,13 @@ public class ExternalBrokerPublisherService extends AbstractExternalBrokerServic
 		applicationId = translationContext.getAppId();
 
 		// Get Top-Level topics (i.e. those at GLOBAL grouping)
-		Set<String> topLevelTopics = translationContext.getG2T().entrySet().stream()
+		Map.Entry<String, Set<String>> tmp = translationContext.getG2T().entrySet().stream()
 				.filter(e -> e.getKey().equalsIgnoreCase(Grouping.GLOBAL.name()))
-				.findAny().orElseThrow()
-				.getValue();
+				.findAny().orElse(null);
+		Set<String> topLevelTopics = tmp!=null ? tmp.getValue() : null;
 		log.debug("ExternalBrokerPublisherService: Top-Level topics: {}", topLevelTopics);
 
-		if (topLevelTopics.isEmpty()) {
+		if (topLevelTopics==null || topLevelTopics.isEmpty()) {
 			log.warn("ExternalBrokerPublisherService: No top-level topics found.");
 			return;
 		}

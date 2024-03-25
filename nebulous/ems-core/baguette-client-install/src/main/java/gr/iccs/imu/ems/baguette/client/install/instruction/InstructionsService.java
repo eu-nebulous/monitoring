@@ -80,7 +80,7 @@ public class InstructionsService implements EnvironmentAware {
         s = StringSubstitutor.replace(s, valueMap);
         s = environment.resolvePlaceholders(s);
         //s = environment.resolveRequiredPlaceholders(s);
-        s = s.replace('\\', '/');
+        //s = s.replace('\\', '/');
         return s;
     }
 

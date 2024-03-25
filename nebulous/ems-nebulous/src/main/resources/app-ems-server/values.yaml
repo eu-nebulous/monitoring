@@ -1,23 +1,23 @@
 #
 # Copyright (C) 2017-2025 Institute of Communication and Computer Systems (imu.iccs.gr)
 #
-# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
-# Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0.
 # If a copy of the MPL was not distributed with this file, you can obtain one at
 # https://www.mozilla.org/en-US/MPL/2.0/
 #
 
-# Default values for nebulous-monitoring.
+# Default values for ems-server.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
 replicaCount: 1
 
 image:
-  repository: "quay.io/nebulous/monitoring"
-  pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  repository: "registry.gitlab.com/nebulous-project/ems-main/ems-server"
+#  pullPolicy: IfNotPresent
+  pullPolicy: Always
+# Overrides the image tag whose default is the chart appVersion.
+  tag: &image_tag "2024-mar-nebulous"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -30,12 +30,12 @@ serviceAccount:
   annotations: {}
   # The name of the service account to use.
   # If not set and create is true, a name is generated using the fullname template
-  name: ""
+  name: "ems-server-service-account"
 
 podAnnotations: {}
 
 podSecurityContext: {}
-  # fsGroup: 2000
+# fsGroup: 2000
 
 securityContext: {}
   # capabilities:
@@ -43,7 +43,7 @@ securityContext: {}
   #   - ALL
   # readOnlyRootFilesystem: true
   # runAsNonRoot: true
-  # runAsUser: 1000
+# runAsUser: 1000
 
 service:
   type: ClusterIP
@@ -54,7 +54,7 @@ ingress:
   className: ""
   annotations: {}
     # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
+  # kubernetes.io/tls-acme: "true"
   hosts:
     - host: chart-example.local
       paths:
@@ -75,7 +75,7 @@ resources: {}
   #   memory: 128Mi
   # requests:
   #   cpu: 100m
-  #   memory: 128Mi
+#   memory: 128Mi
 
 autoscaling:
   enabled: false
@@ -109,86 +109,33 @@ env:
   # =====  EMS server configuration  =====
   #
   # ===== INITIALIZATION settings =====
+  - name: APPLICATION_ID
+    value: "${APPLICATION_ID}"
   - name: JASYPT_PASSWORD
-    value: 'password'                           #+++++++++++++++++++++++++ ?????????????????
+    value: 'password'
   - name: NET_UTIL_ADDRESS_DISCOVERY_SERVICES
     value: '-'
   - name: EMS_IP_SETTING
     value: 'DEFAULT_IP'
-
-  - name: K8S_WATCHER_ENABLED
-    value: 'false'
-  - name: EMS_LOG_REQUESTS
-    value: 'false'
-  - name: EMS_PRELOAD_APP_MODEL
-    value: 'empty.yml'
-  - name: EMS_PRELOAD_CP_MODEL
-    value: ''
-
-  - name: CONTROL_SKIP_MVV_RETRIEVE
-    value: 'true'
-  - name: CONTROL_SKIP_METASOLVER
-    value: 'true'
-  - name: CONTROL_SKIP_NOTIFICATION
-    value: 'true'
-  - name: CONTROL_EXIT_ALLOWED
-    value: 'true'
-  - name: RESTART_EXIT_CODE
-    value: '99'
-
-  # =====  Security and Authentication settings  =====
-  - name: CONTROL_SSL_KEY_ENTRY_GENERATE
-    value: 'ALWAYS'
-  - name: CONTROL_SSL_KEYSTORE_PASSWORD
-    value: 'melodic'          #+++++++++++++++++++++++++ ${P_KEYSTORE_PASSWORD}
-  - name: CONTROL_SSL_TRUSTSTORE_PASSWORD
-    value: 'melodic'          #+++++++++++++++++++++++++ ${P_KEYSTORE_PASSWORD}
-
+  # =====  Authentication settings  =====
   - name: JWT_SECRET
-    value: 'ENC(I0mRWgH2FVDDNs4OBcdh7Z+o3lOQDa3ztaEtmnXT2HN0aClkChp/lqm9zM5HyTk0stJ7v2Di75U=)'  #+++++++++++++++++++++++++ ${P_JWT_SECRET}
+    value: 'ENC(I0mRWgH2FVDDNs4OBcdh7Z+o3lOQDa3ztaEtmnXT2HN0aClkChp/lqm9zM5HyTk0stJ7v2Di75U=)'
   - name: WEB_SECURITY_API_KEY_AUTHENTICATION_VALUE
-    value: '1234567890'                                               #+++++++++++++++++++++++++ ${P_WEB_API_KEY_VALUE}
+    value: '1234567890'
   - name: WEB_SECURITY_FORM_AUTHENTICATION_PASSWORD
-    value: 'ems'                                                      #+++++++++++++++++++++++++ ${P_WEB_ADMIN_PASSWORD}
-
-  # =====  Topic Beacon settings  =====
-  - name: BEACON_INITIAL_DELAY
-    value: '10000'
-  - name: BEACON_DELAY
-    value: '10000'
-
-  # ===== EMS server monitoring settings =====
-  - name: EMS_SYSMON_ENABLED
-    value: 'true'
-  - name: EMS_SYSMON_PERIOD
-    value: '1000'
-  - name: EMS_SYSMON_COMMAND
-    value: './bin/sysmon.sh'
-
-  - name: INFO_FILES_ROOTS
-    value: '/logs, /config, /opt/ems-server/public_resources/resources'
-  - name: INFO_FILES_EXTENSIONS_BLOCKED
-    value: '.pem, .p12, .sh'
-
-  # =====  EMS Boot (server) settings  =====
-  - name: BOOT_ENABLED
-    value: 'true'
-
-  # =====  EMS Boot Initializer (client) settings  =====
-  - name: BOOT_INITIALIZER_ENABLED
-    value: 'false'
+    value: 'ems'
 
   # =====  External Broker settings  =====
   - name: EXTERNAL_ENABLED
     value: 'true'
   - name: EXTERNAL_BROKER_ADDRESS
-    value: ''
+    value: '${EXTERNAL_BROKER_ADDRESS}'
   - name: EXTERNAL_BROKER_PORT
-    value: '5672'
+    value: '${EXTERNAL_BROKER_PORT}'
   - name: EXTERNAL_BROKER_USERNAME
-    value: ''
+    value: '${EXTERNAL_BROKER_USERNAME}'
   - name: EXTERNAL_BROKER_PASSWORD
-    value: ''
+    value: '${EXTERNAL_BROKER_PASSWORD}'
 
   - name: EXTERNAL_CONNECTION_INFO_COLLECTION_MODE
     value: 'CONFIG'
@@ -197,12 +144,17 @@ env:
   - name: EXTERNAL_BROKER_SERVICE_NAMESPACE
     value: 'flux-system'
 
-  - name: EXTERNAL_DEPLOY_EMS_CLIENTS_ON_KUBERNETES_ENABLED
+  # =====  EMS Boot (server) settings  =====
+  - name: BOOT_ENABLED
     value: 'false'
+
+  # =====  EMS Boot Initializer (client) settings  =====
+  - name: BOOT_INITIALIZER_ENABLED
+    value: 'true'
 
   # =====  Broker settings  =====
   - name: BROKERCEP_ADDITIONAL_BROKER_CREDENTIALS
-    value: 'aaa/111, bbb/222'                                           # ++++++++++++++++ ${P_BROKERCEP_CREDENTIALS:-}
+    value: 'aaa/111, bbb/222'
 #    value: 'ENC(axeJUxNHajYfBffUwvuT3kwTgLTpRliDMz/ZQ9hROZ3BNOv0Idw72NJsawzIZRuZ)'
   - name: BROKERCEP_EVENT_RECORDER_ENABLED
     value: 'false'
@@ -211,14 +163,8 @@ env:
 
   # =====  Baguette Server settings  =====
   - name: BAGUETTE_SERVER_CREDENTIALS
-    value: '{ "aa":"xx" }'                                              # ++++++++++++++++ ${P_BAGUETTE_SERVER_CREDENTIALS:-{}
+    value: '{ "aa":"xx" }'
 #    value: 'ENC(y46CiW6przlpXvz8ToE+T1Sn6uGfO2haP7OhATB0SXo=)'
-
-  # =====  Baguette Client Install settings  =====
-  - name: BAGUETTE_CLIENT_INSTALL_INSTRUCTIONS_LINUX
-    value: 'file:${EMS_CONFIG_DIR}/baguette-client-install/helm/app-detection.yml, file:${EMS_CONFIG_DIR}/baguette-client-install/helm/epm-deploy.yml, file:${EMS_CONFIG_DIR}/baguette-client-install/helm/netdata-deploy.yml'
-  - name: BAGUETTE_CLIENT_INSTALL_INSTALLATION_CONTEXT_PROCESSOR_PLUGINS
-    value: 'eu.nebulous.ems.plugins.NebulousInstallationContextProcessorPlugin'
 
   #
   # =====  EMS server K8sClientInstaller configuration  =====
@@ -231,25 +177,25 @@ env:
     value: "monitoring-configmap"
   - name: EMS_CLIENT_CONFIG_MAP_NAME
     value: "ems-client-configmap"
-  #- name: EMS_CLIENT_DAEMONSET_SPECIFICATION_FILE
-  #  value: "/ems-client-daemonset.yaml"
+#  - name: EMS_CLIENT_DAEMONSET_SPECIFICATION_FILE
+#    value: "/ems-client-daemonset.yaml"
   - name: EMS_CLIENT_DAEMONSET_NAME
     value: "ems-client-daemonset"
   - name: EMS_CLIENT_DAEMONSET_IMAGE_REPOSITORY
     value: "registry.gitlab.com/nebulous-project/ems-main/ems-client"
   - name: EMS_CLIENT_DAEMONSET_IMAGE_TAG
-    value: "latest"
+    #    value: "latest"
+    value: *image_tag
   - name: EMS_CLIENT_DAEMONSET_IMAGE_PULL_POLICY
     value: "Always"
 
-  # =====  EMS clients - Security and Authentication settings  =====
   - name: EMS_CLIENT_ADDITIONAL_BROKER_CREDENTIALS
     value: 'aaa/111, bbb/222'
 #    value: "ENC(axeJUxNHajYfBffUwvuT3kwTgLTpRliDMz/ZQ9hROZ3BNOv0Idw72NJsawzIZRuZ)"
-  #- name: EMS_CLIENT_BROKER_USERNAME    # It is appended to EMS_CLIENT_ADDITIONAL_BROKER_CREDENTIALS
-  #  value: "ccc"
-  #- name: EMS_CLIENT_BROKER_PASSWORD
-  #  value: "333"
+#  - name: EMS_CLIENT_BROKER_USERNAME    # It is appended to EMS_CLIENT_ADDITIONAL_BROKER_CREDENTIALS
+#    value: "ccc"
+#  - name: EMS_CLIENT_BROKER_PASSWORD
+#    value: "333"
   - name: EMS_CLIENT_KEYSTORE_SECRET
     value: ""
   - name: EMS_CLIENT_TRUSTSTORE_SECRET

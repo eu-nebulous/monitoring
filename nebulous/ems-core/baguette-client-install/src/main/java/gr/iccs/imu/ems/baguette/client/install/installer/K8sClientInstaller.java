@@ -12,35 +12,22 @@ package gr.iccs.imu.ems.baguette.client.install.installer;
 import gr.iccs.imu.ems.baguette.client.install.ClientInstallationProperties;
 import gr.iccs.imu.ems.baguette.client.install.ClientInstallationTask;
 import gr.iccs.imu.ems.baguette.client.install.ClientInstallerPlugin;
+import gr.iccs.imu.ems.common.k8s.K8sClient;
 import gr.iccs.imu.ems.util.ConfigWriteService;
 import gr.iccs.imu.ems.util.EmsConstant;
 import gr.iccs.imu.ems.util.EmsRelease;
 import gr.iccs.imu.ems.util.PasswordUtil;
-import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import io.fabric8.kubernetes.api.model.apps.DaemonSet;
-import io.fabric8.kubernetes.client.Config;
-import io.fabric8.kubernetes.client.ConfigBuilder;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClientBuilder;
-import io.fabric8.kubernetes.client.dsl.Resource;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.text.StringSubstitutor;
-import org.springframework.util.StreamUtils;
 
-import java.io.*;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.time.Instant;
+import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+
+import static gr.iccs.imu.ems.common.k8s.K8sClient.getConfig;
 
 /**
  * EMS client installer on a Kubernetes cluster
@@ -48,7 +35,6 @@ import java.util.Map;
 @Slf4j
 @Getter
 public class K8sClientInstaller implements ClientInstallerPlugin {
-    private static final String K8S_SERVICE_ACCOUNT_SECRETS_PATH_DEFAULT = "/var/run/secrets/kubernetes.io/serviceaccount";
     private static final String APP_CONFIG_MAP_NAME_DEFAULT = "monitoring-configmap";
     private static final String EMS_CLIENT_CONFIG_MAP_NAME_DEFAULT = "ems-client-configmap";
 
@@ -92,11 +78,6 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
         additionalCredentials = sb.toString();
     }
 
-    private String getConfig(@NonNull String key, String defaultValue) {
-        String value = System.getenv(key);
-        return value==null ? defaultValue : value;
-    }
-
     @Override
     public boolean executeTask() {
         boolean success = true;
@@ -120,105 +101,57 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
     }
 
     private void deployOnCluster(boolean dryRun) throws IOException {
-        String serviceAccountPath = getConfig("K8S_SERVICE_ACCOUNT_SECRETS_PATH", K8S_SERVICE_ACCOUNT_SECRETS_PATH_DEFAULT);
-        String masterUrl = getConfig("KUBERNETES_SERVICE_HOST", null);
-        String caCert = Files.readString(Paths.get(serviceAccountPath, "ca.crt"));
-        String token = Files.readString(Paths.get(serviceAccountPath, "token"));
-        String namespace = Files.readString(Paths.get(serviceAccountPath, "namespace"));
-        log.debug("""
-            K8sClientInstaller:
-              Master URL: {}
-                CA cert.:
-            {}
-                   Token: {}
-               Namespace: {}""",
-                masterUrl, caCert.trim(), passwordUtil.encodePassword(token), namespace);
-
-        // Configure and start Kubernetes API client
-        Config config = new ConfigBuilder()
-                .withMasterUrl(masterUrl)
-                .withCaCertData(caCert)
-                .withOauthToken(token)
-                .build();
-        try (KubernetesClient client = new KubernetesClientBuilder().withConfig(config).build()) {
+        try (K8sClient client = K8sClient.create().dryRun(dryRun)) {
             // Prepare ems client config map
-            createEmsClientConfigMap(dryRun, client, namespace);
+            createEmsClientConfigMap(client);
 
             // Prepare application config map
-            createAppConfigMap(dryRun, client, namespace);
+            createAppConfigMap(client);
 
-            // Deploy ems client daemonset
-            createEmsClientDaemonSet(dryRun, client, namespace);
+            // Deploy ems client DaemonSet
+            createEmsClientDaemonSet(client);
 
             task.getNodeRegistryEntry().nodeInstallationComplete(null);
         }
     }
 
-    private void createEmsClientConfigMap(boolean dryRun, KubernetesClient client, String namespace) {
-        log.debug("K8sClientInstaller.createEmsClientConfigMap: BEGIN: dry-run={}, namespace={}", dryRun, namespace);
-
+    private void createEmsClientConfigMap(K8sClient client) {
         // Get ems client configmap name
         String configMapName = getConfig("EMS_CLIENT_CONFIG_MAP_NAME", EMS_CLIENT_CONFIG_MAP_NAME_DEFAULT);
-        log.debug("K8sClientInstaller:         configMap: name: {}", configMapName);
+        log.debug("K8sClientInstaller.createEmsClientConfigMap: name: {}", configMapName);
 
         // Get ems client configuration
-        Map<String, String> configMapMap = configWriteService
+        Map<String, String> configMapData = configWriteService
                 .getConfigFile(EmsConstant.EMS_CLIENT_K8S_CONFIG_MAP_FILE).getContentMap();
-        log.debug("K8sClientInstaller:         configMap: data:\n{}", configMapMap);
+        log.debug("K8sClientInstaller.createEmsClientConfigMap: data:\n{}", configMapData);
 
         // Create ems client configmap
-        Resource<ConfigMap> configMapResource = client.configMaps()
-                .inNamespace(namespace)
-                .resource(new ConfigMapBuilder()
-                        .withNewMetadata().withName(configMapName).endMetadata()
-                        .addToData("creationTimestamp", Long.toString(Instant.now().getEpochSecond()))
-                        .addToData(configMapMap)
-                        .build());
-        log.trace("K8sClientInstaller:  ConfigMap to create: {}", configMapResource);
-        if (!dryRun) {
-            ConfigMap configMap = configMapResource.serverSideApply();
-            log.debug("K8sClientInstaller:    ConfigMap created: {}", configMap);
-        } else {
-            log.warn("K8sClientInstaller: DRY-RUN: Didn't create ems client configmap");
-        }
+        client.createConfigMap(configMapName, configMapData);
     }
 
-    private void createAppConfigMap(boolean dryRun, KubernetesClient client, String namespace) {
-        log.debug("K8sClientInstaller.createAppConfigMap: BEGIN: dry-run={}, namespace={}", dryRun, namespace);
-
+    private void createAppConfigMap(K8sClient client) {
         // Get ems client configmap name
         String configMapName = getConfig("APP_CONFIG_MAP_NAME", APP_CONFIG_MAP_NAME_DEFAULT);
-        log.debug("K8sClientInstaller:     App configMap: name: {}", configMapName);
+        log.debug("K8sClientInstaller.createAppConfigMap: name: {}", configMapName);
 
         // Get App ems-client-related configuration
-        Map<String, String> configMapMap = new LinkedHashMap<>();
-        configMapMap.put("BROKER_USERNAME", brokerUsername);
-        configMapMap.put("BROKER_PASSWORD", brokerPassword);
-        log.debug("K8sClientInstaller:     App configMap: data:\n{}", configMapMap);
+        Map<String, String> configMapData = new LinkedHashMap<>();
+        configMapData.put("BROKER_USERNAME", brokerUsername);
+        configMapData.put("BROKER_PASSWORD", brokerPassword);
+        log.debug("K8sClientInstaller:     App configMap: data:\n{}", configMapData);
 
         // Create ems client configmap
-        Resource<ConfigMap> configMapResource = client.configMaps()
-                .inNamespace(namespace)
-                .resource(new ConfigMapBuilder()
-                        .withNewMetadata().withName(configMapName).endMetadata()
-                        .addToData("creationTimestamp", Long.toString(Instant.now().getEpochSecond()))
-                        .addToData(configMapMap)
-                        .build());
-        log.trace("K8sClientInstaller:  App ConfigMap to create: {}", configMapResource);
-        if (!dryRun) {
-            ConfigMap configMap = configMapResource.serverSideApply();
-            log.debug("K8sClientInstaller:    App ConfigMap created: {}", configMap);
-        } else {
-            log.warn("K8sClientInstaller: DRY-RUN: Didn't create App ems client configmap");
-        }
+        client.createConfigMap(configMapName, configMapData);
     }
 
-    private void createEmsClientDaemonSet(boolean dryRun, KubernetesClient client, String namespace) throws IOException {
-        log.debug("K8sClientInstaller.createEmsClientDaemonSet: BEGIN: dry-run={}, namespace={}", dryRun, namespace);
+    private void createEmsClientDaemonSet(K8sClient client) throws IOException {
+        log.debug("K8sClientInstaller.createEmsClientDaemonSet: BEGIN");
 
+        // Get ems client daemonset replacement values
+        String daemonSetName = getConfig("EMS_CLIENT_DAEMONSET_NAME", EMS_CLIENT_DAEMONSET_NAME_DEFAULT);
         String resourceName = getConfig("EMS_CLIENT_DAEMONSET_SPECIFICATION_FILE", EMS_CLIENT_DAEMONSET_SPECIFICATION_FILE_DEFAULT);
         Map<String,String> values = Map.of(
-                "EMS_CLIENT_DAEMONSET_NAME", getConfig("EMS_CLIENT_DAEMONSET_NAME", EMS_CLIENT_DAEMONSET_NAME_DEFAULT),
+                "EMS_CLIENT_DAEMONSET_NAME", daemonSetName,
                 "EMS_CLIENT_DAEMONSET_IMAGE_REPOSITORY", getConfig("EMS_CLIENT_DAEMONSET_IMAGE_REPOSITORY", EMS_CLIENT_DAEMONSET_IMAGE_REPOSITORY_DEFAULT),
                 "EMS_CLIENT_DAEMONSET_IMAGE_TAG", getConfig("EMS_CLIENT_DAEMONSET_IMAGE_TAG", EMS_CLIENT_DAEMONSET_IMAGE_TAG_DEFAULT),
                 "EMS_CLIENT_DAEMONSET_IMAGE_PULL_POLICY", getConfig("EMS_CLIENT_DAEMONSET_IMAGE_PULL_POLICY", EMS_CLIENT_DAEMONSET_IMAGE_PULL_POLICY_DEFAULT),
@@ -227,34 +160,9 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
                 "EMS_CLIENT_KEYSTORE_SECRET", getConfig("EMS_CLIENT_KEYSTORE_SECRET", ""),
                 "EMS_CLIENT_TRUSTSTORE_SECRET", getConfig("EMS_CLIENT_TRUSTSTORE_SECRET", "")
         );
-        log.debug("K8sClientInstaller: resourceName: {}", namespace);
         log.debug("K8sClientInstaller:       values: {}", values);
 
-        String spec;
-        try (InputStream inputStream = K8sClientInstaller.class.getResourceAsStream(resourceName)) {
-            spec = StreamUtils.copyToString(inputStream, Charset.defaultCharset());
-            log.trace("K8sClientInstaller: Ems client daemonset spec BEFORE:\n{}", spec);
-            spec = StringSubstitutor.replace(spec, values);
-            log.trace("K8sClientInstaller: Ems client daemonset spec AFTER :\n{}", spec);
-        }
-
-        if (StringUtils.isNotBlank(spec)) {
-            try (InputStream stream = new ByteArrayInputStream(spec.getBytes(StandardCharsets.UTF_8))) {
-                // Load a DaemonSet object
-                DaemonSet daemonSet = client.apps().daemonSets().load(stream).item();
-                log.debug("K8sClientInstaller: DaemonSet to create: {} :: {}", daemonSet.hashCode(), daemonSet.getMetadata().getName());
-
-                // Deploy the DaemonSet
-                if (!dryRun) {
-                    DaemonSet ds = client.apps().daemonSets().inNamespace(namespace).resource(daemonSet).create();
-                    log.debug("K8sClientInstaller:   DaemonSet created: {} :: {}", ds.hashCode(), ds.getMetadata().getName());
-                } else {
-                    log.warn("K8sClientInstaller: DRY-RUN: Didn't create ems client daemonset");
-                }
-            }
-        } else {
-            log.warn("K8sClientInstaller: ERROR: Ems client daemonset spec is empty");
-        }
+        client.createDaemonSet(null, resourceName, values);
     }
 
     @Override

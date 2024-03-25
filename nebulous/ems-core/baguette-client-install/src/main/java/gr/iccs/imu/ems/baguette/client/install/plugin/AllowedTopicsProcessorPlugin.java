@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.iccs.imu.ems.baguette.client.install.ClientInstallationTask;
 import gr.iccs.imu.ems.baguette.client.install.InstallationContextProcessorPlugin;
 import gr.iccs.imu.ems.translate.model.Monitor;
+import gr.iccs.imu.ems.util.ConfigWriteService;
 import gr.iccs.imu.ems.util.EmsConstant;
 import gr.iccs.imu.ems.util.StrUtil;
 import lombok.Data;
@@ -109,17 +110,30 @@ public class AllowedTopicsProcessorPlugin implements InstallationContextProcesso
                 collectorConfigsStr = mapper
                         .writerWithDefaultPrettyPrinter()
                         .writeValueAsString(collectorConfigs);
-                if (StringUtils.isBlank(collectorConfigsStr))
-                    collectorConfigsStr = null;
             }
         } catch (JsonProcessingException e) {
             log.error("AllowedTopicsProcessorPlugin: Task #{}: EXCEPTION while processing sensor configs. Skipping them.\n",
                     taskCounter, e);
         }
+        if (StringUtils.isBlank(collectorConfigsStr))
+            collectorConfigsStr = "{ }";
         log.debug("AllowedTopicsProcessorPlugin: Task #{}: Pull-Sensor collector configurations String: \n{}", taskCounter, collectorConfigsStr);
 
         task.getNodeRegistryEntry().getPreregistration().put(EmsConstant.COLLECTOR_ALLOWED_TOPICS_VAR, allowedTopics);
         task.getNodeRegistryEntry().getPreregistration().put(EmsConstant.COLLECTOR_CONFIGURATIONS_VAR, collectorConfigsStr);
+
+        // Store collector configurations in config service
+        try {
+            ConfigWriteService.getInstance()
+                    .getOrCreateConfigFile(
+                            EmsConstant.EMS_CLIENT_K8S_CONFIG_MAP_FILE,
+                            EmsConstant.EMS_CLIENT_K8S_CONFIG_MAP_FORMAT)
+                    .put(EmsConstant.COLLECTOR_CONFIGURATIONS_VAR, collectorConfigsStr);
+        } catch (Exception e) {
+            log.error("BaguetteServer.startServer(): Failed to store connection info in ems-client-config-map: {}, Exception: ",
+                    EmsConstant.EMS_CLIENT_K8S_CONFIG_MAP_FILE, e);
+        }
+
         log.debug("AllowedTopicsProcessorPlugin: Task #{}: processBeforeInstallation: END", taskCounter);
     }
 

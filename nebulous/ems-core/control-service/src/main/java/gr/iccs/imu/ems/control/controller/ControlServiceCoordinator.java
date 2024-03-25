@@ -578,6 +578,7 @@ public class ControlServiceCoordinator implements InitializingBean {
                 // Retrieve constant names from '_TC.MVV_CP' and values from a given App Exec model
                 log.debug("ControlServiceCoordinator.retrieveConstantsFromAppExecModel(): Looking for MVV_CP's: {}", _TC.getMvvCP());
                 constants = mvvService.getMatchingMetricVariableValues(appExecModelId, _TC);
+                if (constants==null) constants = mvvService.getMetricVariableValues(appExecModelId, null);
                 log.debug("ControlServiceCoordinator.retrieveConstantsFromAppExecModel(): MVVs retrieved from App Exec model: app-exec-model-id={}, MVVs={}", appExecModelId, constants);
 
             } catch (Exception ex) {

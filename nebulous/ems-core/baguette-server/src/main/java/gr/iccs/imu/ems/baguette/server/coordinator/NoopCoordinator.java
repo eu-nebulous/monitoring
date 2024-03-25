@@ -92,10 +92,10 @@ public class NoopCoordinator implements ServerCoordinator {
                                 ? ". NRE: %s".formatted(o)
                                 : ". Object: %s".formatted(o)) );
         if (checkStarted && !started) {
-            log.warn("{}: {}(): Coordinator has not been started{}", className, methodName, str);
+            log.warn("{}: {}(): Coordinator has not been started{}\n", className, methodName, str, new RuntimeException("DEBUG EXCEPTION"));
         } else
         if (!checkStarted && started) {
-            log.warn("{}: {}(): Coordinator is already running{}", className, methodName, str);
+            log.warn("{}: {}(): Coordinator is already running{}\n", className, methodName, str, new RuntimeException("DEBUG EXCEPTION"));
         } else {
             log.debug("{}: {}(): Method invoked{}", className, methodName, str);
         }

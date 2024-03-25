@@ -9,6 +9,7 @@
 package eu.nebulous.ems.translate.generate;
 
 import eu.nebulous.ems.translate.NebulousEmsTranslator;
+import eu.nebulous.ems.translate.analyze.AnalysisUtils;
 import gr.iccs.imu.ems.brokercep.cep.MathUtil;
 import gr.iccs.imu.ems.translate.TranslationContext;
 import gr.iccs.imu.ems.translate.model.*;
@@ -916,6 +917,15 @@ public class RuleGenerator implements InitializingBean {
             //XXX: EPL does not support XOR event patterns:
             // if ("XOR".equalsIgnoreCase(camelStr)) return "XOR";
             throw new IllegalArgumentException(String.format("Illegal argument in 'camelStr': MapType=%s, ElemType=%s, camel-str=%s", mapType, elemType, camelStr));
+        }
+        if (MapType.UNIT == mapType && ElemType.TIME == elemType) {
+            try {
+                String unit = AnalysisUtils.normalizeTimeUnit(camelStr).name();
+                if ("MILLIS".equalsIgnoreCase(unit)) unit = "MILLISECONDS";
+                return unit;
+            } catch (Exception e) {
+                throw new IllegalArgumentException(String.format("Illegal argument in 'camelStr': MapType=%s, ElemType=%s, camel-str=%s", mapType, elemType, camelStr), e);
+            }
         }
         return camelStr.toUpperCase().trim();
     }

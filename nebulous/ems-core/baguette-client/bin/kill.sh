@@ -16,7 +16,8 @@ BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )
 
 # Kill Baguette client
 #PID=`jps | grep BaguetteClient | cut -d " " -f 1`
-PID=`ps -ef |grep java |grep BaguetteClient | cut -c 10-20`
+#PID=`ps -ef |grep java |grep BaguetteClient | cut -c 10-20`
+PID=`ps -ef |grep java |grep BaguetteClient | tr -s ' ' | cut -d ' ' -f 2`
 if [ "$PID" != "" ]
 then
 	echo "Killing baguette client (pid: $PID)"

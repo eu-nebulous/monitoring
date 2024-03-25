@@ -1,3 +1,12 @@
+#
+# Copyright (C) 2017-2025 Institute of Communication and Computer Systems (imu.iccs.gr)
+#
+# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0, unless
+# Esper library is used, in which case it is subject to the terms of General Public License v2.0.
+# If a copy of the MPL was not distributed with this file, you can obtain one at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -27,16 +36,25 @@ spec:
       serviceAccountName: {{ include "nebulous-monitoring.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+
+      terminationGracePeriodSeconds: 10
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            {{- range .Values.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
           ports:
-            - name: http
-              containerPort: 8080
-              protocol: TCP
+            {{- range .Values.ports }}
+            - name: {{ .name }}
+              containerPort: {{ .containerPort }}
+              protocol: {{ .protocol }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /
@@ -59,3 +77,28 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+
+
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nebulous-monitoring-role-binding
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "nebulous-monitoring.serviceAccountName" . }}
+#    namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: nebulous-monitoring-role
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nebulous-monitoring-role
+# Benefit of using RBAC over giving your personal access token as a secret to your application: You can pinpoint which access you want to allow
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services"]
+    verbs: ["get", "list", "watch"]

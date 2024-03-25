@@ -80,7 +80,7 @@ public class PredictionInfoBeaconPlugin implements BeaconPlugin {
         log.debug("Topic Beacon: transmitPredictionInfo: Metric Contexts for prediction: {}", metricContexts);
 
         // Skip event sending if payload is empty
-        if (StringUtils.isBlank(metricContexts)) {
+        if (StringUtils.isBlank(metricContexts) || StringUtils.equalsIgnoreCase(metricContexts, "null")) {
             log.debug("Topic Beacon: transmitSloViolatorInfo: Payload is empty. Not sending event");
             return;
         }

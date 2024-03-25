@@ -1,0 +1,51 @@
+#
+# Copyright (C) 2017-2025 Institute of Communication and Computer Systems (imu.iccs.gr)
+#
+# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0.
+# If a copy of the MPL was not distributed with this file, you can obtain one at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+
+#
+#  Instructions Set for deploying EMS Server (EPM)
+#  at a Nebulous K8S app. cluster
+#
+
+---
+os: LINUX
+description: EPM deployment at application cluster
+condition: " '${APPLICATION_ID:-na}' ne 'na'  &&  '${APPLICATION_ID:-na}' != '' "
+instructions:
+  - description: Check if EPM is already deployed at app. cluster
+    taskType: CHECK
+    command: '[[ $( helm list |grep ems-server |wc -l ) > 0 ]] && exit 99 || exit 0'
+    executable: false
+    exitCode: 99
+    match: true
+    message: EPM is already deployed at app. cluster
+  - description: Copy-and-process EMS server values.yaml to node
+    taskType: FILE
+    localFileName: '${EMS_CONFIG_DIR}/app-ems-server/'
+    fileName: './'
+    executable: false
+    exitCode: 0
+    match: false
+  - description: Deploying EPM at app. cluster...
+    taskType: LOG
+    message: Deploying EPM at app. cluster...
+  - description: Run Helm chart for EPM deployment
+    taskType: CMD
+    command: >
+      helm repo add ems https://jmarchel7bulls.github.io/helm-charts/ &&
+      helm repo update &&
+      helm install ems ems/ems-server --version 0.1.0  -f ./values.yaml
+    executable: false
+    exitCode: 0
+    match: false
+    executionTimeout: 300000
+  - description: Print running pods
+    taskType: CMD
+    command: 'KUBECONFIG=~/.kube/config  kubectl get pods -o wide'
+    executable: false
+    exitCode: 0
+    match: false

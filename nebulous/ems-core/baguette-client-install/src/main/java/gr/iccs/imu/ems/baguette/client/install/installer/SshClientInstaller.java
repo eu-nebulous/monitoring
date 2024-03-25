@@ -9,7 +9,10 @@
 
 package gr.iccs.imu.ems.baguette.client.install.installer;
 
-import gr.iccs.imu.ems.baguette.client.install.*;
+import gr.iccs.imu.ems.baguette.client.install.ClientInstallationProperties;
+import gr.iccs.imu.ems.baguette.client.install.ClientInstallationTask;
+import gr.iccs.imu.ems.baguette.client.install.ClientInstallerPlugin;
+import gr.iccs.imu.ems.baguette.client.install.SshConfig;
 import gr.iccs.imu.ems.baguette.client.install.instruction.INSTRUCTION_RESULT;
 import gr.iccs.imu.ems.baguette.client.install.instruction.Instruction;
 import gr.iccs.imu.ems.baguette.client.install.instruction.InstructionsService;
@@ -33,6 +36,8 @@ import org.apache.sshd.mina.MinaServiceFactoryFactory;
 import org.apache.sshd.scp.client.DefaultScpClientCreator;
 import org.apache.sshd.scp.client.ScpClient;
 import org.apache.sshd.scp.client.ScpClientCreator;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.jcajce.spec.OpenSSHPrivateKeySpec;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
@@ -47,8 +52,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.*;
+import java.security.interfaces.RSAPrivateCrtKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.RSAPublicKeySpec;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.function.Function;
@@ -255,10 +262,14 @@ public class SshClientInstaller implements ClientInstallerPlugin {
         //PrivateKey privKey = kf.generatePrivate(keySpecPKCS8);
     }
 
-    private KeyPair getKeyPairFromPEM(String pemStr) throws IOException {
+    private KeyPair getKeyPairFromPEM(String pemStr) {
         // Load the PEM file containing the private key
         log.trace("SshClientInstaller: getKeyPairFromPEM: pemStr: {}", pemStr);
         pemStr = pemStr.replace("\\n", "\n");
+
+        if (StringUtils.startsWith(pemStr, "-----BEGIN OPENSSH PRIVATE KEY-----"))
+            return getOpenSSHKeyPairFromPEM(pemStr);
+
         try (StringReader keyReader = new StringReader(pemStr); PEMParser pemParser = new PEMParser(keyReader)) {
             // Parse the PEM encoded private key
             Object pemObject = pemParser.readObject();
@@ -274,6 +285,42 @@ public class SshClientInstaller implements ClientInstallerPlugin {
                 log.warn("SshClientInstaller: getKeyPairFromPEM: Failed to parse PEM private key");
                 throw new RuntimeException("Failed to parse PEM private key");
             }
+        } catch (Exception e) {
+            log.warn("SshClientInstaller: getKeyPairFromPEM: Failed to parse private key from PEM: ", e);
+            throw new RuntimeException("Failed to parse private key from PEM", e);
+        }
+    }
+
+    private KeyPair getOpenSSHKeyPairFromPEM(String pemStr) {
+        try {
+            log.trace("SshClientInstaller: getOpenSSHKeyPairFromPEM: BEGIN: pemStr:\n{}", pemStr);
+            PemReader pemReader = new PemReader(new StringReader(pemStr));
+            PemObject pemObject = pemReader.readPemObject();
+            log.trace("SshClientInstaller: getOpenSSHKeyPairFromPEM: pemObject: {}", pemObject);
+            byte[] pemContent = pemObject.getContent();
+
+            OpenSSHPrivateKeySpec openSshRsaPrivateSpec = new OpenSSHPrivateKeySpec(pemContent);
+            log.trace("SshClientInstaller: getOpenSSHKeyPairFromPEM: openSshRsaPrivateSpec: {}", openSshRsaPrivateSpec);
+
+            KeyFactory keyPairFactory = KeyFactory.getInstance("RSA", "BC");
+            PrivateKey privateKey = keyPairFactory.generatePrivate(openSshRsaPrivateSpec);
+            log.trace("SshClientInstaller: getOpenSSHKeyPairFromPEM: privateKey: class={}, object={}", privateKey.getClass(), privateKey);
+
+            RSAPrivateCrtKey rsaPrivateCrtKey = (RSAPrivateCrtKey) privateKey;
+            RSAPublicKeySpec publicKeySpec = new java.security.spec.RSAPublicKeySpec(
+                    rsaPrivateCrtKey.getModulus(), rsaPrivateCrtKey.getPublicExponent());
+            log.trace("SshClientInstaller: getOpenSSHKeyPairFromPEM: publicKeySpec: {}", publicKeySpec);
+            PublicKey publicKey = keyPairFactory.generatePublic(publicKeySpec);
+            log.trace("SshClientInstaller: getOpenSSHKeyPairFromPEM: publicKey: {}", publicKey);
+
+            KeyPair keyPair = new KeyPair(publicKey, privateKey);
+            log.trace("SshClientInstaller: getOpenSSHKeyPairFromPEM: END: keyPair: {}", keyPair);
+
+            return keyPair;
+
+        } catch (Exception e) {
+            log.warn("SshClientInstaller: getOpenSSHKeyPairFromPEM: Failed to parse private key from PEM: ", e);
+            throw new RuntimeException("Failed to parse OpenSSH private key from PEM", e);
         }
     }
 

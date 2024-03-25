@@ -8,50 +8,80 @@
 
 package eu.nebulous.ems.service;
 
+import eu.nebulous.ems.translate.NebulousEmsTranslatorProperties;
 import eu.nebulouscloud.exn.core.Consumer;
 import eu.nebulouscloud.exn.core.Context;
 import eu.nebulouscloud.exn.core.Handler;
 import eu.nebulouscloud.exn.core.Publisher;
+import gr.iccs.imu.ems.control.controller.ControlServiceCoordinator;
+import gr.iccs.imu.ems.control.controller.ControlServiceRequestInfo;
 import gr.iccs.imu.ems.util.NetUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.qpid.protonj2.client.Message;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationListener;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @Service
 public class EmsBootInitializer extends AbstractExternalBrokerService implements ApplicationListener<ApplicationReadyEvent> {
-	private final ExternalBrokerListenerService listener;
+	private final ApplicationContext applicationContext;
+	private final EmsBootInitializerProperties bootInitializerProperties;
+	private final NebulousEmsTranslatorProperties translatorProperties;
+	private final String appId = System.getenv("APPLICATION_ID");
+	private final AtomicBoolean processingResponse = new AtomicBoolean(false);
+	private ScheduledFuture<?> bootFuture;
 	private Consumer consumer;
 	private Publisher publisher;
 
-	public EmsBootInitializer(ExternalBrokerServiceProperties properties,
-							  ExternalBrokerListenerService listener,
+	public EmsBootInitializer(ApplicationContext applicationContext,
+							  EmsBootInitializerProperties bootInitializerProperties,
+							  NebulousEmsTranslatorProperties translatorProperties,
+							  ExternalBrokerServiceProperties properties,
 							  TaskScheduler scheduler)
 	{
 		super(properties, scheduler);
-		this.listener = listener;
+		this.applicationContext = applicationContext;
+		this.bootInitializerProperties = bootInitializerProperties;
+		this.translatorProperties = translatorProperties;
 	}
 
 	@Override
 	public void onApplicationEvent(ApplicationReadyEvent event) {
-		if (! properties.isEnabled()) {
+		if (StringUtils.isBlank(appId)) {
+			log.warn("===================> EMS is ready -- Application Id is blank. EMS Boot disabled");
+			return;
+		}
+		if (! bootInitializerProperties.isEnabled()) {
 			log.warn("===================> EMS is ready -- EMS Boot disabled due to configuration");
 			return;
 		}
-		log.info("===================> EMS is ready -- Scheduling EMS Boot message");
+		if (! properties.isEnabled()) {
+			log.warn("===================> EMS is ready -- EMS Boot disabled because External broker service is disabled");
+			return;
+		}
+		log.info("===================> EMS is ready -- Scheduling EMS Boot message -- App Id: {}", appId);
 
 		// Start connector used for EMS Booting
 		startConnector();
 
 		// Schedule sending EMS Boot message
-		taskScheduler.schedule(this::sendEmsBootReadyEvent, Instant.now().plusSeconds(1));
+		bootFuture = taskScheduler.scheduleAtFixedRate(this::sendEmsBootReadyEvent,
+				Instant.now().plus(bootInitializerProperties.getInitialWait()), bootInitializerProperties.getRetryPeriod());
 	}
 
 	private void startConnector() {
@@ -69,10 +99,10 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 	}
 
 	protected void sendEmsBootReadyEvent() {
-//XXX:TODO: Work in PROGRESS...
 		Map<String, String> message = Map.of(
-				"internal-address", NetUtil.getDefaultIpAddress(),
-				"public-address", NetUtil.getPublicIpAddress(),
+				"application", appId,
+//				"internal-address", NetUtil.getDefaultIpAddress(),
+//				"public-address", NetUtil.getPublicIpAddress(),
 				"address", NetUtil.getIpAddress()
 		);
 		log.debug("ExternalBrokerPublisherService: Sending message to EMS Boot: {}", message);
@@ -81,19 +111,73 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 	}
 
 	protected void processEmsBootResponseMessage(Map body) {
+		if (! processingResponse.compareAndSet(false, true)) {
+			log.warn("EmsBootInitializer: A previous EMS Boot response is still being processed. Ignoring this one.");
+			return;
+		}
+
 		try {
 			// Process EMS Boot Response message
 			String appId = body.get("application").toString();
-			String modelStr = body.get("yaml").toString();
-			log.info("EmsBootInitializer: Received a new EMS Boot Response: App-Id: {}, Model:\n{}", appId, modelStr);
+			String modelStr = body.get("metric-model").toString();
+			Map<String,String> bindingsMap = (Map) body.get("bindings");
+			log.info("""
+					EmsBootInitializer: Received an EMS Boot Response:
+					    App-Id: {}
+					  Bindings: {}
+					     Model: {}
+					""", appId, bindingsMap, modelStr);
 
 			try {
-				listener.processMetricModel(appId, modelStr, null);
+				// Process metric model and bindings
+				processMetricModel(appId, modelStr);
+				processBindings(appId, bindingsMap);
+
+				// Stop further EMS Boot requests
+				if (bootFuture!=null && ! bootFuture.isDone())
+					bootFuture.cancel(true);
 			} catch (Exception e) {
 				log.warn("EmsBootInitializer: EXCEPTION while processing Metric Model for: app-id={} -- Exception: ", appId, e);
 			}
 		} catch (Exception e) {
 			log.warn("EmsBootInitializer: EXCEPTION while processing EMS Boot Response message: ", e);
 		}
+
+		processingResponse.set(false);
+	}
+
+	public void processBindings(String appId, Map<String, String> bindingsMap) {
+		applicationContext.getBean(MvvService.class).setBindings(bindingsMap);
+		log.info("Set MVV bindings to: {}", bindingsMap);
+	}
+
+	public void processMetricModel(String appId, String modelStr) throws IOException {
+		// If 'model' string is provided, store it in a file
+		String modelFile;
+		if (StringUtils.isNotBlank(modelStr)) {
+			modelFile = getModelFile(appId);
+			storeModel(modelFile, modelStr);
+		} else {
+			log.warn("ExternalBrokerListenerService: Parameters 'modelStr' and 'modelFile' are both blank");
+			throw new IllegalArgumentException("Parameters 'modelStr' and 'modelFile' are both blank");
+		}
+
+		// Call control-service to process model, also pass a callback to get the result
+		applicationContext.getBean(ControlServiceCoordinator.class).processAppModel(modelFile, null,
+				ControlServiceRequestInfo.create(appId, null, null, null,
+						(result) -> {
+							// Send message with the processing result
+							log.info("Metric model processing result: {}", result);
+						}));
+	}
+
+	private String getModelFile(String appId) {
+		return String.format("model-%s--%d.yml", appId, System.currentTimeMillis());
+	}
+
+	private void storeModel(String fileName, String modelStr) throws IOException {
+		Path path = Paths.get(translatorProperties.getModelsDir(), fileName);
+		Files.writeString(path, modelStr);
+		log.info("ExternalBrokerListenerService: Stored metric model in file: {}", path);
 	}
 }

@@ -15,7 +15,6 @@ import gr.iccs.imu.ems.control.properties.ControlServiceProperties;
 import gr.iccs.imu.ems.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.catalina.connector.Connector;
 import org.springframework.boot.Banner;
 import org.springframework.boot.ExitCodeGenerator;
 import org.springframework.boot.SpringApplication;
@@ -24,10 +23,7 @@ import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfi
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.ApplicationPidFileWriter;
-import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
-import org.springframework.boot.web.servlet.server.ServletWebServerFactory;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -88,28 +84,6 @@ public class ControlServiceApplication {
                         "message", "EMS server initialized in "+(initEndTime-initStartTime)+"ms",
                         "timestamp", System.currentTimeMillis()
                 ), applicationContext.getBean(ControlServiceApplication.class));
-    }
-
-    @Bean
-    public ServletWebServerFactory servletWebServerFactory() {
-        return new TomcatServletWebServerFactory() {
-            protected void customizeConnector(Connector connector) {
-                if (this.getSsl() != null && this.getSsl().isEnabled()) {
-                    try {
-                        log.debug("TomcatServletWebServerFactory: ControlServiceProperties: {}", properties);
-                        log.debug("TomcatServletWebServerFactory: Keystore password: {}", passwordUtil.encodePassword(properties.getSsl().getKeystorePassword()));
-                        log.debug("TomcatServletWebServerFactory: Truststore password: {}", passwordUtil.encodePassword(properties.getSsl().getTruststorePassword()));
-
-                        log.debug("TomcatServletWebServerFactory: Initializing HTTPS keystore, truststore and certificate...");
-                        KeystoreUtil.initializeKeystoresAndCertificate(properties.getSsl(), passwordUtil);
-                        log.debug("TomcatServletWebServerFactory: Initializing HTTPS keystore, truststore and certificate... done");
-                    } catch (Exception e) {
-                        log.error("TomcatServletWebServerFactory: EXCEPTION while initializing HTTPS keystore, truststore and certificate:\n", e);
-                    }
-                }
-                super.customizeConnector(connector);
-            }
-        };
     }
 
     public synchronized static void exitApp(int exitCode, long gracePeriod) {

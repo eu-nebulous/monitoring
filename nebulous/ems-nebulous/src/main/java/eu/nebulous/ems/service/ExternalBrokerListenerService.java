@@ -8,14 +8,10 @@
 
 package eu.nebulous.ems.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import eu.nebulous.ems.translate.NebulousEmsTranslatorProperties;
 import eu.nebulouscloud.exn.core.Consumer;
 import eu.nebulouscloud.exn.core.Context;
 import eu.nebulouscloud.exn.core.Handler;
 import eu.nebulouscloud.exn.core.Publisher;
-import gr.iccs.imu.ems.control.controller.ControlServiceCoordinator;
-import gr.iccs.imu.ems.control.controller.ControlServiceRequestInfo;
 import gr.iccs.imu.ems.control.controller.NodeRegistrationCoordinator;
 import gr.iccs.imu.ems.control.plugin.PostTranslationPlugin;
 import gr.iccs.imu.ems.control.util.TopicBeacon;
@@ -30,9 +26,6 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -44,13 +37,11 @@ import java.util.concurrent.ArrayBlockingQueue;
 public class ExternalBrokerListenerService extends AbstractExternalBrokerService
 		implements PostTranslationPlugin, InitializingBean
 {
-	private final NebulousEmsTranslatorProperties translatorProperties;
 	private final ApplicationContext applicationContext;
 	private final ArrayBlockingQueue<Command> commandQueue = new ArrayBlockingQueue<>(100);
-	private final ObjectMapper objectMapper;
+    private final MvvService mvvService;
 	private List<Consumer> consumers;
 	private Publisher commandsResponsePublisher;
-	private Publisher modelsResponsePublisher;
 	private String applicationId = System.getenv("APPLICATION_ID");
 
 	record Command(String key, String address, Map body, Message message, Context context) {
@@ -59,13 +50,11 @@ public class ExternalBrokerListenerService extends AbstractExternalBrokerService
 	public ExternalBrokerListenerService(ApplicationContext applicationContext,
 										 ExternalBrokerServiceProperties properties,
                                          TaskScheduler taskScheduler,
-										 ObjectMapper objectMapper,
-										 NebulousEmsTranslatorProperties translatorProperties)
+										 MvvService mvvService)
 	{
 		super(properties, taskScheduler);
 		this.applicationContext = applicationContext;
-		this.objectMapper = objectMapper;
-        this.translatorProperties = translatorProperties;
+        this.mvvService = mvvService;
     }
 
 	@Override
@@ -74,12 +63,17 @@ public class ExternalBrokerListenerService extends AbstractExternalBrokerService
 			log.info("ExternalBrokerListenerService: Disabled due to configuration");
 			return;
 		}
+
 		log.info("ExternalBrokerListenerService: Application Id (from Env.): {}", applicationId);
+		if (StringUtils.isBlank(applicationId))
+			log.warn("ExternalBrokerListenerService: APPLICATION_ID env. var. is missing");
+			//throw new IllegalArgumentException("APPLICATION_ID not provided as an env. var");
+
 		if (checkProperties()) {
 			initializeConsumers();
 			initializePublishers();
 			startCommandProcessor();
-			connectToBroker(List.of(commandsResponsePublisher, modelsResponsePublisher), consumers);
+			connectToBroker(List.of(commandsResponsePublisher), consumers);
 			log.info("ExternalBrokerListenerService: Initialized listeners and publishers");
 		} else {
 			log.warn("ExternalBrokerListenerService: Not configured or misconfigured. Will not initialize");
@@ -144,14 +138,13 @@ public class ExternalBrokerListenerService extends AbstractExternalBrokerService
 		// Create consumers for each topic of interest
 		consumers = List.of(
 				new Consumer(properties.getCommandsTopic(), properties.getCommandsTopic(), messageHandler, null, true, true),
-				new Consumer(properties.getModelsTopic(), properties.getModelsTopic(), messageHandler, null, true, true)
+				new Consumer(properties.getSolutionsTopic(), properties.getSolutionsTopic(), messageHandler, applicationId, true, true)
 		);
 		log.info("ExternalBrokerListenerService: created subscribers");
 	}
 
 	private void initializePublishers() {
 		commandsResponsePublisher = new Publisher(properties.getCommandsResponseTopic(), properties.getCommandsResponseTopic(), true, true);
-		modelsResponsePublisher = new Publisher(properties.getModelsResponseTopic(), properties.getModelsResponseTopic(), true, true);
 		log.info("ExternalBrokerListenerService: created publishers");
 	}
 
@@ -182,10 +175,17 @@ public class ExternalBrokerListenerService extends AbstractExternalBrokerService
 			log.info("ExternalBrokerListenerService: Received a command from external broker: {}", command.body);
 			processCommandMessage(command);
 		} else
-		if (properties.getModelsTopic().equals(command.address)) {
-			// Process metric model message
-			log.info("ExternalBrokerListenerService: Received a new Metric Model message from external broker: {}", command.body);
-			processMetricModelMessage(command);
+		if (properties.getSolutionsTopic().equals(command.address)) {
+			// Process new solution message
+			log.info("ExternalBrokerListenerService: Received a new Solution message from external broker: {}", command.body);
+			processSolutionMessage(command);
+		}
+	}
+
+	private void processSolutionMessage(Command command) {
+		if (command.body.get("VariableValues") instanceof Map varValues) {
+			log.info("ExternalBrokerListenerService: New Variable Values: {}", varValues);
+			mvvService.translateAndSetValues(varValues);
 		}
 	}
 
@@ -199,65 +199,6 @@ public class ExternalBrokerListenerService extends AbstractExternalBrokerService
 		log.debug("ExternalBrokerListenerService: Command: {}", commandStr);
 
 		sendResponse(commandsResponsePublisher, appId, "ERROR: ---NOT YET IMPLEMENTED---: "+ command.body);
-	}
-
-	private void processMetricModelMessage(Command command) throws ClientException, IOException {
-		// Get application id
-		String appId = getAppId(command, modelsResponsePublisher);
-		if (appId == null) return;
-
-		// Get model string and/or model file
-		Object modelObj = command.body.getOrDefault("model", null);
-		if (modelObj==null) {
-			modelObj = command.body.getOrDefault("yaml", null);
-		}
-		if (modelObj==null) {
-			modelObj = command.body.getOrDefault("body", null);
-		}
-		String modelFile = command.body.getOrDefault("model-path", "").toString();
-
-		// Check if 'model' or 'model-path' is provided
-		if (modelObj==null && StringUtils.isBlank(modelFile)) {
-			log.warn("ExternalBrokerListenerService: No model found in Metric Model message: {}", command.body);
-			sendResponse(modelsResponsePublisher, appId, "ERROR: No model found in Metric Model message: "+ command.body);
-			return;
-		}
-
-		String modelStr = null;
-		if (modelObj!=null) {
-			log.debug("ExternalBrokerListenerService: modelObj: class={}, object={}", modelObj.getClass(), modelObj);
-			modelStr = (modelObj instanceof String) ? (String) modelObj : modelObj.toString();
-			if (modelObj instanceof String) {
-				modelStr = (String) modelObj;
-			}
-			if (modelObj instanceof Map) {
-				modelStr = objectMapper.writeValueAsString(modelObj);
-			}
-		}
-
-		processMetricModel(appId, modelStr, modelFile);
-	}
-
-	void processMetricModel(String appId, String modelStr, String modelFile) throws IOException {
-		// If 'model' string is provided, store it in a file
-		if (StringUtils.isNotBlank(modelStr)) {
-			modelFile = StringUtils.isBlank(modelFile) ? getModelFile(appId) : modelFile;
-			storeModel(modelFile, modelStr);
-		} else if (StringUtils.isNotBlank(modelStr)) {
-			log.warn("ExternalBrokerListenerService: Parameter 'modelStr' is blank. Trying modelFile: {}", modelFile);
-		} else {
-			log.warn("ExternalBrokerListenerService: Parameters 'modelStr' and 'modelFile' are both blank");
-			throw new IllegalArgumentException("Parameters 'modelStr' and 'modelFile' are both blank");
-		}
-
-		// Call control-service to process model, also pass a callback to get the result
-		applicationContext.getBean(ControlServiceCoordinator.class).processAppModel(modelFile, null,
-				ControlServiceRequestInfo.create(appId, null, null, null,
-						(result) -> {
-							// Send message with the processing result
-							log.info("ExternalBrokerListenerService: Metric model processing result: {}", result);
-							sendResponse(modelsResponsePublisher, appId, result);
-						}));
 	}
 
 	private String getAppId(Command command, Publisher publisher) throws ClientException {
@@ -280,19 +221,9 @@ public class ExternalBrokerListenerService extends AbstractExternalBrokerService
 
 		// Not found 'applicationId'
 		log.warn("ExternalBrokerListenerService: No Application Id found in message: {}", command.body);
-		sendResponse(modelsResponsePublisher, null, "ERROR: No Application Id found in message: "+ command.body);
+		sendResponse(publisher, null, "ERROR: No Application Id found in message: "+ command.body);
 
 		return null;
-	}
-
-	private String getModelFile(String appId) {
-		return String.format("model-%s--%d.yml", appId, System.currentTimeMillis());
-	}
-
-	private void storeModel(String fileName, String modelStr) throws IOException {
-		Path path = Paths.get(translatorProperties.getModelsDir(), fileName);
-		Files.writeString(path, modelStr);
-		log.info("ExternalBrokerListenerService: Stored metric model in file: {}", path);
 	}
 
 	private void sendResponse(Publisher publisher, String appId, Object response) {

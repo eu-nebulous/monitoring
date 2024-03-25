@@ -22,7 +22,10 @@ import lombok.experimental.SuperBuilder;
 // See: eu.melodic.models.interfaces.Interval
 public class Interval extends AbstractInterfaceRootObject {
     @ToString
-    public enum UnitType { DAYS, HOURS, MINUTES, SECONDS, MILLISECONDS, MICROSECONDS, NANOSECONDS }
+    public enum UnitType { DAYS, HOURS, MINUTES, SECONDS, MILLISECONDS, MICROSECONDS, NANOSECONDS,
+        // From ChronoUnits
+        MILLIS, MICROS, NANOS
+    }
 
     private UnitType unit;
     private long period;

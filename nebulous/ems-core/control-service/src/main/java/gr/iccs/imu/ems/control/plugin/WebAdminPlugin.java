@@ -46,8 +46,10 @@ public interface WebAdminPlugin extends Plugin {
         private String url;
         @Builder.Default
         private String method = "GET";
-        private String formId;
-        private RestCallForm form;
+        @Builder.Default
+        private String formId = RestCallForm.EMPTY_FORM.id;
+        @Builder.Default
+        private RestCallForm form = RestCallForm.EMPTY_FORM;
         private int priority;
         private boolean disabled;
     }
@@ -56,6 +58,8 @@ public interface WebAdminPlugin extends Plugin {
     @Builder
     @AllArgsConstructor
     class RestCallForm {
+        public final static RestCallForm EMPTY_FORM = new RestCallForm("_EMPTY_FORM_", List.of());
+
         @NonNull
         private String id;
         @Singular

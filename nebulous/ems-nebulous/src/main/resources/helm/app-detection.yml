@@ -1,0 +1,44 @@
+#
+# Copyright (C) 2017-2025 Institute of Communication and Computer Systems (imu.iccs.gr)
+#
+# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0.
+# If a copy of the MPL was not distributed with this file, you can obtain one at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+
+#
+#  Instructions Set for Identifying the application Id
+#  from Nebulous K8S cluster node labels
+#
+
+---
+os: LINUX
+description: Application identifications from cluster node labels
+instructions:
+  - description: Identifying application from cluster nodes labels...
+    taskType: LOG
+    message: Identifying application from cluster nodes labels...
+  - description: Run 'kubectl' command to get 'app' label
+    taskType: CMD
+    command: "echo $( 
+        KUBECONFIG=~/.kube/config  kubectl get nodes \
+            -o=jsonpath='{range .items[*]}{.metadata.labels.app}{\"\\n\"}{end}' \
+        | sort -u -i |awk NF \
+      ) | grep -v ' ' | tee /tmp/.APP_ID"
+    executable: false
+    exitCode: 0
+    match: false
+
+  - description: Copying result back to EMS server...
+    taskType: DOWNLOAD
+    fileName: /tmp/.APP_ID
+    localFileName: 'logs/app-identification-result.${NODE_ADDRESS}--${TIMESTAMP-FILE}.txt'
+    executable: false
+    exitCode: 0
+    match: false
+    patterns:
+      APPLICATION_ID:  '^\s*(.*)\s*'
+  - description: Application identification results...
+    taskType: LOG
+    message: |-
+      Application Id: ${APPLICATION_ID:-na}

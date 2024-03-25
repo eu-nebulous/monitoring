@@ -87,7 +87,7 @@ public class Instruction extends AbstractInstructionsBase {
                 .build();
    }
 
-    public static Instruction createCheck(@NotNull String command, @NotNull int exitCode, boolean match, String message) {
+    public static Instruction createCheck(@NotNull String command, int exitCode, boolean match, String message) {
         return Instruction.builder()
                 .taskType(INSTRUCTION_TYPE.CHECK)
                 .command(command)
