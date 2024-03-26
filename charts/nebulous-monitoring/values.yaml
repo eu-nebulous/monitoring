@@ -182,9 +182,9 @@ env:
   - name: EXTERNAL_ENABLED
     value: 'true'
   - name: EXTERNAL_BROKER_ADDRESS
-    value: ''
+    value: '158.37.65.194'
   - name: EXTERNAL_BROKER_PORT
-    value: '5672'
+    value: '31609'
   - name: EXTERNAL_BROKER_USERNAME
     value: ''
   - name: EXTERNAL_BROKER_PASSWORD
