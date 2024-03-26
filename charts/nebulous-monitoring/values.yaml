@@ -182,13 +182,13 @@ env:
   - name: EXTERNAL_ENABLED
     value: 'true'
   - name: EXTERNAL_BROKER_ADDRESS
-    value: '158.37.65.194'
+    value: 'nebulous-activemq'
   - name: EXTERNAL_BROKER_PORT
-    value: '31609'
+    value: '5672'
   - name: EXTERNAL_BROKER_USERNAME
-    value: ''
+    value: 'nebulous'
   - name: EXTERNAL_BROKER_PASSWORD
-    value: ''
+    value: 'admin'
 
   - name: EXTERNAL_CONNECTION_INFO_COLLECTION_MODE
     value: 'CONFIG'
