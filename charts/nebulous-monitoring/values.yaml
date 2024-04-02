@@ -195,7 +195,7 @@ env:
   - name: EXTERNAL_BROKER_SERVICE_NAME
     value: 'nebulous-activemq'
   - name: EXTERNAL_BROKER_SERVICE_NAMESPACE
-    value: 'flux-system'
+    value: 'nebulous-cd'
 
   - name: EXTERNAL_DEPLOY_EMS_CLIENTS_ON_KUBERNETES_ENABLED
     value: 'false'
