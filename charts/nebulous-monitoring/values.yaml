@@ -116,8 +116,6 @@ env:
   - name: EMS_IP_SETTING
     value: 'DEFAULT_IP'
 
-  - name: K8S_WATCHER_ENABLED
-    value: 'false'
   - name: EMS_LOG_REQUESTS
     value: 'false'
   - name: EMS_PRELOAD_APP_MODEL
@@ -180,6 +178,10 @@ env:
 
   # =====  EMS-Nebulous K8S service settings  =====
   - name: K8S_DEPLOY_EMS_CLIENTS_ON_KUBERNETES_ENABLED
+    value: 'false'
+  - name: K8S_ENABLED
+    value: 'false'
+  - name: K8S_WATCHER_ENABLED
     value: 'false'
 
   # =====  External Broker settings  =====
