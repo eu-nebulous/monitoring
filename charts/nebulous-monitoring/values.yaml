@@ -178,6 +178,10 @@ env:
   - name: BOOT_INITIALIZER_ENABLED
     value: 'false'
 
+  # =====  EMS-Nebulous K8S service settings  =====
+  - name: K8S_DEPLOY_EMS_CLIENTS_ON_KUBERNETES_ENABLED
+    value: 'false'
+
   # =====  External Broker settings  =====
   - name: EXTERNAL_ENABLED
     value: 'true'
@@ -196,9 +200,6 @@ env:
     value: 'nebulous-activemq'
   - name: EXTERNAL_BROKER_SERVICE_NAMESPACE
     value: 'nebulous-cd'
-
-  - name: EXTERNAL_DEPLOY_EMS_CLIENTS_ON_KUBERNETES_ENABLED
-    value: 'false'
 
   # =====  Broker settings  =====
   - name: BROKERCEP_ADDITIONAL_BROKER_CREDENTIALS
