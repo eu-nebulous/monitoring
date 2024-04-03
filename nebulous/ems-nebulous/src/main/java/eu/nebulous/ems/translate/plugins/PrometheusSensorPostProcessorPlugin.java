@@ -8,10 +8,9 @@
 
 package eu.nebulous.ems.translate.plugins;
 
+import gr.iccs.imu.ems.translate.model.PullSensor;
 import gr.iccs.imu.ems.translate.model.Sensor;
-import gr.iccs.imu.ems.util.EmsConstant;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,23 +18,21 @@ import java.util.Map;
 
 @Slf4j
 @Service
-public class NetdataPostProcessorPlugin implements SensorPostProcessorPlugin {
-    public final static String NETDATA_TYPE = "netdata";
+public class PrometheusSensorPostProcessorPlugin implements SensorPostProcessorPlugin {
+    public final static List<String> PROMETHEUS_TYPES = List.of("prometheus");
 
     @Override
     public List<String> getSupportedTypes() {
-        return List.of(NETDATA_TYPE);
+        return PROMETHEUS_TYPES;
     }
 
     @Override
     public void postProcessSensor(Sensor sensor, String sensorType, Map<String, Object> sensorSpec) {
-        if (NETDATA_TYPE.equalsIgnoreCase(sensorType)) {
-            Object o = sensor.getConfiguration().get("mapping");
-            if (o instanceof String s && StringUtils.isNotBlank(s)) {
-                if (! sensor.getConfiguration().containsKey(EmsConstant.COLLECTOR_DESTINATION_ALIASES)) {
-                    sensor.getConfiguration().put(EmsConstant.COLLECTOR_DESTINATION_ALIASES, s.trim());
-                }
-            }
+        if (sensorType!=null && PROMETHEUS_TYPES.contains(sensorType.toLowerCase())) {
+            log.trace("PrometheusSensorPostProcessorPlugin: SPEC: {}", sensorSpec);
+            log.trace("PrometheusSensorPostProcessorPlugin: SENSOR: {}", sensor);
+            log.trace("PrometheusSensorPostProcessorPlugin: CONFIG: {}", sensor.getConfiguration());
+            log.trace("PrometheusSensorPostProcessorPlugin: INTERVAL: {}", ((PullSensor)sensor).getInterval());
         }
     }
 }

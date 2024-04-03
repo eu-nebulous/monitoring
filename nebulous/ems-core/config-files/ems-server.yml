@@ -539,6 +539,12 @@ baguette.client.install:
   ### -----------------------------------------
   ### Instruction Set file processing settings
 
+#  installerType: JS_INSTALLER
+#  instructions:
+#    LINUX:
+#      # JS installation scripts
+#      - file:${EMS_CONFIG_DIR}/baguette-client-install/sample.js
+
   instructions:
     LINUX: &install_on_linux
       # Instructions set files - JSON version
@@ -601,6 +607,7 @@ baguette.client.install:
 
   installationContextProcessorPlugins:
     - gr.iccs.imu.ems.baguette.client.install.plugin.AllowedTopicsProcessorPlugin
+    - gr.iccs.imu.ems.baguette.client.install.plugin.CollectorConfigurationsProcessorPlugin
     - gr.iccs.imu.ems.baguette.client.install.plugin.PrometheusProcessorPlugin
 
   clientInstallationReportNodeInfoPatterns:

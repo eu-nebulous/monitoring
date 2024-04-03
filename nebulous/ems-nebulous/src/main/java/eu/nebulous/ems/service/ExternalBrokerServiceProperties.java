@@ -55,8 +55,6 @@ public class ExternalBrokerServiceProperties implements InitializingBean {
     private String emsBootTopic          = NEBULOUS_TOPIC_PREFIX + "ems.boot";
     private String emsBootResponseTopic  = NEBULOUS_TOPIC_PREFIX + "ems.boot.reply";
 
-    private boolean deployEmsClientsOnKubernetesEnabled = true;
-
     @Override
     public void afterPropertiesSet() {
         log.debug("ExternalBrokerServiceProperties: {}", this);

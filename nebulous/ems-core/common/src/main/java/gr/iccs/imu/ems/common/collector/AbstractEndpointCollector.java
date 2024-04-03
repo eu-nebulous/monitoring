@@ -60,6 +60,7 @@ public abstract class AbstractEndpointCollector<T> implements InitializingBean, 
     protected final Map<Class<? extends AbstractEndpointCollector<T>>, Map<String, String>> nodeToNodeEventsMap = new HashMap<>();
 
     protected boolean started;
+    protected boolean autoStartRunner = true;
     protected ScheduledFuture<?> runner;
     protected Set<String> allowedTopics;
     protected Map<String, Set<String>> topicMap;
@@ -119,7 +120,8 @@ public abstract class AbstractEndpointCollector<T> implements InitializingBean, 
         // Schedule collection execution
         errorsMap.clear();
         ignoredNodes.clear();
-        runner = taskScheduler.scheduleWithFixedDelay(this, Duration.ofMillis(properties.getDelay()));
+        if (autoStartRunner)
+            runner = taskScheduler.scheduleWithFixedDelay(this, Duration.ofMillis(properties.getDelay()));
         started = true;
 
         log.info("Collectors::{}: Started", collectorId);
@@ -138,8 +140,10 @@ public abstract class AbstractEndpointCollector<T> implements InitializingBean, 
 
         // Cancel collection execution
         started = false;
-        runner.cancel(true);
-        runner = null;
+        if (runner!=null && ! runner.isDone()) {
+            runner.cancel(true);
+            runner = null;
+        }
         ignoredNodes.values().stream().filter(Objects::nonNull).forEach(task -> task.cancel(true));
         log.info("Collectors::{}: Stopped", collectorId);
     }
@@ -191,7 +195,7 @@ public abstract class AbstractEndpointCollector<T> implements InitializingBean, 
         log.trace("Collectors::{}: Nodes without clients in Zone: {}", collectorId, collectorContext.getNodesWithoutClient());
         log.trace("Collectors::{}: Is Aggregator: {}", collectorId, collectorContext.isAggregator());
         if (collectorContext.isAggregator()) {
-            if (! collectorContext.getNodesWithoutClient().isEmpty()) {
+            if (collectorContext.getNodesWithoutClient()!=null && ! collectorContext.getNodesWithoutClient().isEmpty()) {
                 log.debug("Collectors::{}: Collecting metrics from remote nodes (without EMS client): {}", collectorId,
                         collectorContext.getNodesWithoutClient());
                 for (Object nodeAddress : collectorContext.getNodesWithoutClient()) {
@@ -330,6 +334,9 @@ public abstract class AbstractEndpointCollector<T> implements InitializingBean, 
         long callEndTm = System.currentTimeMillis();
         log.trace("Collectors::{}: ...response: {}", collectorId, response);
 
+        if (response==null) {
+            log.warn("Collectors::{}: Collecting data...No response: {}", collectorId, null);
+        } else
         if (response.getStatusCode()==HttpStatus.OK) {
             T data = response.getBody();
             ProcessingStats stats = new ProcessingStats();

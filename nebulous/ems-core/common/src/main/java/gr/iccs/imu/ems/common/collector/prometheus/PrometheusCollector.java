@@ -86,7 +86,7 @@ public class PrometheusCollector extends AbstractEndpointCollector<String> {
             // Add tags into event properties and/or payload
             Map<String, String> tags = instance.getTags();
             if (tags != null) {
-                if (allowedTags != null && allowedTags.size() > 0) {
+                if (allowedTags != null && ! allowedTags.isEmpty()) {
                     tags.keySet().retainAll(allowedTags);
                 }
 
@@ -107,7 +107,7 @@ public class PrometheusCollector extends AbstractEndpointCollector<String> {
                 log.debug("Collectors::{}: Publishing event to destination: {}", collectorId, destination);
                 updateStats(publishMetricEvent(destination, event, nodeAddress), stats);
             } else
-            if (allowTagsInDestinationName && tags!=null && tags.size()>0) {
+            if (allowTagsInDestinationName && tags!=null && ! tags.isEmpty()) {
                 tags.forEach((name,value) -> {
                     String d = destination.replace("${"+name+"}", value);
                     log.debug("Collectors::{}: Publishing event to tagged destination: {}", collectorId, d);

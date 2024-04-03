@@ -237,10 +237,11 @@ public class BrokerCepConsumer implements MessageListener, InitializingBean, App
         boolean logBrokerMessagesFull = properties.isLogBrokerMessagesFull();
         if (!logBrokerMessages) return;
 
+        long timestamp = System.currentTimeMillis();
         try {
             // Check if message passed is null
             if (message==null) {
-                log.warn("\n==========|  **NULL** MESSAGE RECEIVED");
+                log.warn("\n==========|  **NULL** MESSAGE RECEIVED (timestamp={})", timestamp);
                 return;
             }
 
@@ -255,16 +256,16 @@ public class BrokerCepConsumer implements MessageListener, InitializingBean, App
 
             // Log message data
             if (logBrokerMessagesFull)
-                log.info("\n==========|  RECEIVED A MESSAGE: metricValue={}, dest={}, id={}\n{}", metricValue, jmsDest, jmsMesgId, message);
+                log.info("\n==========|  RECEIVED A MESSAGE: metricValue={}, dest={}, timestamp={}, id={}\n{}", metricValue, jmsDest, timestamp, jmsMesgId, message);
             else
-                log.info("\n==========|  RECEIVED A MESSAGE: metricValue={}, dest={}, id={}", metricValue, jmsDest, jmsMesgId);
+                log.info("\n==========|  RECEIVED A MESSAGE: metricValue={}, dest={}, timestamp={}, id={}", metricValue, jmsDest, timestamp, jmsMesgId);
 
         } catch (Exception e) {
             // Log error
             if (logBrokerMessagesFull)
-                log.warn("\n==========|  RECEIVED A MESSAGE: FAILED TO PARSE. SEE NEXT FOR STACKTRACE\n{}\n\nSTACKTRACE:\n", message, e);
+                log.warn("\n==========|  RECEIVED A MESSAGE: FAILED TO PARSE. SEE NEXT FOR STACKTRACE (timestamp={})\n{}\n\nSTACKTRACE:\n", timestamp, message, e);
             else
-                log.warn("\n==========|  RECEIVED A MESSAGE: FAILED TO PARSE. SEE NEXT FOR STACKTRACE\n\nSTACKTRACE:\n", e);
+                log.warn("\n==========|  RECEIVED A MESSAGE: FAILED TO PARSE. SEE NEXT FOR STACKTRACE (timestamp={})\n\nSTACKTRACE:\n", timestamp, e);
         }
     }
 

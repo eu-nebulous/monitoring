@@ -83,8 +83,6 @@ server-password: ${BAGUETTE_SERVER_PASSWORD}
 
 #collector-classes: gr.iccs.imu.ems.baguette.client.collector.netdata.NetdataCollector
 
-collector-configurations: ${COLLECTOR_CONFIGURATIONS}
-
 collector:
   netdata:
     enable: true
@@ -113,6 +111,8 @@ collector:
     #addTagsAsEventProperties: true
     #addTagsInEventPayload: true
     #throwExceptionWhenExcessiveCharsOccur: true
+
+#collector-configurations: ${COLLECTOR_CONFIGURATIONS}
 
 # -----------------------------------------------------------------------------
 # Cluster settings
@@ -164,6 +164,7 @@ cluster:
 BROKER_URL_PROPERTIES: transport.daemon=true&transport.trace=false&transport.useKeepAlive=true&transport.useInactivityMonitor=false&transport.needClientAuth=${CLIENT_AUTH_REQUIRED}&transport.verifyHostName=true&transport.connectionTimeout=0&transport.keepAlive=true
 CLIENT_AUTH_REQUIRED: false
 CLIENT_URL_PROPERTIES: daemon=true&trace=false&useInactivityMonitor=false&connectionTimeout=0&keepAlive=true
+#BROKER_URL_ADDRESS_INSECURE: 0.0.0.0
 
 brokercep:
   # Broker ports and protocol

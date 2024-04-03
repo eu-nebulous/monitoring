@@ -165,7 +165,7 @@ public class CommandExecutor {
                 String[] s = line.split(" ", 2);
                 log.info("Cluster key from Server: {} {}", s[0], s.length>1 ? passwordUtil.encodePassword(s[1]) : "");
             } else
-                log.info("Server input: {}", line);
+                log.debug("Server input: {}", line);
 
             try {
                 log.trace("communicateWithServer(): Calling execCmd: {}", line);
@@ -737,6 +737,7 @@ public class CommandExecutor {
 
     protected synchronized void setClientConfiguration(String configStr) {
         try {
+            // Update Baguette client configuration
             log.debug("Received serialization of client configuration: {}", configStr);
             ClientConfiguration config = (ClientConfiguration) SerializationUtil.deserializeFromString(configStr);
             ClientConfiguration oldConfig = clientConfiguration;
@@ -744,13 +745,25 @@ public class CommandExecutor {
                 log.debug("Old client config.: {}", oldConfig);
             }
             synchronized (groupings) {
+                if (oldConfig!=null && (config.getCollectorConfigurations()==null || config.getCollectorConfigurations().isEmpty())) {
+                    config.setCollectorConfigurations(oldConfig.getCollectorConfigurations());
+                    log.trace("Copied collector-configs from old client config.: \n{}", oldConfig.getCollectorConfigurations());
+                }
                 clientConfiguration = config;
             }
-            log.info("New client config.: {}", config);
+            log.debug("New client config.: {}", config);
             HashMap<String,ClientConfiguration> payload = new HashMap<>();
             payload.put("new", clientConfiguration);
             payload.put("old", oldConfig);
             eventBus.send(EventConstant.EVENT_CLIENT_CONFIG_UPDATED, payload, this);
+
+            // Update collectors' configurations
+            Map<String, List<Map<String, Serializable>>> collectorConfigs = clientConfiguration.getCollectorConfigurations();
+            applicationContext.getBean(BaguetteClient.class).getCollectorsList().forEach(collector -> {
+                List<Map<String, Serializable>> cc = collectorConfigs.get(collector.getName());
+                if (cc!=null)
+                    collector.setConfiguration(cc);
+            });
 
         } catch (Exception ex) {
             log.error("Exception while deserializing received Client configuration: ", ex);

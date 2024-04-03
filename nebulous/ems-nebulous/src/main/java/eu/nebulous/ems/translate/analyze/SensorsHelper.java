@@ -143,7 +143,7 @@ class SensorsHelper extends AbstractHelper implements InitializingBean {
                 false,
                 String.format("    createPullSensor(): Invalid interval period in configuration: sensor=%s, configuration=%s\n",
                         sensorName, cfgMapWithStr));
-        Interval.UnitType periodUnit = StrUtil.strToEnum(intervalUnitStr,
+        Interval.UnitType periodUnit = StrUtil.strToEnum(intervalUnitStr.toUpperCase(),
                 Interval.UnitType.class,
                 schedule!=null ? Interval.UnitType.valueOf(schedule.getTimeUnit().toUpperCase()) : Interval.UnitType.SECONDS,
                 false,

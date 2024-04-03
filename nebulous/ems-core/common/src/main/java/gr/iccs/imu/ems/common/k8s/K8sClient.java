@@ -10,10 +10,7 @@
 package gr.iccs.imu.ems.common.k8s;
 
 import gr.iccs.imu.ems.util.PasswordUtil;
-import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.ServicePort;
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.DaemonSet;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
@@ -25,7 +22,6 @@ import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringSubstitutor;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.StreamUtils;
 
 import java.io.ByteArrayInputStream;
@@ -37,8 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * EMS Kubernetes (K8S) client
@@ -179,6 +174,62 @@ public class K8sClient implements Closeable {
         );
     }
 
+    public List<Node> getNodesInfo() {
+        log.debug("K8sClient.getNodesInfo: BEGIN");
+        List<Node> nodesList = null;
+        try {
+            nodesList = client.nodes()
+                    .resources()
+                    .map(Resource::item)
+                    .toList();
+        } catch (Exception e) {
+            log.warn("K8sClient.getNodesInfo: EXCEPTION while retrieving nodes: ", e);
+        }
+        log.debug("K8sClient.getNodesInfo: END: {}", nodesList);
+        return nodesList;
+    }
+
+    public List<Pod> getRunningPodsInfo(String namespace) throws IOException {
+        log.debug("K8sClient.getRunningPodsInfo: BEGIN");
+        if (StringUtils.isBlank(namespace))
+            namespace = getNamespace();
+        List<Pod> podsList = null;
+        try {
+            podsList = client.pods()
+                    .inNamespace(namespace)
+                    .resources()
+                    .map(Resource::item)
+                    .filter(pod -> "Running".equalsIgnoreCase(pod.getStatus().getPhase()))
+                    .toList();
+        } catch (Exception e) {
+            log.warn("K8sClient.getRunningPodsInfo: EXCEPTION while retrieving pods: ", e);
+        }
+        log.debug("K8sClient.getRunningPodsInfo: END: {}", podsList);
+        return podsList;
+    }
+
+    public List<Pod> getRunningPodsInfo() {
+        log.debug("K8sClient.getRunningPodsInfo: BEGIN");
+        List<Pod> podsList = null;
+        try {
+            podsList = client.pods()
+                    .inAnyNamespace()
+                    .resources()
+                    .map(Resource::item)
+                    .filter(pod -> "Running".equalsIgnoreCase(pod.getStatus().getPhase()))
+                    .toList();
+        } catch (Exception e) {
+            log.warn("K8sClient.getRunningPodsInfo: EXCEPTION while retrieving pods: ", e);
+        }
+        log.debug("K8sClient.getRunningPodsInfo: END: {}", podsList);
+        return podsList;
+    }
+
+    private String getNamespace() throws IOException {
+        String serviceAccountPath = getConfig("K8S_SERVICE_ACCOUNT_SECRETS_PATH", K8S_SERVICE_ACCOUNT_SECRETS_PATH_DEFAULT);
+        return Files.readString(Paths.get(serviceAccountPath, "namespace"));
+    }
+
     private <T>List<T> emptyIfNull(List<T> list) {
         return list!=null ? list : List.of();
     }
@@ -186,5 +237,35 @@ public class K8sClient implements Closeable {
     @Override
     public void close() throws IOException {
         client.close();
+    }
+
+    // ------------------------------------------------------------------------
+
+    @Data
+    public static class NodeEntry {
+        private final String nodeUid;
+        private final String nodeName;
+
+        public NodeEntry(Node node) {
+            nodeUid = node.getMetadata().getUid();
+            nodeName = node.getMetadata().getName();
+        }
+    }
+
+    @Data
+    public static class PodEntry {
+        private final String podUid;
+        private final String podIP;
+        private final String podName;
+        private final String hostIP;
+        private final Map<String, String> labels;
+
+        public PodEntry(Pod pod) {
+            podUid = pod.getMetadata().getUid();
+            podIP = pod.getStatus().getPodIP();
+            podName = pod.getMetadata().getName();
+            hostIP = pod.getStatus().getHostIP();
+            labels = Collections.unmodifiableMap(pod.getMetadata().getLabels());
+        }
     }
 }

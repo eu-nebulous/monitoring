@@ -15,12 +15,11 @@ import gr.iccs.imu.ems.control.util.TopicBeacon;
 import gr.iccs.imu.ems.translate.TranslationContext;
 import gr.iccs.imu.ems.translate.dag.DAGNode;
 import gr.iccs.imu.ems.translate.model.*;
+import jakarta.annotation.PostConstruct;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import jakarta.annotation.PostConstruct;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -142,10 +141,14 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
     {
         String elementName = constraintNode.getName();
         String elementClassName = constraintNode.getClass().getName();
-        if (constraintNode instanceof MetricConstraint) {
-            MetricConstraint mc = mcMap.get(elementName);
+        if (constraintNode instanceof MetricConstraint mc) {
+            //MetricConstraint mc = mcMap.get(elementName);
+
+            String metricName = mc.getMetricContext().getName();
+            String metricTopic = NebulousEmsTranslator.nameNormalization.apply(metricName);
             return Map.of(
                     "name", NebulousEmsTranslator.nameNormalization.apply(mc.getName()),
+                    "metric", metricTopic,
                     "operator", mc.getComparisonOperator().getOperator(),
                     "threshold", mc.getThreshold());
         } else

@@ -109,6 +109,7 @@ class ConstraintsHelper extends AbstractHelper {
         MetricConstraint metricConstraint = MetricConstraint.builder()
                 .name(constraintNamesKey.name())
                 .object(constraintSpec)
+                //.metricContext(....)          // See next
                 .comparisonOperator(ComparisonOperatorType.byOperator(comparisonOperator))
                 .threshold(threshold)
                 .build();

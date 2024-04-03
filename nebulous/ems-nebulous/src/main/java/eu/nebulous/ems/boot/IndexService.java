@@ -127,12 +127,12 @@ public class IndexService {
 
 	public String getAppMetricModel(@NonNull String appId) throws IOException {
 		String fileName = getAppData(appId).get(ModelsService.MODEL_FILE_KEY);
-		return applicationContext.getBean(ModelsService.class).readModel(fileName);
+		return applicationContext.getBean(ModelsService.class).readFromFile(fileName);
 	}
 
 	public Map<String,String> getAppBindings(@NonNull String appId) throws IOException {
 		String fileName = getAppData(appId).get(ModelsService.BINDINGS_FILE_KEY);
-		String bindingsStr = applicationContext.getBean(ModelsService.class).readModel(fileName);
+		String bindingsStr = applicationContext.getBean(ModelsService.class).readFromFile(fileName);
 		return objectMapper.readValue(bindingsStr, Map.class);
 	}
 

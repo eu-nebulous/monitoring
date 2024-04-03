@@ -14,9 +14,9 @@ ARG RUN_IMAGE_TAG=21.0.1_12-jre
 FROM $RUN_IMAGE:$RUN_IMAGE_TAG
 
 # Install required and optional packages
-RUN apt-get update \
-    && apt-get install -y vim iputils-ping \
-    && rm -rf /var/lib/apt/lists/*
+#RUN apt-get update \
+#    && apt-get install -y vim iputils-ping \
+#    && rm -rf /var/lib/apt/lists/*
 
 # Add an EMS user
 ARG EMS_USER=emsuser

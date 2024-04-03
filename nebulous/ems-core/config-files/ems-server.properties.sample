@@ -549,8 +549,9 @@ baguette.client.install.sessionRecordingDir = ${LOGS_DIR:${EMS_CONFIG_DIR}/../lo
 #baguette.client.install.clientInstallErrorIfVarIsMissing=true
 
 baguette.client.install.installationContextProcessorPlugins=\
-    plugin.install.gr.iccs.imu.ems.baguette.client.AllowedTopicsProcessorPlugin, \
-    plugin.install.gr.iccs.imu.ems.baguette.client.PrometheusProcessorPlugin
+    gr.iccs.imu.ems.baguette.client.install.plugin.AllowedTopicsProcessorPlugin, \
+    gr.iccs.imu.ems.baguette.client.install.plugin.CollectorConfigurationsProcessorPlugin, \
+    gr.iccs.imu.ems.baguette.client.install.plugin.PrometheusProcessorPlugin
 
 baguette.client.install.clientInstallationReportNodeInfoPatterns[0] = ^CPU_.+($|[\s:=])
 baguette.client.install.clientInstallationReportNodeInfoPatterns[1] = ^RAM_($|[\s:=])

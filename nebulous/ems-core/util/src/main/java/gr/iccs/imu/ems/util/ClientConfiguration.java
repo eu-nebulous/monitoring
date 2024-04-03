@@ -12,6 +12,8 @@ package gr.iccs.imu.ems.util;
 import lombok.*;
 
 import java.io.Serializable;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -23,4 +25,5 @@ import java.util.Set;
 @AllArgsConstructor
 public class ClientConfiguration implements Serializable {
     @NonNull private Set<Serializable> nodesWithoutClient;
+    private Map<String, List<Map<String,Serializable>>> collectorConfigurations;  // Collector Type - List of sensors' configuration Maps
 }

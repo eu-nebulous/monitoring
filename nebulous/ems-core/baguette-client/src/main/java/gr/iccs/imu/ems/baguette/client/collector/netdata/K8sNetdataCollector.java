@@ -50,7 +50,7 @@ public class K8sNetdataCollector implements Collector, InitializingBean {
     private final RestClient restClient = RestClient.create();
     private final List<ScheduledFuture<?>> scheduledFuturesList = new LinkedList<>();
     private boolean started;
-    private List<Map<String, Object>> configuration;
+    private List<Map<String, Object>> configurations;
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -66,11 +66,11 @@ public class K8sNetdataCollector implements Collector, InitializingBean {
     @Override
     public void setConfiguration(Object config) {
         if (config instanceof List sensorConfigList) {
-            configuration = sensorConfigList.stream()
+            configurations = sensorConfigList.stream()
                     .filter(o -> o instanceof Map)
                     .filter(map -> ((Map)map).keySet().stream().allMatch(k->k instanceof String))
                     .toList();
-            log.debug("K8sNetdataCollector: setConfiguration: {}", configuration);
+            log.debug("K8sNetdataCollector: setConfiguration: {}", configurations);
 
             // If configuration changes while collector running we need to restart it
             if (started) {
@@ -86,7 +86,7 @@ public class K8sNetdataCollector implements Collector, InitializingBean {
     @Override
     public void start() {
         if (started) return;
-        if (configuration!=null)
+        if (configurations!=null)
             doStart();
         started = true;
         log.debug("K8sNetdataCollector: Started");
@@ -101,7 +101,7 @@ public class K8sNetdataCollector implements Collector, InitializingBean {
     }
 
     private synchronized void doStart() {
-        log.debug("K8sNetdataCollector: doStart(): BEGIN: configuration={}", configuration);
+        log.debug("K8sNetdataCollector: doStart(): BEGIN: configuration={}", configurations);
         log.trace("K8sNetdataCollector: doStart(): BEGIN: scheduledFuturesList={}", scheduledFuturesList);
 
         // Get Netdata agent address and port from env. vars
@@ -119,7 +119,7 @@ public class K8sNetdataCollector implements Collector, InitializingBean {
 
         // Process each sensor configuration
         AtomicInteger sensorNum = new AtomicInteger(0);
-        configuration.forEach(map -> {
+        configurations.forEach(map -> {
             log.debug("K8sNetdataCollector: doStart(): Sensor-{}: map={}", sensorNum.incrementAndGet(), map);
 
             // Check if it is a Pull sensor. (Push sensors are ignored)

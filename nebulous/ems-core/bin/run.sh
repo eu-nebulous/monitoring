@@ -70,6 +70,12 @@ if [[ -f "${JARS_DIR}/control-service.jar" ]]; then
   ESPER_PATH="${JARS_DIR}/esper-7.1.0.jar,"
 fi
 
+# Download metric model
+if [[ "${METRIC_MODEL_URL}" != "" ]]; then
+  echo "Downloading metric model from URL: ${METRIC_MODEL_URL}"
+  curl -o "${BASEDIR}/models/$(basename ${METRIC_MODEL_URL%\?*})" -m 60  ${METRIC_MODEL_URL}
+fi
+
 java -version
 echo "LANG=$LANG"
 #locale

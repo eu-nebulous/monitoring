@@ -31,7 +31,7 @@ import java.util.Map;
 @Slf4j
 @Component
 public class PrometheusCollector extends gr.iccs.imu.ems.common.collector.prometheus.PrometheusCollector implements Collector {
-    private List<Map<String,Object>> configuration;
+    private List<Map<String,Object>> configurations;
 
     public PrometheusCollector(@NonNull PrometheusCollectorProperties properties,
                                @NonNull CollectorContext collectorContext,
@@ -51,11 +51,11 @@ public class PrometheusCollector extends gr.iccs.imu.ems.common.collector.promet
     @Override
     public void setConfiguration(Object config) {
         if (config instanceof List sensorConfigList) {
-            configuration = sensorConfigList.stream()
+            configurations = sensorConfigList.stream()
                     .filter(o -> o instanceof Map)
                     .filter(map -> ((Map)map).keySet().stream().allMatch(k->k instanceof String))
                     .toList();
-            log.info("Collectors::Prometheus: setConfiguration: {}", configuration);
+            log.info("Collectors::Prometheus: setConfiguration: {}", configurations);
         }
     }
 

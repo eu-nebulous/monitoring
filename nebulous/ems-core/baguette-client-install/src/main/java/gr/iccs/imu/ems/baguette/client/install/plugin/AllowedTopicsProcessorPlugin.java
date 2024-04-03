@@ -9,9 +9,6 @@
 
 package gr.iccs.imu.ems.baguette.client.install.plugin;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.iccs.imu.ems.baguette.client.install.ClientInstallationTask;
 import gr.iccs.imu.ems.baguette.client.install.InstallationContextProcessorPlugin;
 import gr.iccs.imu.ems.translate.model.Monitor;
@@ -23,7 +20,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Installation context processor plugin for generating 'allowed-topics' setting
@@ -41,8 +40,6 @@ public class AllowedTopicsProcessorPlugin implements InstallationContextProcesso
 
         StringBuilder sbAllowedTopics = new StringBuilder();
         Set<String> addedTopicsSet = new HashSet<>();
-        Map<String, List<Object>> collectorConfigs = new LinkedHashMap<>();
-
         boolean first = true;
         for (Monitor monitor : task.getTranslationContext().getMON()) {
             try {
@@ -77,16 +74,7 @@ public class AllowedTopicsProcessorPlugin implements InstallationContextProcesso
                             }
                         }
                     }
-
-                    if (monitor.getSensor().isPullSensor()) {
-                        if (sensorConfig.get("type") instanceof String type && StringUtils.isNotBlank(type)) {
-                            collectorConfigs
-                                    .computeIfAbsent(type, key->new LinkedList<>())
-                                    .add(monitor.getSensor());
-                        }
-                    }
                 }
-
                 log.trace("AllowedTopicsProcessorPlugin: Task #{}: MONITOR: metric={}, allowed-topics={}",
                         taskCounter, metricName, sbAllowedTopics);
 
@@ -97,30 +85,8 @@ public class AllowedTopicsProcessorPlugin implements InstallationContextProcesso
         }
 
         String allowedTopics = sbAllowedTopics.toString();
-        log.debug("AllowedTopicsProcessorPlugin: Task #{}: Allowed-Topics configuration for collectors: \n{}", taskCounter, allowedTopics);
-
-        String collectorConfigsStr = null;
-        try {
-            if (! collectorConfigs.isEmpty()) {
-                log.debug("AllowedTopicsProcessorPlugin: Task #{}: Pull-Sensor collector configurations: \n{}", taskCounter, collectorConfigs);
-                ObjectMapper mapper = new ObjectMapper();
-                mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-                /*mapper.setFilterProvider(new SimpleFilterProvider().addFilter("customerFilter",
-                        SimpleBeanPropertyFilter.serializeAllExcept("@objectClass")));*/
-                collectorConfigsStr = mapper
-                        .writerWithDefaultPrettyPrinter()
-                        .writeValueAsString(collectorConfigs);
-            }
-        } catch (JsonProcessingException e) {
-            log.error("AllowedTopicsProcessorPlugin: Task #{}: EXCEPTION while processing sensor configs. Skipping them.\n",
-                    taskCounter, e);
-        }
-        if (StringUtils.isBlank(collectorConfigsStr))
-            collectorConfigsStr = "{ }";
-        log.debug("AllowedTopicsProcessorPlugin: Task #{}: Pull-Sensor collector configurations String: \n{}", taskCounter, collectorConfigsStr);
-
         task.getNodeRegistryEntry().getPreregistration().put(EmsConstant.COLLECTOR_ALLOWED_TOPICS_VAR, allowedTopics);
-        task.getNodeRegistryEntry().getPreregistration().put(EmsConstant.COLLECTOR_CONFIGURATIONS_VAR, collectorConfigsStr);
+        log.debug("AllowedTopicsProcessorPlugin: Task #{}: Allowed-Topics configuration for collectors: \n{}", taskCounter, allowedTopics);
 
         // Store collector configurations in config service
         try {
@@ -128,10 +94,10 @@ public class AllowedTopicsProcessorPlugin implements InstallationContextProcesso
                     .getOrCreateConfigFile(
                             EmsConstant.EMS_CLIENT_K8S_CONFIG_MAP_FILE,
                             EmsConstant.EMS_CLIENT_K8S_CONFIG_MAP_FORMAT)
-                    .put(EmsConstant.COLLECTOR_CONFIGURATIONS_VAR, collectorConfigsStr);
+                    .put(EmsConstant.COLLECTOR_ALLOWED_TOPICS_VAR, allowedTopics);
         } catch (Exception e) {
-            log.error("BaguetteServer.startServer(): Failed to store connection info in ems-client-config-map: {}, Exception: ",
-                    EmsConstant.EMS_CLIENT_K8S_CONFIG_MAP_FILE, e);
+            log.error("AllowedTopicsProcessorPlugin: Task #{}: Failed to store Allowed Topics in config. file: {}, Exception: ",
+                    taskCounter, EmsConstant.EMS_CLIENT_K8S_CONFIG_MAP_FILE, e);
         }
 
         log.debug("AllowedTopicsProcessorPlugin: Task #{}: processBeforeInstallation: END", taskCounter);

@@ -9,6 +9,9 @@
 
 package gr.iccs.imu.ems.baguette.server;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.iccs.imu.ems.baguette.server.properties.BaguetteServerProperties;
 import gr.iccs.imu.ems.brokercep.BrokerCepService;
 import gr.iccs.imu.ems.common.recovery.RecoveryConstant;
@@ -28,6 +31,7 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Instant;
@@ -50,6 +54,7 @@ public class BaguetteServer implements InitializingBean, EventBus.EventConsumer<
     private final SelfHealingManager<NodeRegistryEntry> selfHealingManager;
     private final TaskScheduler taskScheduler;
     private final ConfigWriteService configWriteService;
+    private final ObjectMapper objectMapper;
 
     private Sshd server;
 
@@ -408,6 +413,24 @@ public class BaguetteServer implements InitializingBean, EventBus.EventConsumer<
             log.debug("getNodeRegistryEntryFromClientShellCommand: WARN: ** NOT SECURE ** CSC NR entry: {}", entry!=null ? entry.getPreregistration() : null);
         }*/
         return entry;
+    }
+
+    public ClientConfiguration getClientConfiguration(ClientShellCommand c) throws JsonProcessingException {
+        String collectorConfigsStr = ConfigWriteService.getInstance()
+                .getOrCreateConfigFile(
+                        EmsConstant.EMS_CLIENT_K8S_CONFIG_MAP_FILE,
+                        EmsConstant.EMS_CLIENT_K8S_CONFIG_MAP_FORMAT)
+                .get(EmsConstant.COLLECTOR_CONFIGURATIONS_VAR);
+        log.trace("getClientConfiguration: collectorConfigsStr: {}", collectorConfigsStr);
+        Map<String, List<Map<String, Serializable>>> collectorConfigs = Map.of();
+        if (StringUtils.isNotBlank(collectorConfigsStr)) {
+            collectorConfigs = objectMapper.readValue(collectorConfigsStr, new TypeReference<Map<String, List<Map<String, Serializable>>>>() {});
+        }
+        log.debug("getClientConfiguration: collectorConfigsStr: {}", collectorConfigs);
+        return ClientConfiguration.builder()
+                .nodesWithoutClient(Set.of())
+                .collectorConfigurations(collectorConfigs)
+                .build();
     }
 
     public List<String> getNodesWithoutClient() {

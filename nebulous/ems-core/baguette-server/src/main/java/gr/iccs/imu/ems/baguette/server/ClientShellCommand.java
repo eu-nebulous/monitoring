@@ -112,6 +112,8 @@ public class ClientShellCommand implements Command, Runnable, ServerSessionAware
 
     @Getter
     private Map<String, Object> clientStatistics;
+    @Getter
+    private ClientConfiguration clientConfiguration;
 
     public ClientShellCommand(ServerCoordinator coordinator, boolean allowClientOverrideItsAddress, EventBus<String,Object,Object> eventBus, NodeRegistry registry) {
         synchronized (LOCK) {
@@ -265,6 +267,10 @@ public class ClientShellCommand implements Command, Runnable, ServerSessionAware
                     // Process the Greeting line from client -- It must be the first line received
                     helloReceived = true;
                     getClientInfoFromGreeting(line.substring("-HELLO FROM CLIENT:".length()));
+
+                    // Send client configuration
+                    clientConfiguration = nodeRegistryEntry.getBaguetteServer().getClientConfiguration(this);
+                    sendClientConfiguration(clientConfiguration);
 
                     // Register CSC to Coordinator
                     coordinator.register(this);
@@ -678,6 +684,10 @@ public class ClientShellCommand implements Command, Runnable, ServerSessionAware
             log.error("sendClientConfigurationToClients: Exception while serializing Client configuration: ", ex);
             log.error("sendClientConfigurationToClients: SET-CLIENT-CONFIG command *NOT* sent to clients");
         }
+    }
+
+    public void sendClientConfiguration() {
+        sendClientConfiguration( getClientConfiguration() );
     }
 
     public void sendClientConfiguration(ClientConfiguration cc) {

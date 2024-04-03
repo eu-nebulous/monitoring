@@ -70,7 +70,7 @@ public class ConfigWriteService {
 
     public boolean removeConfigFile(@NonNull String fileName, boolean alsoRemoveFile) {
         Configuration c = configurations.remove(fileName);
-        if (c!=null) {
+        if (alsoRemoveFile && c!=null) {
             if (! c.getConfigPath().toFile().delete()) {
                 log.warn("removeConfigFile: Failed to remove config. file from the disk: {}", c.getConfigPath());
             }
@@ -87,6 +87,14 @@ public class ConfigWriteService {
         @NonNull private final Path configPath;
         private final Format format;
         private final Map<String,String> contentMap = new LinkedHashMap<>();
+
+        public String get(@NonNull String key) {
+            return contentMap.get(key);
+        }
+
+        public String getOrDefault(@NonNull String key, String defaultValue) {
+            return contentMap.getOrDefault(key, defaultValue);
+        }
 
         public Configuration put(@NonNull String key, String value) throws IOException {
             contentMap.put(key, value);

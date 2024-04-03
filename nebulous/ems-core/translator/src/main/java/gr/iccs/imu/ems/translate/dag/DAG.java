@@ -98,6 +98,14 @@ public class DAG {
         }
     }
 
+    public DAGNode getNodeByElement(NamedElement elem) {
+        return _namedElementToNodesMapping.get(elem);
+    }
+
+    public DAGNode getNodeByElementName(String elemName) {
+        return _nameToNodesMapping.get(elemName);
+    }
+
     // ====================================================================================================================================================
     // Add node methods
 

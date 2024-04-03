@@ -32,6 +32,9 @@ public class PrometheusCollectorProperties extends AbstractEndpointCollectorProp
     private boolean addTagsInEventPayload;
     private boolean throwExceptionWhenExcessiveCharsOccur;
 
+    private int connectTimeout = 1000;
+    private int readTimeout = 1000;
+
     public PrometheusCollectorProperties() {
         setUrl("http://127.0.0.1:9090/metrics");
         setUrlOfNodesWithoutClient("http://%s:9090/metrics");

@@ -8,52 +8,44 @@
 
 package eu.nebulous.ems.service;
 
+import eu.nebulous.ems.EmsNebulousProperties;
 import eu.nebulouscloud.exn.core.Consumer;
 import eu.nebulouscloud.exn.core.Context;
 import eu.nebulouscloud.exn.core.Handler;
 import eu.nebulouscloud.exn.core.Publisher;
-import gr.iccs.imu.ems.control.controller.NodeRegistrationCoordinator;
-import gr.iccs.imu.ems.control.plugin.PostTranslationPlugin;
-import gr.iccs.imu.ems.control.util.TopicBeacon;
-import gr.iccs.imu.ems.translate.TranslationContext;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.qpid.protonj2.client.Message;
 import org.apache.qpid.protonj2.client.exceptions.ClientException;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 
 @Slf4j
 @Service
-public class ExternalBrokerListenerService extends AbstractExternalBrokerService
-		implements PostTranslationPlugin, InitializingBean
-{
-	private final ApplicationContext applicationContext;
+public class ExternalBrokerListenerService extends AbstractExternalBrokerService implements InitializingBean {
 	private final ArrayBlockingQueue<Command> commandQueue = new ArrayBlockingQueue<>(100);
+    private final EmsNebulousProperties emsNebulousProperties;
     private final MvvService mvvService;
 	private List<Consumer> consumers;
 	private Publisher commandsResponsePublisher;
-	private String applicationId = System.getenv("APPLICATION_ID");
+	private String applicationId;
 
 	record Command(String key, String address, Map body, Message message, Context context) {
 	}
 
-	public ExternalBrokerListenerService(ApplicationContext applicationContext,
-										 ExternalBrokerServiceProperties properties,
+	public ExternalBrokerListenerService(ExternalBrokerServiceProperties properties,
+										 EmsNebulousProperties emsNebulousProperties,
                                          TaskScheduler taskScheduler,
 										 MvvService mvvService)
 	{
 		super(properties, taskScheduler);
-		this.applicationContext = applicationContext;
+		this.emsNebulousProperties = emsNebulousProperties;
         this.mvvService = mvvService;
     }
 
@@ -64,10 +56,11 @@ public class ExternalBrokerListenerService extends AbstractExternalBrokerService
 			return;
 		}
 
-		log.info("ExternalBrokerListenerService: Application Id (from Env.): {}", applicationId);
+		applicationId = emsNebulousProperties.getApplicationId();
+		log.info("ExternalBrokerListenerService: Application Id: {}", applicationId);
 		if (StringUtils.isBlank(applicationId))
 			log.warn("ExternalBrokerListenerService: APPLICATION_ID env. var. is missing");
-			//throw new IllegalArgumentException("APPLICATION_ID not provided as an env. var");
+			//throw new IllegalArgumentException("APPLICATION_UID not provided as an env. var");
 
 		if (checkProperties()) {
 			initializeConsumers();
@@ -80,44 +73,7 @@ public class ExternalBrokerListenerService extends AbstractExternalBrokerService
 		}
 	}
 
-	@Override
-	public void processTranslationResults(TranslationContext translationContext, TopicBeacon topicBeacon) {
-		if (!properties.isEnabled()) {
-			log.info("ExternalBrokerListenerService: Disabled due to configuration");
-			return;
-		}
-
-		this.applicationId = translationContext.getAppId();
-		log.info("ExternalBrokerListenerService: Set applicationId to: {}", applicationId);
-
-		// Call control-service to deploy EMS clients
-		if (properties.isDeployEmsClientsOnKubernetesEnabled()) {
-			try {
-				log.info("ExternalBrokerListenerService: Start deploying EMS clients...");
-				String id = "dummy-" + System.currentTimeMillis();
-				Map<String, Object> nodeInfo = new HashMap<>(Map.of(
-						"id", id,
-						"name", id,
-						"type", "K8S",
-						"provider", "Kubernetes",
-						"zone-id", ""
-				));
-				applicationContext.getBean(NodeRegistrationCoordinator.class)
-						.registerNode("", nodeInfo, translationContext);
-				log.debug("ExternalBrokerListenerService: EMS clients deployment started");
-			} catch (Exception e) {
-				log.warn("ExternalBrokerListenerService: EXCEPTION while starting EMS client deployment: ", e);
-			}
-		} else
-			log.info("ExternalBrokerListenerService: EMS clients deployment is disabled");
-    }
-
 	private void initializeConsumers() {
-		/*if (StringUtils.isBlank(applicationId)) {
-			log.warn("ExternalBrokerListenerService: Call to initializeConsumers with blank applicationId. Will not change anything.");
-			return;
-		}*/
-
 		// Create message handler
 		Handler messageHandler = new Handler() {
 			@Override
@@ -164,17 +120,17 @@ public class ExternalBrokerListenerService extends AbstractExternalBrokerService
 		}, Instant.now());
 	}
 
-	private void processMessage(Command command) throws ClientException, IOException {
+	private void processMessage(Command command) throws ClientException {
 		log.debug("ExternalBrokerListenerService: Command: {}", command);
 		log.debug("ExternalBrokerListenerService: Command: message: {}", command.message);
 		log.debug("ExternalBrokerListenerService: Command: body: {}", command.message.body());
 		command.message.forEachProperty((s, o) ->
 				log.debug("ExternalBrokerListenerService: Command: --- property: {} = {}", s, o));
-		if (properties.getCommandsTopic().equals(command.address)) {
+		/*if (properties.getCommandsTopic().equals(command.address)) {
 			// Process command
 			log.info("ExternalBrokerListenerService: Received a command from external broker: {}", command.body);
 			processCommandMessage(command);
-		} else
+		} else*/
 		if (properties.getSolutionsTopic().equals(command.address)) {
 			// Process new solution message
 			log.info("ExternalBrokerListenerService: Received a new Solution message from external broker: {}", command.body);
@@ -189,7 +145,7 @@ public class ExternalBrokerListenerService extends AbstractExternalBrokerService
 		}
 	}
 
-	private void processCommandMessage(Command command) throws ClientException {
+	/*private void processCommandMessage(Command command) throws ClientException {
 		// Get application id
 		String appId = getAppId(command, commandsResponsePublisher);
 		if (appId == null) return;
@@ -230,5 +186,5 @@ public class ExternalBrokerListenerService extends AbstractExternalBrokerService
 		publisher.send(Map.of(
 				"response", response
 		), appId);
-	}
+	}*/
 }

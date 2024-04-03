@@ -85,7 +85,7 @@ public class ModelsService implements InitializingBean {
 		// Store bindings in models store
 		String bindingsFile = getFileName("bindings", appId, "json");
 		if (bindingsMap==null) bindingsMap = Map.of();
-		storeModel(bindingsFile, objectMapper.writeValueAsString(bindingsMap));
+		storeToFile(bindingsFile, objectMapper.writeValueAsString(bindingsMap));
 		log.info("Stored bindings in file: app-id={}, file={}", appId, bindingsFile);
 
 		// Add appId-modelFile entry in the stored Index
@@ -135,7 +135,7 @@ public class ModelsService implements InitializingBean {
 		if (StringUtils.isNotBlank(modelStr)) {
 			// Store metric model in a new file
 			modelFile = StringUtils.isBlank(modelFile) ? getFileName("model", appId, "yml") : modelFile;
-			storeModel(modelFile, modelStr);
+			storeToFile(modelFile, modelStr);
 			log.info("Stored metric model in file: app-id={}, file={}", appId, modelFile);
 
 			// Add appId-modelFile entry in the stored Index
@@ -158,16 +158,16 @@ public class ModelsService implements InitializingBean {
 				: String.format("%s--%d.%s", type, System.currentTimeMillis(), suffix);
 	}
 
-	String readModel(String fileName) throws IOException {
+	String readFromFile(String fileName) throws IOException {
 		Path path = Paths.get(properties.getModelsDir(), fileName);
 		String modelStr = Files.readString(path);
-		log.info("Loaded metric model from file: {}", path);
+		log.debug("Read from file: {}", path);
 		return modelStr;
 	}
 
-	private void storeModel(String fileName, String modelStr) throws IOException {
+	private void storeToFile(String fileName, String modelStr) throws IOException {
 		Path path = Paths.get(properties.getModelsDir(), fileName);
 		Files.writeString(path, modelStr);
-		log.info("Stored metric model in file: {}", path);
+		log.debug("Wrote to file: {}", path);
 	}
 }
