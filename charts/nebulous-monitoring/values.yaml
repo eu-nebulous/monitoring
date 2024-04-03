@@ -109,6 +109,8 @@ env:
   # =====  EMS server configuration  =====
   #
   # ===== INITIALIZATION settings =====
+  - name: BUILD_MESSAGE
+    value: '2024-04-03 09:20:00+03:00 opendev3'
   - name: JASYPT_PASSWORD
     value: 'password'                           #+++++++++++++++++++++++++ ?????????????????
   - name: NET_UTIL_ADDRESS_DISCOVERY_SERVICES

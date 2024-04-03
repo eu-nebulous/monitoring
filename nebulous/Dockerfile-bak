@@ -1,0 +1,18 @@
+
+# ----------------- Builder image -----------------
+FROM docker.io/library/maven:3.9.6-eclipse-temurin-21 as builder
+ENV BASEDIR /app
+WORKDIR ${BASEDIR}
+COPY ems-core       ${BASEDIR}/ems-core
+COPY ems-nebulous   ${BASEDIR}/ems-nebulous
+COPY pom.xml        ${BASEDIR}/
+RUN mvn -f ${BASEDIR}/pom.xml -DskipTests clean install
+
+# -----------------   Runtime image   -----------------
+FROM registry.gitlab.com/nebulous-project/ems-main/ems-server:opendev3
+
+RUN date > /tmp/BUILD-TIME
+
+COPY --from=builder /app/ems-nebulous/target/ems-nebulous-plugin-1.0.0-SNAPSHOT-jar-with-dependencies.jar /plugins/
+ENV EXTRA_LOADER_PATHS=/plugins/*
+ENV SCAN_PACKAGES=eu.nebulous.ems
