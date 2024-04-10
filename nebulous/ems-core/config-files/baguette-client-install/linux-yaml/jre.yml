@@ -15,11 +15,11 @@
 os: LINUX
 description: JRE installation instruction set at VM node
 condition: >-
-  ! ${SKIP_JRE_INSTALLATION:-false}                                 &&
-  ! '${OS_ARCHITECTURE:-x}'.startsWith('arm')                       &&
-  ${CPU_PROCESSORS:-0} > ${BAGUETTE_INSTALLATION_MIN_PROCESSORS:-0} &&
-  ${RAM_AVAILABLE_KB:-0} > ${BAGUETTE_INSTALLATION_MIN_RAM:-0}      &&
-  ${DISK_FREE_KB:-0} > ${BAGUETTE_INSTALLATION_MIN_DISK_FREE:-0}
+     ! ${SKIP_JRE_INSTALLATION:-false}
+#  && ! '${OS_ARCHITECTURE:-x}'.startsWith('arm')
+#  && ${CPU_PROCESSORS:-0} > ${BAGUETTE_INSTALLATION_MIN_PROCESSORS:-0}
+#  && ${RAM_AVAILABLE_KB:-0} > ${BAGUETTE_INSTALLATION_MIN_RAM:-0}
+#  && ${DISK_FREE_KB:-0} > ${BAGUETTE_INSTALLATION_MIN_DISK_FREE:-0}
 instructions:
   - description: Check if JRE is already installed at Node
     taskType: CHECK
@@ -45,23 +45,38 @@ instructions:
 #    executable: false
 #    exitCode: 0
 #    match: false
-  - description: Copy JRE package
+#  - description: Copy JRE package
+#    taskType: COPY
+#    fileName: /tmp/${JRE_LINUX_PACKAGE}
+#    localFileName: '${EMS_PUBLIC_DIR}/resources/${JRE_LINUX_PACKAGE}'
+#    executable: false
+#    exitCode: 0
+#    match: false
+  - description: Copy JRE installation script
     taskType: COPY
-    fileName: /tmp/${JRE_LINUX_PACKAGE}
-    localFileName: '${EMS_PUBLIC_DIR}/resources/${JRE_LINUX_PACKAGE}'
+    fileName: /tmp/jre-install.sh
+    localFileName: '${EMS_PUBLIC_DIR}/resources/jre-install.sh'
+    executable: true
+    exitCode: 0
+    match: false
+  - description: Run JRE installation script
+    taskType: CMD
+    command: 'chmod +x /tmp/jre-install.sh && /tmp/jre-install.sh'
     executable: false
     exitCode: 0
     match: false
+    executionTimeout: 300000
   - description: Extract JRE package into installation folder
     taskType: CMD
-    command: '${ROOT_CMD} tar zxvf /tmp/${JRE_LINUX_PACKAGE} -C ${BAGUETTE_CLIENT_BASE_DIR}'
+    #command: '${ROOT_CMD} tar zxvf /tmp/${JRE_LINUX_PACKAGE} -C ${BAGUETTE_CLIENT_BASE_DIR}'
+    command: '${ROOT_CMD} tar zxvf /tmp/jre.tar.gz -C ${BAGUETTE_CLIENT_BASE_DIR}'
     executable: false
     exitCode: 0
     match: false
   - description: Rename JRE directory
     taskType: CMD
-    command: >-
-      ${ROOT_CMD} mv ${BAGUETTE_CLIENT_BASE_DIR}/zulu* ${BAGUETTE_CLIENT_BASE_DIR}/jre
+    #command: ${ROOT_CMD} mv ${BAGUETTE_CLIENT_BASE_DIR}/zulu* ${BAGUETTE_CLIENT_BASE_DIR}/jre
+    command: ${ROOT_CMD} mv ${BAGUETTE_CLIENT_BASE_DIR}/jre* ${BAGUETTE_CLIENT_BASE_DIR}/jre
     executable: false
     exitCode: 0
     match: false

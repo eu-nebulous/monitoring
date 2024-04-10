@@ -1,7 +1,8 @@
 {
   "os": "LINUX",
   "description": "JRE installation instruction set at VM node",
-  "condition": "! ${SKIP_JRE_INSTALLATION:-false} && ! '${OS_ARCHITECTURE:-x}'.startsWith('arm') && ${CPU_PROCESSORS:-0} > ${BAGUETTE_INSTALLATION_MIN_PROCESSORS:-0} && ${RAM_AVAILABLE_KB:-0} > ${BAGUETTE_INSTALLATION_MIN_RAM:-0} && ${DISK_FREE_KB:-0} > ${BAGUETTE_INSTALLATION_MIN_DISK_FREE:-0}",
+  /*"condition": "! ${SKIP_JRE_INSTALLATION:-false} && ! '${OS_ARCHITECTURE:-x}'.startsWith('arm') && ${CPU_PROCESSORS:-0} > ${BAGUETTE_INSTALLATION_MIN_PROCESSORS:-0} && ${RAM_AVAILABLE_KB:-0} > ${BAGUETTE_INSTALLATION_MIN_RAM:-0} && ${DISK_FREE_KB:-0} > ${BAGUETTE_INSTALLATION_MIN_DISK_FREE:-0}",*/
+  "condition": "! ${SKIP_JRE_INSTALLATION:-false}",
   "instructions": [
     {
       "description": "Check if JRE is already installed at Node",

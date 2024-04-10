@@ -178,7 +178,8 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 	}
 
 	private String getModelFile(String appId) {
-		return String.format("model-%s--%d.yml", appId, System.currentTimeMillis());
+		//return String.format("model-%s--%d.yml", appId, System.currentTimeMillis());
+		return String.format("%s.yml", appId);
 	}
 
 	private void storeModel(String fileName, String modelStr) throws IOException {

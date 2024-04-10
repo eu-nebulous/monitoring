@@ -94,7 +94,7 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
         }
 
         HashMap<String,Object> result = new HashMap<>();
-        result.put("name", "_" + translationContext.getModelName());
+        result.put("name", translationContext.getAppId());
         result.put("operator", "OR");
         result.put("constraints", slos);
         result.put("version", topicBeacon.getModelVersion());
@@ -224,7 +224,7 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
         // Convert to SLO Severity-based Violation Detector Event Type III format
         // See: https://158.39.75.54/projects/nebulous-collaboration-hub/wiki/slo-severity-based-violation-detector
         HashMap<String,Object> payload = new HashMap<>();
-        payload.put("name", "_" + _TC.getModelName());
+        payload.put("name", _TC.getAppId());
         payload.put("version", topicBeacon.getModelVersion());
         payload.put("metric_list",
                 metricsOfTopLevelNodes.stream().map(mc -> {

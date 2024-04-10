@@ -85,7 +85,7 @@ public class ShorthandsExpansionHelper {
         // ----- Expand Metric templates in Metric specifications -----
         List<Object> expandedTemplates = asList(ctx
                 .read("$.spec.*.*.metrics.*[?(@.template)]", List.class)).stream()
-                .filter(item -> JsonPath.read(item, "$.template") instanceof String)
+                .filter(item -> JsonPath.read(item, "$.template") instanceof String s && StringUtils.isNotBlank(s))
                 .peek(item -> expandTemplate(item, templateSpecs))
                 .toList();
         log.debug("ShorthandsExpansionHelper: Templates expanded: {}", expandedTemplates);

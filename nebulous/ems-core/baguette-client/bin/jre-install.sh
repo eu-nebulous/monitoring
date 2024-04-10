@@ -6,6 +6,7 @@ echo "Architecture: $arch,  Bits: $bits"
 
 [[ "$bits" == "32" ]] && [[ "${arch,,}" = arm* ]] && TARGET="ARM-32"
 [[ "$bits" == "64" ]] && [[ "${arch,,}" = arm* ]] && TARGET="ARM-64"
+[[ "$bits" == "64" ]] && [[ "${arch,,}" = aarch64 ]] && TARGET="ARM-64"
 [[ "$bits" == "64" ]] && [[ "${arch,,}" = amd* ]] && TARGET="x86-64"
 [[ "$bits" == "64" ]] && [[ "${arch,,}" = x86* ]] && TARGET="x86-64"
 

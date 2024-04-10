@@ -575,7 +575,7 @@ public class ClientShellCommand implements Command, Runnable, ServerSessionAware
     }
 
     public void sendToClient(String msg) {
-        sendToClient(msg, Level.INFO);
+        sendToClient(msg, Level.DEBUG);
     }
 
     public void sendToClient(String msg, Level logLevel) {
@@ -694,7 +694,7 @@ public class ClientShellCommand implements Command, Runnable, ServerSessionAware
         log.debug("sendClientConfiguration: id={}, client-config={}", id, cc);
         try {
             String ccStr = serializeToString(cc);
-            log.info("sendClientConfiguration: Serialization of Client configuration: {}", ccStr);
+            log.debug("sendClientConfiguration: Serialization of Client configuration: {}", ccStr);
             sendToClient("SET-CLIENT-CONFIG " + ccStr);
         } catch (IOException ex) {
             log.error("sendClientConfiguration: Exception while serializing Client configuration: ", ex);

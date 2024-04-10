@@ -52,9 +52,9 @@ ENV PUBLIC_DIR ${BASEDIR}/public_resources
 
 # Download a JRE suitable for running EMS clients, and
 # offer it for download
-ENV JRE_LINUX_PACKAGE zulu21.30.15-ca-jre21.0.1-linux_x64.tar.gz
-RUN mkdir -p ${PUBLIC_DIR}/resources && \
-    wget --progress=dot:giga -O ${PUBLIC_DIR}/resources/${JRE_LINUX_PACKAGE} https://cdn.azul.com/zulu/bin/${JRE_LINUX_PACKAGE}
+#ENV JRE_LINUX_PACKAGE zulu21.30.15-ca-jre21.0.1-linux_x64.tar.gz
+#RUN mkdir -p ${PUBLIC_DIR}/resources && \
+#    wget --progress=dot:giga -O ${PUBLIC_DIR}/resources/${JRE_LINUX_PACKAGE} https://cdn.azul.com/zulu/bin/${JRE_LINUX_PACKAGE}
 
 # Copy resource files to image
 COPY --chown=${EMS_USER}:${EMS_USER} bin ${BIN_DIR}
