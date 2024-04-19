@@ -16,9 +16,11 @@ metadata:
 spec:
   type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: http
-      protocol: TCP
-      name: http
+    {{- range .Values.ports }}
+    - name: {{ .name }}
+      port: {{ .containerPort }}
+      targetPort: {{ .containerPort }}
+      protocol: {{ .protocol }}
+    {{- end }}
   selector:
     {{- include "nebulous-monitoring.selectorLabels" . | nindent 4 }}
