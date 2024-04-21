@@ -95,6 +95,7 @@ ports:
     containerPort: 8111
     protocol: TCP
     public: true
+    nodePort: 30111
   - name: openwire
     containerPort: 61616
     protocol: TCP
@@ -103,6 +104,7 @@ ports:
     containerPort: 61617
     protocol: TCP
     public: true
+    nodePort: 31617
   - name: stomp
     containerPort: 61610
     protocol: TCP
@@ -111,6 +113,7 @@ ports:
     containerPort: 2222
     protocol: TCP
     public: true
+    nodePort: 32222
 
 env:
   #
