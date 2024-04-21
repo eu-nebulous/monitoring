@@ -107,6 +107,10 @@ ports:
     containerPort: 61610
     protocol: TCP
     public: false
+  - name: baguette
+    containerPort: 2222
+    protocol: TCP
+    public: true
 
 env:
   #
