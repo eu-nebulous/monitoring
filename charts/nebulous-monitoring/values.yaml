@@ -94,15 +94,19 @@ ports:
   - name: http
     containerPort: 8111
     protocol: TCP
+    public: true
   - name: openwire
     containerPort: 61616
     protocol: TCP
+    public: false
   - name: openwire-tls
     containerPort: 61617
     protocol: TCP
+    public: true
   - name: stomp
     containerPort: 61610
     protocol: TCP
+    public: false
 
 env:
   #
