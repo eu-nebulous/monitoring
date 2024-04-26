@@ -40,4 +40,8 @@ public class EmsBootProperties implements InitializingBean {
     private String modelsResponseTopic   = NEBULOUS_TOPIC_PREFIX + "ui.dsl.metric_model.reply";
     private String emsBootTopic          = NEBULOUS_TOPIC_PREFIX + "ems.boot";
     private String emsBootResponseTopic  = NEBULOUS_TOPIC_PREFIX + "ems.boot.reply";
+
+    private boolean validateModels       = true;
+    private boolean storeInvalidModels   = true;
+    private boolean reportInvalidModels  = true;
 }

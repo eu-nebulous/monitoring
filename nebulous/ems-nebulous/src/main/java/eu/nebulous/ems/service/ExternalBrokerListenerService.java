@@ -30,8 +30,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 @Service
 public class ExternalBrokerListenerService extends AbstractExternalBrokerService implements InitializingBean {
 	private final ArrayBlockingQueue<Command> commandQueue = new ArrayBlockingQueue<>(100);
-    private final EmsNebulousProperties emsNebulousProperties;
-    private final MvvService mvvService;
+	private final EmsNebulousProperties emsNebulousProperties;
+	private final MvvService mvvService;
 	private List<Consumer> consumers;
 	private Publisher commandsResponsePublisher;
 	private String applicationId;
@@ -41,13 +41,13 @@ public class ExternalBrokerListenerService extends AbstractExternalBrokerService
 
 	public ExternalBrokerListenerService(ExternalBrokerServiceProperties properties,
 										 EmsNebulousProperties emsNebulousProperties,
-                                         TaskScheduler taskScheduler,
+										 TaskScheduler taskScheduler,
 										 MvvService mvvService)
 	{
 		super(properties, taskScheduler);
 		this.emsNebulousProperties = emsNebulousProperties;
-        this.mvvService = mvvService;
-    }
+		this.mvvService = mvvService;
+	}
 
 	@Override
 	public void afterPropertiesSet() throws Exception {
@@ -60,7 +60,7 @@ public class ExternalBrokerListenerService extends AbstractExternalBrokerService
 		log.info("ExternalBrokerListenerService: Application Id: {}", applicationId);
 		if (StringUtils.isBlank(applicationId))
 			log.warn("ExternalBrokerListenerService: APPLICATION_ID env. var. is missing");
-			//throw new IllegalArgumentException("APPLICATION_UID not provided as an env. var");
+		//throw new IllegalArgumentException("APPLICATION_UID not provided as an env. var");
 
 		if (checkProperties()) {
 			initializeConsumers();
@@ -111,12 +111,12 @@ public class ExternalBrokerListenerService extends AbstractExternalBrokerService
 					Command command = commandQueue.take();
 					processMessage(command);
 				} catch (InterruptedException e) {
-                    log.warn("ExternalBrokerListenerService: Command processor interrupted. Exiting process loop");
+					log.warn("ExternalBrokerListenerService: Command processor interrupted. Exiting process loop");
 					break;
-                } catch (Exception e) {
+				} catch (Exception e) {
 					log.warn("ExternalBrokerListenerService: Exception while processing command: {}\n", commandQueue, e);
 				}
-            }
+			}
 		}, Instant.now());
 	}
 

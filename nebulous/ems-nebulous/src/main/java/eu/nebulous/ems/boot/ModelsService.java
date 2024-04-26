@@ -9,6 +9,7 @@
 package eu.nebulous.ems.boot;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import eu.nebulous.ems.translate.TranslationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -31,6 +32,7 @@ public class ModelsService implements InitializingBean {
 	final static String MODEL_FILE_KEY = "model-file";
 	final static String BINDINGS_FILE_KEY = "bindings-file";
 
+	private final TranslationService translationService;
 	private final EmsBootProperties properties;
 	private final ObjectMapper objectMapper;
 	private final IndexService indexService;
@@ -120,7 +122,7 @@ public class ModelsService implements InitializingBean {
 		}
 
         log.debug("modelObj: class={}, object={}", modelObj.getClass(), modelObj);
-		String modelStr = null;
+		String modelStr;
         if (modelObj instanceof String) {
             modelStr = (String) modelObj;
         } else
@@ -135,16 +137,28 @@ public class ModelsService implements InitializingBean {
 		if (StringUtils.isNotBlank(modelStr)) {
 			// Store metric model in a new file
 			modelFile = StringUtils.isBlank(modelFile) ? getFileName("model", appId, "yml") : modelFile;
-			storeToFile(modelFile, modelStr);
-			log.info("Stored metric model in file: app-id={}, file={}", appId, modelFile);
+			translationService.storeModel(appId, modelFile, modelStr);
+
+			// Validate metric model
+			String result = null;
+			boolean valid = true;
+			if (properties.isValidateModels()) {
+				result = translationService.translateModel(appId, modelFile, modelStr);
+				valid = "OK".equalsIgnoreCase(result);
+			}
 
 			// Add appId-modelFile entry in the stored Index
-			indexService.storeToIndex(appId, Map.of(MODEL_FILE_KEY,  modelFile));
+			if (valid || properties.isStoreInvalidModels())
+				indexService.storeToIndex(appId, Map.of(MODEL_FILE_KEY,  modelFile));
+
+			// Report invalid model
+			if (!valid && properties.isReportInvalidModels())
+				return "ERROR: Model invalid: " + result;
 
 			return "OK";
 		} else {
-			log.warn("Metric Model message body is blank");
-			return "ERROR: Metric Model message body is blank";
+			log.warn("Metric Model message body is empty");
+			return "ERROR: Metric Model message body is empty";
 		}
 	}
 

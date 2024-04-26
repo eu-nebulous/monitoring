@@ -9,6 +9,7 @@
 
 package gr.iccs.imu.ems.control.controller;
 
+import com.google.gson.JsonElement;
 import com.google.gson.reflect.TypeToken;
 import gr.iccs.imu.ems.translate.TranslationContext;
 import lombok.Getter;
@@ -52,6 +53,20 @@ public class ControlServiceController {
         log.debug("ControlServiceController.newAppModel(): Received request: {}", requestStr);
         log.trace("ControlServiceController.newAppModel(): JWT token: {}", jwtToken);
 
+        // Extract Ids from request
+        Map<String, String> appIds = extractAppIds(requestStr);
+        String appModelId = appIds.get("appModelId");
+        String appExecModelId = appIds.get("appExecModelId");
+        String applicationId = appIds.get("applicationId");
+
+        // Start translation and component reconfiguration in a worker thread
+        coordinator.processAppModel(appModelId, appExecModelId, ControlServiceRequestInfo.create(applicationId, null, null, jwtToken, null));
+        log.debug("ControlServiceController.newAppModel(): Model translation dispatched to a worker thread");
+
+        return "OK";
+    }
+
+    private Map<String,String> extractAppIds(String requestStr) {
         // Use Gson to get model id's from request body (in JSON format)
         com.google.gson.JsonObject jObj = new com.google.gson.Gson().fromJson(requestStr, com.google.gson.JsonObject.class);
         String appModelId = Optional.ofNullable(jObj.get("app-model-id")).map(je -> stripQuotes(je.toString())).orElse(null);
@@ -71,18 +86,20 @@ public class ControlServiceController {
 
         // Get applicationId (if provided)
         String applicationId = Optional.ofNullable(jObj.get("applicationId")).map(je -> stripQuotes(je.toString())).orElse(null);
-        if (StringUtils.isBlank(appExecModelId)) {
+        if (StringUtils.isBlank(applicationId)) {
             applicationId = appModelId;
             log.warn("ControlServiceController.newAppModel(): No 'applicationId' found. Using App model id instead: {}", applicationId);
         } else {
             log.info("ControlServiceController.newAppModel(): Found 'applicationId': {}", applicationId);
         }
 
-        // Start translation and component reconfiguration in a worker thread
-        coordinator.processAppModel(appModelId, appExecModelId, ControlServiceRequestInfo.create(applicationId, null, null, jwtToken, null));
-        log.debug("ControlServiceController.newAppModel(): Model translation dispatched to a worker thread");
+        // Get app model from request (if provided)
+        String appModel = Optional.ofNullable(jObj.get("app-model")).map(JsonElement::getAsString).orElse("");
 
-        return "OK";
+        return Map.of("appModelId", StringUtils.defaultIfBlank(appModelId, ""),
+                "appExecModelId", StringUtils.defaultIfBlank(appExecModelId, ""),
+                "applicationId", StringUtils.defaultIfBlank(applicationId, ""),
+                "appModel", StringUtils.defaultIfBlank(appModel, ""));
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -182,6 +199,28 @@ public class ControlServiceController {
 
         TranslationContext _TC = coordinator.getTranslationContextOfAppModel(coordinator.getCurrentAppModelId());
         log.info("ControlServiceController.getCurrentAppExecModel(): Current TC model: {}", _TC.getModelName());
+
+        return _TC;
+    }
+
+    @PostMapping(value = "/translator/translate", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public TranslationContext translateModel(@RequestBody String requestStr,
+                                             @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String jwtToken)
+    {
+        log.debug("ControlServiceController.translateModel(): Received request: {}", requestStr);
+        log.trace("ControlServiceController.translateModel(): JWT token: {}", jwtToken);
+
+        // Extract Ids and model from request
+        Map<String, String> appIds = extractAppIds(requestStr);
+        String appModelId = appIds.get("appModelId");
+        String appExecModelId = appIds.get("appExecModelId");
+        String applicationId = appIds.get("applicationId");
+        String appModel = appIds.get("appModel");
+
+        // Start translation
+        TranslationContext _TC = coordinator.translateAppModel(appModelId, appModel, ControlServiceRequestInfo.create(applicationId, null, null, jwtToken, null));
+        log.info("ControlServiceController.translateModel(): TC model: {}", _TC.getModelName());
+        log.debug("ControlServiceController.translateModel(): TC: {}", _TC);
 
         return _TC;
     }

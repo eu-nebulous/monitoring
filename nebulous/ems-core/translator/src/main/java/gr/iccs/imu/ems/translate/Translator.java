@@ -14,4 +14,14 @@ public interface Translator {
     default TranslationContext translate(String modelPath, String applicationId) {
         return translate(modelPath);
     }
+
+    default String getModel(String modelPath) {
+        return null;
+    }
+    default String addModel(String modelPath, String modelStr) {
+        return null;
+    }
+    default boolean removeModel(String modelPath) {
+        return false;
+    }
 }

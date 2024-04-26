@@ -9,6 +9,7 @@
 
 package gr.iccs.imu.ems.control.controller;
 
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import gr.iccs.imu.ems.baguette.server.BaguetteServer;
 import gr.iccs.imu.ems.baguette.server.NodeRegistry;
@@ -52,12 +53,13 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -225,6 +227,15 @@ public class ControlServiceCoordinator implements InitializingBean {
 
     // ------------------------------------------------------------------------------------------------------------
 
+    public TranslationContext translateAppModel(String appModelId, String appModel, ControlServiceRequestInfo requestInfo) {
+        AtomicReference<TranslationContext> _TC = new AtomicReference<>();
+        _lockAndProcessModel(appModelId, null, requestInfo, "translateAppModel()", () -> {
+            // Call '_translateAppModel()' to do actual processing
+            _TC.set(_translateAppModel(appModelId, appModel, requestInfo));
+        });
+        return _TC.get();
+    }
+
     @Async
     public void processAppModel(String appModelId, String appExecModelId, ControlServiceRequestInfo requestInfo) {
         _lockAndProcessModel(appModelId, appExecModelId, requestInfo, "processAppModel()", () -> {
@@ -301,6 +312,41 @@ public class ControlServiceCoordinator implements InitializingBean {
 
     // ------------------------------------------------------------------------------------------------------------
 
+    protected TranslationContext _translateAppModel(String appModelId, String appModel, ControlServiceRequestInfo requestInfo) {
+        // Store app model if provided
+        if (StringUtils.isNotBlank(appModel)) {
+            if (translator.addModel(appModelId, appModel)!=null) {
+                log.warn("ControlServiceCoordinator._translateAppModel(): Discarded previous app model contents: {}", appModelId);
+            }
+        }
+
+        // Translate model into Translation Context (with EPL rules etc.)
+        log.info("ControlServiceCoordinator._translateAppModel(): Translating app model: {}", appModelId);
+        TranslationContext _TC;
+        _TC = translateAppModelAndStore(appModelId, requestInfo.getApplicationId(), false);
+
+        // Run TranslationContext plugins
+        if (translationContextPlugins!=null && !translationContextPlugins.isEmpty()) {
+            log.info("ControlServiceCoordinator._translateAppModel(): Running {} TranslationContext plugins", translationContextPlugins.size());
+            translationContextPlugins.stream().filter(Objects::nonNull).forEach(plugin -> {
+                log.debug("ControlServiceCoordinator._translateAppModel(): Calling TranslationContext plugin: {}", plugin.getClass().getName());
+                plugin.processTranslationContext(_TC);
+                log.debug("ControlServiceCoordinator._translateAppModel(): RESULTS after running TranslationContext plugin: {}\n{}", plugin.getClass().getName(), _TC);
+            });
+        } else {
+            log.info("ControlServiceCoordinator._translateAppModel(): No TranslationContext plugins found");
+        }
+
+        // Print resulting Translation Context
+        try {
+            translationContextPrinter.printResults(_TC, null);
+        } catch (Exception e) {
+            log.error("ControlServiceCoordinator._translateAppModel(): EXCEPTION while printing Translation results: ", e);
+        }
+
+        return _TC;
+    }
+
     protected void _processAppModels(String appModelId, String appExecModelId, ControlServiceRequestInfo requestInfo) {
         log.info("ControlServiceCoordinator._processAppModel(): BEGIN: app-model-id={}, app-exec-model-id={}, request-info={}", appModelId, appExecModelId, requestInfo);
 
@@ -318,7 +364,7 @@ public class ControlServiceCoordinator implements InitializingBean {
         // Translate model into Translation Context (with EPL rules etc.)
         TranslationContext _TC;
         if (!properties.isSkipTranslation()) {
-            _TC = translateAppModelAndStore(appModelId, requestInfo.getApplicationId());
+            _TC = translateAppModelAndStore(appModelId, requestInfo.getApplicationId(), true);
         } else {
             log.warn("ControlServiceCoordinator._processAppModel(): Skipping translation due to configuration");
             _TC = loadStoredTranslationContext(appModelId);
@@ -474,9 +520,9 @@ public class ControlServiceCoordinator implements InitializingBean {
         setCurrentEmsState(EMS_STATE.READY, null);
     }
 
-    private TranslationContext translateAppModelAndStore(String appModelId, String applicationId) {
+    private TranslationContext translateAppModelAndStore(String appModelId, String applicationId, boolean updateEmsState) {
         final TranslationContext _TC;
-        setCurrentEmsState(EMS_STATE.INITIALIZING, "Retrieving and translating model");
+        if (updateEmsState) setCurrentEmsState(EMS_STATE.INITIALIZING, "Retrieving and translating model");
 
         // Translate application model into a TranslationContext object
         log.info("ControlServiceCoordinator.translateAppModelAndStore(): Model translation: model-id={}", appModelId);
@@ -500,7 +546,7 @@ public class ControlServiceCoordinator implements InitializingBean {
         String fileName = properties.getTcSaveFile();
         if (StringUtils.isNotBlank(fileName)) {
             try {
-                setCurrentEmsState(EMS_STATE.INITIALIZING, "Storing translation context to file");
+                if (updateEmsState) setCurrentEmsState(EMS_STATE.INITIALIZING, "Storing translation context to file");
 
                 // Get TC file name
                 fileName = getTcFileName(appModelId, fileName);
@@ -510,8 +556,8 @@ public class ControlServiceCoordinator implements InitializingBean {
 
                 // Store _TC in a file
                 log.debug("ControlServiceCoordinator.translateAppModelAndStore(): Start serializing _TC data in file: {}", fileName);
-                com.google.gson.Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                java.io.Writer writer = new java.io.FileWriter(fileName);
+                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                Writer writer = new FileWriter(fileName);
                 gson.toJson(_TC, writer);
                 writer.close();
 
@@ -544,8 +590,8 @@ public class ControlServiceCoordinator implements InitializingBean {
                 }
                 log.info("ControlServiceCoordinator.loadStoredTranslationContext(): Loading translator data from file: {}", fileName);
                 log.debug("ControlServiceCoordinator.loadStoredTranslationContext(): Start deserializing _TC data from file: {}", fileName);
-                java.io.Reader reader = new java.io.FileReader(fileName);
-                com.google.gson.Gson gson = new GsonBuilder()
+                Reader reader = new FileReader(fileName);
+                Gson gson = new GsonBuilder()
                         .registerTypeAdapter(Monitor.class, new TranslationContextMonitorGsonDeserializer())
                         .create();
                 _TC = gson.fromJson(reader, TranslationContext.class);
@@ -780,7 +826,7 @@ public class ControlServiceCoordinator implements InitializingBean {
 
         // POST configuration to MetaSolver
         String metaSolverEndpoint = properties.getMetasolverConfigurationUrl();
-        com.google.gson.Gson gson = new com.google.gson.Gson();
+        Gson gson = new Gson();
         String json = gson.toJson(msConfig);
         log.debug("ControlServiceCoordinator.configureMetaSolver(): MetaSolver configuration in JSON: {}", json);
 
