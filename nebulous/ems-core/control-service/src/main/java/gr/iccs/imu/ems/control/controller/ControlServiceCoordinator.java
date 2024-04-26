@@ -60,6 +60,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -229,41 +230,48 @@ public class ControlServiceCoordinator implements InitializingBean {
 
     public TranslationContext translateAppModel(String appModelId, String appModel, ControlServiceRequestInfo requestInfo) {
         AtomicReference<TranslationContext> _TC = new AtomicReference<>();
-        _lockAndProcessModel(appModelId, null, requestInfo, "translateAppModel()", () -> {
+        _lockAndProcessModel(appModelId, null, requestInfo, "translateAppModel()", false, () -> {
             // Call '_translateAppModel()' to do actual processing
             _TC.set(_translateAppModel(appModelId, appModel, requestInfo));
+            EMS_STATE state = _TC.get() != null ? EMS_STATE.READY : EMS_STATE.ERROR;
+            return List.of(state, "", System.currentTimeMillis());
         });
         return _TC.get();
     }
 
     @Async
     public void processAppModel(String appModelId, String appExecModelId, ControlServiceRequestInfo requestInfo) {
-        _lockAndProcessModel(appModelId, appExecModelId, requestInfo, "processAppModel()", () -> {
+        _lockAndProcessModel(appModelId, appExecModelId, requestInfo, "processAppModel()", true, () -> {
             // Call '_processNewModels()' to do actual processing
             _processAppModels(appModelId, appExecModelId, requestInfo);
             this.currentAppModelId = _normalizeModelId(appModelId);
             this.currentAppExecModelId = _normalizeModelId(appExecModelId);
+            return List.of(getCurrentEmsState(), getCurrentEmsStateMessage(), getCurrentEmsStateChangeTimestamp());
         });
     }
 
     @Async
     public void processAppExecModel(String appExecModelId, ControlServiceRequestInfo requestInfo) {
-        _lockAndProcessModel(null, appExecModelId, requestInfo, "processAppExecModel()", () -> {
+        _lockAndProcessModel(null, appExecModelId, requestInfo, "processAppExecModel()", true, () -> {
             // Call '_processAppExecModel()' to do actual processing
             _processAppExecModel(appExecModelId, requestInfo);
             this.currentAppExecModelId = _normalizeModelId(appExecModelId);
+            return List.of(getCurrentEmsState(), getCurrentEmsStateMessage(), getCurrentEmsStateChangeTimestamp());
         });
     }
 
     @Async
     public void setConstants(@NonNull Map<String,Double> constants, ControlServiceRequestInfo requestInfo) {
-        _lockAndProcessModel(null, null, requestInfo, "setConstants()", () -> {
+        _lockAndProcessModel(null, null, requestInfo, "setConstants()", true, () -> {
             // Call '_setConstants()' to do actual processing
             _setConstants(constants, requestInfo);
+            return List.of(getCurrentEmsState(), getCurrentEmsStateMessage(), getCurrentEmsStateChangeTimestamp());
         });
     }
 
-    protected void _lockAndProcessModel(String appModelId, String appExecModelId, ControlServiceRequestInfo requestInfo, String caller, Runnable callback) {
+    protected void _lockAndProcessModel(String appModelId, String appExecModelId, ControlServiceRequestInfo requestInfo,
+                                        String caller, boolean updateEmsState, Supplier<List<Object>> callback)
+    {
         // Acquire lock of this coordinator
         if (!inUse.compareAndSet(false, true)) {
             String mesg = "ControlServiceCoordinator."+caller+": ERROR: Coordinator is in use. Exits immediately";
@@ -277,8 +285,14 @@ public class ControlServiceCoordinator implements InitializingBean {
         }
 
         // Execute callback after acquiring lock
+        EMS_STATE state;
+        String stateMessage;
+        long stateTimestamp;
         try {
-            callback.run();
+            List<Object> result = callback.get();
+            state = (EMS_STATE) result.get(0);
+            stateMessage = result.get(1).toString();
+            stateTimestamp = (long) result.get(2);
         } catch (Exception ex) {
             StringBuilder sb = new StringBuilder(ex.getClass().getName()).append(": ").append(ex.getMessage());
             Throwable t = ex;
@@ -286,7 +300,11 @@ public class ControlServiceCoordinator implements InitializingBean {
                 t = t.getCause();
                 sb.append(", caused by: ").append(t.getClass().getName()).append(": ").append(t.getMessage());
             }
-            setCurrentEmsState(EMS_STATE.ERROR, sb.toString());
+            state = EMS_STATE.ERROR;
+            stateMessage = sb.toString();
+            stateTimestamp = System.currentTimeMillis();
+            if (updateEmsState)
+                setCurrentEmsState(state, stateMessage);
 
             String mesg = "ControlServiceCoordinator."+caller+": EXCEPTION: " + ex;
             log.error(mesg, ex);
@@ -303,9 +321,9 @@ public class ControlServiceCoordinator implements InitializingBean {
         // Invoke requestInfo callback if provided
         if (requestInfo.getCallback()!=null) {
             requestInfo.getCallback().accept(Map.of(
-                    "ems-state", StringUtils.defaultIfBlank(getCurrentEmsState().name(), "UNKNOWN"),
-                    "ems-state-message", StringUtils.defaultIfBlank(getCurrentEmsStateMessage(), ""),
-                    "ems-state-change-timestamp", getCurrentEmsStateChangeTimestamp()
+                    "ems-state", StringUtils.defaultIfBlank(state.name(), "UNKNOWN"),
+                    "ems-state-message", StringUtils.defaultIfBlank(stateMessage, ""),
+                    "ems-state-change-timestamp", stateTimestamp
             ));
         }
     }

@@ -9,7 +9,9 @@
 
 package gr.iccs.imu.ems.control.controller;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import gr.iccs.imu.ems.translate.TranslationContext;
 import lombok.Getter;
@@ -28,6 +30,7 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 
 import java.lang.reflect.Type;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -68,7 +71,7 @@ public class ControlServiceController {
 
     private Map<String,String> extractAppIds(String requestStr) {
         // Use Gson to get model id's from request body (in JSON format)
-        com.google.gson.JsonObject jObj = new com.google.gson.Gson().fromJson(requestStr, com.google.gson.JsonObject.class);
+        JsonObject jObj = new Gson().fromJson(requestStr, JsonObject.class);
         String appModelId = Optional.ofNullable(jObj.get("app-model-id")).map(je -> stripQuotes(je.toString())).orElse(null);
         if (StringUtils.isBlank(appModelId))
             appModelId = Optional.ofNullable(jObj.get("applicationId")).map(je -> stripQuotes(je.toString())).orElse(null);
@@ -112,7 +115,7 @@ public class ControlServiceController {
         log.trace("ControlServiceController.newAppExecModel(): JWT token: {}", jwtToken);
 
         // Use Gson to get model id's from request body (in JSON format)
-        com.google.gson.JsonObject jobj = new com.google.gson.Gson().fromJson(requestStr, com.google.gson.JsonObject.class);
+        JsonObject jobj = new Gson().fromJson(requestStr, JsonObject.class);
         String appExecModelId = Optional.ofNullable(jobj.get("app-exec-model-id")).map(je -> stripQuotes(je.toString())).orElse(null);
         log.info("ControlServiceController.newAppExecModel(): App execution model id from request: {}", appExecModelId);
 
@@ -138,7 +141,7 @@ public class ControlServiceController {
 
         // Use Gson to get constants from request body (in JSON format)
         Type type = new TypeToken<Map<String,Double>>(){}.getType();
-        Map<String, Double> constants = new com.google.gson.Gson().fromJson(requestStr, type);
+        Map<String, Double> constants = new Gson().fromJson(requestStr, type);
         log.info("ControlServiceController.setConstants(): Constants from request: {}", constants);
 
         // Start App Exec model processing in a worker thread
@@ -204,8 +207,8 @@ public class ControlServiceController {
     }
 
     @PostMapping(value = "/translator/translate", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public TranslationContext translateModel(@RequestBody String requestStr,
-                                             @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String jwtToken)
+    public Map<String, Object> translateModel(@RequestBody String requestStr,
+                                              @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String jwtToken)
     {
         log.debug("ControlServiceController.translateModel(): Received request: {}", requestStr);
         log.trace("ControlServiceController.translateModel(): JWT token: {}", jwtToken);
@@ -218,11 +221,16 @@ public class ControlServiceController {
         String appModel = appIds.get("appModel");
 
         // Start translation
-        TranslationContext _TC = coordinator.translateAppModel(appModelId, appModel, ControlServiceRequestInfo.create(applicationId, null, null, jwtToken, null));
-        log.info("ControlServiceController.translateModel(): TC model: {}", _TC.getModelName());
+        AtomicReference<Object> state = new AtomicReference<>();
+        TranslationContext _TC = coordinator.translateAppModel(appModelId, appModel,
+                ControlServiceRequestInfo.create(applicationId, null, null, jwtToken, state::set));
+        log.info("ControlServiceController.translateModel(): EMS State: {}", state.get());
+        log.info("ControlServiceController.translateModel(): TC model: {}", _TC!=null ? _TC.getModelName() : null);
         log.debug("ControlServiceController.translateModel(): TC: {}", _TC);
 
-        return _TC;
+        Map<String,Object> result = new LinkedHashMap<>((Map<String,Object>)state.get());
+        if (_TC!=null) result.put("translationContext", _TC);
+        return result;
     }
 
     // ---------------------------------------------------------------------------------------------------
