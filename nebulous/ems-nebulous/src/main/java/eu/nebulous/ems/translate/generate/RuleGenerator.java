@@ -8,7 +8,7 @@
 
 package eu.nebulous.ems.translate.generate;
 
-import eu.nebulous.ems.translate.NebulousEmsTranslator;
+import eu.nebulous.ems.translate.NameNormalization;
 import eu.nebulous.ems.translate.analyze.AnalysisUtils;
 import gr.iccs.imu.ems.brokercep.cep.MathUtil;
 import gr.iccs.imu.ems.translate.TranslationContext;
@@ -39,6 +39,7 @@ public class RuleGenerator implements InitializingBean {
 
     private final NebulousEmsTranslatorProperties properties;
     private final RuleTemplateRegistry ruleTemplatesRegistry;
+    private final NameNormalization nameNormalization;
     private SpringTemplateEngine templateEngine;
 
     // ========================================================================
@@ -503,7 +504,7 @@ public class RuleGenerator implements InitializingBean {
     }
 
     protected String getElemNameNormalized(String name) {
-        return NebulousEmsTranslator.nameNormalization.apply(name);
+        return nameNormalization.apply(name);
     }
 
     protected void _generateRule(TranslationContext _TC, String type, String grouping, NamedElement elem, Context context) {

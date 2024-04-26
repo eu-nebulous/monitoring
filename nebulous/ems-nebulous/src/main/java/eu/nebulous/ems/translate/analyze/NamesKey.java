@@ -29,6 +29,6 @@ public class NamesKey {
     }
 
     public String name() {
-        return parent+"."+child;
+        return StringUtils.isNotBlank(parent) ? parent+"."+child : child;
     }
 }

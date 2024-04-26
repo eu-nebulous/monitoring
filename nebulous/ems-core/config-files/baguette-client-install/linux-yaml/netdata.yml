@@ -48,7 +48,8 @@ instructions:
   - description: Download Netdata kickstart.sh
     taskType: CMD
     command: >-
-      curl https://my-netdata.io/kickstart-static64.sh > /tmp/netdata-kickstart.sh
+      command -v curl &>/dev/null && curl -o /tmp/netdata-kickstart.sh https://my-netdata.io/kickstart-static64.sh || (command -v wget &>/dev/null && wget -O /tmp/netdata-kickstart.sh https://my-netdata.io/kickstart-static64.sh) || echo 'No curl or wget command found to download Netdata kickstart script'
+#      curl https://my-netdata.io/kickstart-static64.sh > /tmp/netdata-kickstart.sh
     executionTimeout: 600000
   - description: Make Netdata kickstart.sh executable
     taskType: CMD

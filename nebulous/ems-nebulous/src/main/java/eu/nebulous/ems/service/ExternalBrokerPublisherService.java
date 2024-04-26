@@ -9,7 +9,7 @@
 package eu.nebulous.ems.service;
 
 import com.google.gson.Gson;
-import eu.nebulous.ems.translate.NebulousEmsTranslator;
+import eu.nebulous.ems.translate.NameNormalization;
 import eu.nebulouscloud.exn.core.Publisher;
 import gr.iccs.imu.ems.brokercep.BrokerCepService;
 import gr.iccs.imu.ems.brokercep.event.EventMap;
@@ -44,6 +44,7 @@ public class ExternalBrokerPublisherService extends AbstractExternalBrokerServic
 {
 	private static final String COMBINED_SLO_PUBLISHER_KEY = "COMBINED_SLO_PUBLISHER_KEY_" + System.currentTimeMillis();
 	private final BrokerCepService brokerCepService;
+	private final NameNormalization nameNormalization;
 	private final Map<String, String> additionalTopicsMap = new HashMap<>();
 	private final Gson gson = new Gson();
 	private Map<String, Publisher> publishersMap = Map.of();
@@ -51,10 +52,12 @@ public class ExternalBrokerPublisherService extends AbstractExternalBrokerServic
 	private Set<String> sloSet;
 
 	protected ExternalBrokerPublisherService(ExternalBrokerServiceProperties properties,
-											 TaskScheduler taskScheduler, BrokerCepService brokerCepService)
+											 TaskScheduler taskScheduler, BrokerCepService brokerCepService,
+											 NameNormalization nameNormalization)
 	{
 		super(properties, taskScheduler);
 		this.brokerCepService = brokerCepService;
+		this.nameNormalization = nameNormalization;
 	}
 
 	public void addAdditionalTopic(@NonNull String topic, @NonNull String externalBrokerTopic) {
@@ -91,7 +94,7 @@ public class ExternalBrokerPublisherService extends AbstractExternalBrokerServic
 		// Find top-level topics that correspond to SLOs (or other requirements)
 		log.trace("ExternalBrokerPublisherService:  SLOs-BEFORE: {}", translationContext.getSLO());
 		sloSet = translationContext.getSLO().stream()
-				.map(NebulousEmsTranslator.nameNormalization)
+				.map(nameNormalization)
 				.collect(Collectors.toSet());
 		log.trace("ExternalBrokerPublisherService:   SLOs-AFTER: {}", sloSet);
 

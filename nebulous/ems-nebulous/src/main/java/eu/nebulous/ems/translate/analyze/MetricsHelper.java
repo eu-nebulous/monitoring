@@ -228,8 +228,7 @@ class MetricsHelper extends AbstractHelper {
 
         // Process 'ref'
         refStr = refStr.replace("[", "").replace("]", "");
-        NamesKey referencedNamesKey = NamesKey.isFullName(refStr)
-                ? NamesKey.create(refStr) : NamesKey.create(parentNamesKey.parent, refStr);
+        NamesKey referencedNamesKey = createNamesKey(parentNamesKey, refStr);
         MetricContext referencedMetric = $$(_TC).metricsUsed.get(referencedNamesKey);
         if (referencedMetric==null) {
             Object spec = $$(_TC).allMetrics.get(referencedNamesKey);
@@ -250,7 +249,7 @@ class MetricsHelper extends AbstractHelper {
         String metricName = getSpecName(metricSpec);
         Double defaultValue = getSpecNumber(metricSpec, "default");
 
-        NamesKey metricNamesKey = NamesKey.create(parentName, metricName);
+        NamesKey metricNamesKey = createNamesKey(parentName, metricName);
 
         // Register metric constant, and initial value (if available)
         $$(_TC).constants.put(metricNamesKey, defaultValue);
@@ -314,7 +313,7 @@ class MetricsHelper extends AbstractHelper {
             orphanMetrics.forEach(metricNamesKey -> {
                 Map<String, Object> metricSpec = asMap($$(_TC).allMetrics.get(metricNamesKey));
                 String parentName = getContainerName(metricSpec);
-                NamesKey parentNamesKey = NamesKey.create(parentName, "DUMMY");
+                NamesKey parentNamesKey = createNamesKey(parentName, "DUMMY");
                 decomposeMetric(_TC, metricSpec, parentNamesKey, metricVar);
             });
         }

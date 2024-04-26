@@ -27,8 +27,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static eu.nebulous.ems.translate.analyze.AnalysisUtils.createException;
-import static eu.nebulous.ems.translate.analyze.AnalysisUtils.getContainerName;
+import static eu.nebulous.ems.translate.analyze.AnalysisUtils.*;
 
 // ------------------------------------------------------------------------
 //  DAG node updating with requiring components, and SLO per component
@@ -123,7 +122,7 @@ class NodeUpdatingHelper extends AbstractHelper {
     void updateDAGNodesWithComponents(TranslationContext _TC, Set<String> componentNames) {
         _TC.getDAG().getTopLevelNodes().forEach(tlNode -> {
             if (tlNode.getElement() instanceof ServiceLevelObjective slo) {
-                Set<String> components = $$(_TC).slosToComponentsMap.get(NamesKey.create(slo.getName()));
+                Set<String> components = $$(_TC).slosToComponentsMap.get(createNamesKey(slo.getName()));
                 log.trace("Updating DAG node components: slo-name={}, slo-components={}", slo.getName(),  components);
                 tlNode.getProperties().put("components", components);
                 if (components!=null)

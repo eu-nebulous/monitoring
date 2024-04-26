@@ -86,6 +86,9 @@ public class MetricModelAnalyzer {
         Set<String> componentNames = new LinkedHashSet<>(componentNamesList);
         Set<String> scopeNames = new LinkedHashSet<>(scopeNamesList);
 
+        // Check name uniqueness
+        checkAllNamesUniqueness(ctx, componentNames, scopeNames);
+
         // ----- Set container name and make mutable all 'spec' elements (and sub-elements) -----
         log.debug("MetricModelAnalyzer.analyzeModel(): Set element containers");
         Map<String, Object> modelRoot = asMap(ctx.read("$"));
@@ -187,6 +190,59 @@ public class MetricModelAnalyzer {
         }
     }
 
+    private void checkAllNamesUniqueness(DocumentContext ctx, Set<String> componentNames, Set<String> scopeNames) {
+        /*List<String> allNames = Stream.of(
+                $$(_TC).allMetrics.keySet().stream().map(NamesKey::name),
+                $$(_TC).allSLOs.keySet().stream().map(NamesKey::name),
+                $$(_TC).constants.keySet().stream().map(NamesKey::name),
+                componentNames.stream(),
+                scopeNames.stream()
+        ).flatMap(s -> s).toList();
+        log.trace("      ALL model names: {}", allNames);*/
+
+        // Add component and scope names
+        List<String> allNames = new ArrayList<>();
+        allNames.addAll(componentNames);
+        allNames.addAll(scopeNames);
+
+        // Add metric names
+        filterSpecsList(asList(ctx.read("$.spec.*.*.metrics.*"))).forEach(spec -> {
+            log.trace("check-name-uniqueness: {}", spec);
+            String name = getSpecName(spec);
+            if (StringUtils.isNotBlank(name))
+                allNames.add(name);
+        });
+
+        // Add SLO names (but not constraint names that use the corresponding SLO names)
+        filterSpecsList(asList(ctx.read("$.spec.*.*.requirements.*"))).forEach(spec -> {
+            log.trace("check-name-uniqueness: {}", spec);
+            String name = getSpecName(spec);
+            if (StringUtils.isNotBlank(name))
+                allNames.add(name);
+        });
+
+        // Add function names
+        filterSpecsList(asList(ctx.read("$[?(@.functions!=null)].functions.*.*"))).forEach(spec -> {
+            log.trace("check-name-uniqueness: {}", spec);
+            String name = getSpecName(spec);
+            if (StringUtils.isNotBlank(name))
+                allNames.add(name);
+        });
+
+        // Check for duplicates
+        log.debug("      ALL model names: {}", allNames);
+        List<String> duplicateNames = allNames.stream()
+                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()))
+                .entrySet().stream()
+                .filter(e -> e.getValue() > 1)
+                .map(Map.Entry::getKey)
+                .toList();
+        if (! duplicateNames.isEmpty()) {
+            log.error("Duplicate names found: {}", duplicateNames);
+            throw createException("Naming conflicts found for: "+duplicateNames);
+        }
+    }
+
     private Object addContainerNameAndMakeMutable(Object o, String parentName) {
         if (o instanceof Map m) {
             Map<String, Object> newM = new LinkedHashMap<>();
@@ -216,7 +272,7 @@ public class MetricModelAnalyzer {
     }
 
     private void buildElementLists(TranslationContext _TC, Map<String, Object> modelRoot) {
-        asList(JsonPath.read(modelRoot, "$.spec.*.*")).stream().filter(Objects::nonNull).forEach(spec -> {
+        filterSpecsList(asList(JsonPath.read(modelRoot, "$.spec.*.*"))).forEach(spec -> {
             log.debug("buildElementLists: {}", spec);
             String parentName = getSpecName(spec);
             if (StringUtils.isBlank(parentName)) throw createException("Component or Scope with no name: " + spec);
@@ -225,20 +281,21 @@ public class MetricModelAnalyzer {
             // Requirements (SLOs) flat list building
             List<Object> slos = JsonPath.read(spec,
                     "$[?(@.requirements!=null && @.requirements.*[?(@.type=='slo')])].requirements.*");
-            slos.stream().filter(Objects::nonNull).forEach(sloSpec -> {
+            slos = filterSpecsList(slos);
+            slos.forEach(sloSpec -> {
                 log.debug("buildElementLists: SLO (requirements): {}", sloSpec);
                 String sloName = getSpecName(sloSpec);
                 if (StringUtils.isBlank(sloName)) throw createException("SLO spec with no name: " + sloSpec);
-                $$(_TC).allSLOs.put(NamesKey.create(parentName, sloName), sloSpec);
+                $$(_TC).allSLOs.put(createNamesKey(parentName, sloName), sloSpec);
             });
 
             // Constraints flat list building
-            slos.stream().filter(Objects::nonNull).forEach(sloSpec -> {
+            slos.forEach(sloSpec -> {
                 log.debug("buildElementLists: SLO (constraints): {}", sloSpec);
                 String sloName = getSpecName(sloSpec);
                 if (StringUtils.isBlank(sloName)) throw createException("SLO spec with no name: " + sloSpec);
 
-                NamesKey sloNamesKey = NamesKey.create(parentName, sloName);
+                NamesKey sloNamesKey = createNamesKey(parentName, sloName);
                 Map<String, Object> constraintSpec = asMap(asMap(sloSpec).get("constraint"));
                 NamesKey constraintNamesKey = createNamesKey(sloNamesKey, sloName);
                 $$(_TC).allConstraints.put(constraintNamesKey, constraintSpec);
@@ -246,18 +303,27 @@ public class MetricModelAnalyzer {
 
             // Metrics flat list building
             List<Object> metrics = JsonPath.read(spec, "$[?(@.metrics!=null)].metrics.*");
-            metrics.stream().filter(Objects::nonNull).forEach(metricSpec -> {
+            filterSpecsList(metrics).forEach(metricSpec -> {
                 log.debug("buildElementLists: Metric: {}", metricSpec);
                 String metricName = getSpecName(metricSpec);
                 if (StringUtils.isBlank(metricName)) throw createException("Metric spec with no name: " + metricSpec);
-                NamesKey namesKey = NamesKey.create(parentName, metricName);
+                NamesKey namesKey = createNamesKey(parentName, metricName);
                 $$(_TC).allMetrics.put(namesKey, metricSpec);
             });
         });
     }
 
+    private List<Object> filterSpecsList(List<Object> list) {
+        return list.stream()
+                //.peek(x->log.warn("---------> MM: {} -- {}", x!=null?x.getClass().getName():null, x))
+                .filter(Objects::nonNull)
+                .filter(o->o instanceof Map)
+                //.peek(x->log.warn("           !!: {} -- {}", x.getClass().getName(), x))
+                .toList();
+    }
+
     private void buildConstantsList(TranslationContext _TC, Map<String, Object> modelRoot) {
-        asList(JsonPath.read(modelRoot, "$.spec.*.*.metrics.*[?(@.type=='constant')]")).stream().filter(Objects::nonNull).forEach(spec -> {
+        filterSpecsList(asList(JsonPath.read(modelRoot, "$.spec.*.*.metrics.*[?(@.type=='constant')]"))).forEach(spec -> {
             metricsHelper.processConstant(_TC, asMap(spec), getContainerName(spec));
         });
     }

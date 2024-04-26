@@ -44,6 +44,8 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
     private RestClient restClient;
     private OpenMetricsParser openMetricsParser;
     private final LinkedBlockingQueue<EventMap> eventsQueue = new LinkedBlockingQueue<>();
+    private Thread eventPublishThread;
+    private boolean keepRunning;
 
     @SuppressWarnings("unchecked")
     public PrometheusCollector2(PrometheusCollectorProperties properties, CollectorContext collectorContext, TaskScheduler taskScheduler, EventBus<String,Object,Object> eventBus) {
@@ -56,9 +58,23 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
     public void afterPropertiesSet() {
         log.debug("Collectors::Prometheus2: properties: {}", properties);
         super.afterPropertiesSet();
+    }
 
+    @Override
+    public void start() {
         initRestClientAndParser();
         startEventPublishTask();
+        applyNewConfigurations();
+    }
+
+    @Override
+    public void stop() {
+        keepRunning = false;
+        if (eventPublishThread!=null && eventPublishThread.isAlive()) {
+            eventPublishThread.interrupt();
+        }
+        cancelScrapingTasks();
+        eventsQueue.clear();
     }
 
     protected ResponseEntity<String> getData(String url) {
@@ -92,13 +108,7 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
         if (configurations==null) return;
 
         // Cancel previous tasks
-        if (! scrapingTasks.isEmpty()) {
-            log.trace("Collectors::Prometheus2: applyNewConfigurations: Cancelling previous scraping tasks: {}", scrapingTasks);
-            List<ScheduledFuture<?>> list = new ArrayList<>(scrapingTasks);
-            scrapingTasks.clear();
-            list.forEach(task -> task.cancel(true));
-            log.trace("Collectors::Prometheus2: applyNewConfigurations: Cancelled previous scraping tasks: {}", scrapingTasks);
-        }
+        cancelScrapingTasks();
 
         // Create new scraping tasks
         log.trace("Collectors::Prometheus2: applyNewConfigurations: Starting new scraping tasks: configurations: {}", configurations);
@@ -120,6 +130,16 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
                 log.warn("Collectors::Prometheus2: applyNewConfigurations: Skipped sensor: {}", config);
         });
         log.debug("Collectors::Prometheus2: applyNewConfigurations: Started new scraping tasks: {}", scrapingTasks);
+    }
+
+    private void cancelScrapingTasks() {
+        if (! scrapingTasks.isEmpty()) {
+            log.trace("Collectors::Prometheus2: cancelScrapingTasks: Cancelling previous scraping tasks: {}", scrapingTasks);
+            List<ScheduledFuture<?>> list = new ArrayList<>(scrapingTasks);
+            scrapingTasks.clear();
+            list.forEach(task -> task.cancel(true));
+            log.trace("Collectors::Prometheus2: cancelScrapingTasks: Cancelled previous scraping tasks: {}", scrapingTasks);
+        }
     }
 
     private boolean checkConfig(Map<String, Serializable> config) {
@@ -266,8 +286,9 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
     }
 
     private void startEventPublishTask() {
-        Thread thread = new Thread(() -> {
-            while (true) {
+        eventPublishThread = new Thread(() -> {
+            keepRunning = true;
+            while (keepRunning) {
                 try {
                     EventMap event = eventsQueue.take();
                     String destination = event.getEventProperty("destination-topic").toString();
@@ -280,8 +301,8 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
                 }
             }
         });
-        thread.setName("PrometheusCollector2-event-publish-thread");
-        thread.setDaemon(true);
-        thread.start();
+        eventPublishThread.setName("PrometheusCollector2-event-publish-thread");
+        eventPublishThread.setDaemon(true);
+        eventPublishThread.start();
     }
 }

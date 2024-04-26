@@ -246,6 +246,13 @@ public class VmInstallationHelper extends AbstractInstallationHelper {
         if (StringUtils.isEmpty(ipSetting)) throw new IllegalArgumentException("IP_SETTING must have a value");
         nodeMap.put("IP_SETTING", ipSetting);
 
+        // EMS client config. read from environment variables
+        nodeMap.put("EMS_CLIENT_ADDITIONAL_BROKER_CREDENTIALS", System.getenv("EMS_CLIENT_ADDITIONAL_BROKER_CREDENTIALS"));
+        nodeMap.put("EMS_CLIENT_BROKER_USERNAME", System.getenv("EMS_CLIENT_BROKER_USERNAME"));
+        nodeMap.put("EMS_CLIENT_BROKER_PASSWORD", System.getenv("EMS_CLIENT_BROKER_PASSWORD"));
+        nodeMap.put("EMS_CLIENT_KEYSTORE_SECRET", System.getenv("EMS_CLIENT_KEYSTORE_SECRET"));
+        nodeMap.put("EMS_CLIENT_TRUSTSTORE_SECRET", System.getenv("EMS_CLIENT_TRUSTSTORE_SECRET"));
+
         // Misc. installation property values
         nodeMap.put("BASE_URL", baseUrl);
         nodeMap.put("DOWNLOAD_URL", baseDownloadUrl);

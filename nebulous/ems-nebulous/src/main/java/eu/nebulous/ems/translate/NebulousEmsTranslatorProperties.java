@@ -17,6 +17,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.Map;
+import java.util.regex.Pattern;
+
 @Slf4j
 @Data
 @Validated
@@ -33,6 +36,13 @@ public class NebulousEmsTranslatorProperties implements InitializingBean {
 
     // Translator parameters
     private String modelsDir = "models";
+
+    // Name processing parameters
+    private boolean useCompositeNames = false;
+    private Map<Pattern, String> nameNormalizationPatterns = Map.of(
+            //Pattern.compile("_"), "__",
+            //Pattern.compile("[^A-Za-z0-9_]"), "_"
+    );
 
     // Sensor processing parameters
     private long sensorMinInterval;

@@ -65,7 +65,10 @@ public class SourceAddressMessageUpdateInterceptor extends AbstractMessageInterc
             } else if (StringUtils.isNotBlank(oldAddress)) {
                 log.debug("SourceAddressMessageUpdateInterceptor:  Producer host property already set (keeping previous value): host={}, message={}", oldAddress, message);
             } else if (StringUtils.isBlank(address)) {
-                log.warn("SourceAddressMessageUpdateInterceptor:  Could not resolve Producer host property: message={}", message);
+                if (NetUtil.hasAddress())
+                    log.warn("SourceAddressMessageUpdateInterceptor:  Could not resolve Producer host property: message={}", message);
+                else
+                    log.trace("SourceAddressMessageUpdateInterceptor:  Local address is not available. Could not resolve Producer host property: message={}", message);
             }
 
         } catch (Exception e) {

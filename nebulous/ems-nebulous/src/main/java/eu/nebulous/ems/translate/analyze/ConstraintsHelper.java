@@ -216,10 +216,10 @@ class ConstraintsHelper extends AbstractHelper {
 
     private Constraint decomposeComposingConstraint(TranslationContext _TC, String sloName, NamesKey parentNamesKey, Constraint parentConstraint) {
         // Get referenced constraint spec (its SLO spec actually)
-        Object sloSpec = $$(_TC).allSLOs.get(NamesKey.create(parentNamesKey.parent, sloName));
+        Object sloSpec = $$(_TC).allSLOs.get(createNamesKey(parentNamesKey.parent, sloName));
 
         // Construct SLO namesKey
-        NamesKey sloNamesKey = NamesKey.create(getContainerName(sloSpec), sloName);
+        NamesKey sloNamesKey = createNamesKey(getContainerName(sloSpec), sloName);
 
         // Get constraint spec from SLO spec
         Map<String, Object> constraintSpec = asMap(asMap(sloSpec).get("constraint"));
@@ -231,7 +231,7 @@ class ConstraintsHelper extends AbstractHelper {
     private Constraint decomposeComposingConstraintSpec(TranslationContext _TC, Map spec, NamesKey parentNamesKey, Constraint parentConstraint) {
         // Construct SLO namesKey
         String name = "random-"+System.currentTimeMillis();
-        NamesKey namesKey = NamesKey.create(getContainerName(spec), name);
+        NamesKey namesKey = createNamesKey(getContainerName(spec), name);
 
         // Decompose composing constraint
         return decomposeConstraint(_TC, spec, namesKey, parentConstraint);

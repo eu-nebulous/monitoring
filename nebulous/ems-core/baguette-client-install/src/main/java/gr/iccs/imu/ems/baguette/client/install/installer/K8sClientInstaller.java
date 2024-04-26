@@ -72,9 +72,11 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
         brokerPassword = getConfig("EMS_CLIENT_BROKER_PASSWORD", RandomStringUtils.randomAlphanumeric(32));
 
         StringBuilder sb = new StringBuilder(getConfig("EMS_CLIENT_ADDITIONAL_BROKER_CREDENTIALS", ""));
-        if (StringUtils.isNotBlank(sb))
-            sb.append(", ");
-        sb.append(brokerUsername).append("/").append(brokerPassword);
+        if (StringUtils.isNotBlank(brokerUsername)) {
+            if (StringUtils.isNotBlank(sb))
+                sb.append(", ");
+            sb.append(brokerUsername).append("/").append(brokerPassword);
+        }
         additionalCredentials = sb.toString();
     }
 

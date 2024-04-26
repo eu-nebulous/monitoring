@@ -79,17 +79,23 @@ public class BuildInfoProvider implements ApplicationContextAware, IEmsInfoProvi
         Map<String, Object> map = new LinkedHashMap<>();
         Resource[] resources = applicationContext.getResources(resourceStr);
         if (resources.length>0) {
-            Resource r = resources[0];
-            String linesStr = StreamUtils.copyToString(r.getInputStream(), StandardCharsets.UTF_8);
-            String s = StringUtils.repeat("=", title.length()+12);
-            print("\n{}\n===== {} =====\n{}\n=== File: {}\n=== URL:  {}\n\n{}\n", s, title, s, r.getFilename(), r.getURL(), linesStr);
-            Properties p;
-            try (StringReader sr = new StringReader(linesStr)) {
-                p = new Properties();
-                p.load(sr);
+            try {
+                Resource r = resources[0];
+                String linesStr = StreamUtils.copyToString(r.getInputStream(), StandardCharsets.UTF_8);
+                String s = StringUtils.repeat("=", title.length() + 12);
+                print("\n{}\n===== {} =====\n{}\n=== File: {}\n=== URL:  {}\n\n{}\n", s, title, s, r.getFilename(), r.getURL(), linesStr);
+                Properties p;
+                try (StringReader sr = new StringReader(linesStr)) {
+                    p = new Properties();
+                    p.load(sr);
+                }
+                for (final String name : p.stringPropertyNames())
+                    map.put(name, p.getProperty(name));
+            } catch (Exception e) {
+                log.warn("Error while collecting info from file: {} -- Exception: {}: {}", resourceStr, e.getClass().getName(), e.getMessage());
+                log.debug("Error while collecting info from file: {} -- Exception: ", resourceStr, e);
+                return Map.of();
             }
-            for (final String name: p.stringPropertyNames())
-                map.put(name, p.getProperty(name));
         }
         return map;
     }

@@ -288,6 +288,10 @@ public class NetUtil {
         return usePublic ? getPublicIpAddress() : getDefaultIpAddress();
     }
 
+    public static boolean hasAddress() {
+        return StringUtils.isNotBlank(getIpSettingAddress());
+    }
+
     // ------------------------------------------------------------------------
 
     public static boolean isLocalAddress(String addr) throws UnknownHostException {

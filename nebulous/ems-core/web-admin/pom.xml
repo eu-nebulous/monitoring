@@ -106,7 +106,7 @@
                     <!-- Copy and filter .env file -->
                     <plugin>
                         <artifactId>maven-resources-plugin</artifactId>
-                        <version>3.2.0</version>
+                        <version>3.3.1</version>
                         <executions>
                             <execution>
                                 <id>create-env-file</id>

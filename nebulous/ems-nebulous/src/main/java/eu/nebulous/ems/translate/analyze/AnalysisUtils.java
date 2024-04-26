@@ -9,10 +9,12 @@
 package eu.nebulous.ems.translate.analyze;
 
 import eu.nebulous.ems.translate.ModelException;
+import eu.nebulous.ems.translate.NebulousEmsTranslatorProperties;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Service;
 
 import java.time.temporal.ChronoUnit;
@@ -22,7 +24,7 @@ import java.util.Map;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AnalysisUtils {
+public class AnalysisUtils implements InitializingBean {
     final static String CONTAINER_NAME_KEY = "_containerName";
 
     final static List<String> COMPARISON_OPERATORS =
@@ -30,6 +32,16 @@ public class AnalysisUtils {
     final static List<String> LOGICAL_OPERATORS =
             List.of("and", "or");
     final static String NOT_OPERATOR = "not";
+
+    private static boolean useCompositeNames = true;
+
+    private final NebulousEmsTranslatorProperties properties;
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        useCompositeNames = properties.isUseCompositeNames();
+        log.info("AnalysisUtils: useCompositeNames: {}", useCompositeNames);
+    }
 
     // ------------------------------------------------------------------------
     //  Exceptions and Casting method
@@ -64,12 +76,29 @@ public class AnalysisUtils {
     // ------------------------------------------------------------------------
 
     static NamesKey createNamesKey(@NonNull NamesKey parentNamesKey, @NonNull String name) {
-        return (NamesKey.isFullName(name))
-                ? NamesKey.create(name) : NamesKey.create(parentNamesKey.parent, name);
+        if (useCompositeNames)
+            return (NamesKey.isFullName(name))
+                    ? NamesKey.create(name) : NamesKey.create(parentNamesKey.parent, name);
+        else
+            return NamesKey.create(null, name);
+    }
+
+    static NamesKey createNamesKey(@NonNull String parentName, @NonNull String name) {
+        if (useCompositeNames)
+            return NamesKey.create(parentName, name);
+        else
+            return NamesKey.create(null, name);
+    }
+
+    static NamesKey createNamesKey(@NonNull String name) {
+        if (useCompositeNames)
+            return NamesKey.create(name);
+        else
+            return NamesKey.create(null, name);
     }
 
     static NamesKey getNamesKey(@NonNull Object spec, @NonNull String name) {
-        return NamesKey.create(getContainerName(spec), name);
+        return createNamesKey(getContainerName(spec), name);
     }
 
     static String getContainerName(@NonNull Object spec) {

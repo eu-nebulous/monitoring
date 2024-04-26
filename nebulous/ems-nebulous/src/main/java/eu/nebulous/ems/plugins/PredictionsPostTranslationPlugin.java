@@ -9,7 +9,7 @@
 
 package eu.nebulous.ems.plugins;
 
-import eu.nebulous.ems.translate.NebulousEmsTranslator;
+import eu.nebulous.ems.translate.NameNormalization;
 import gr.iccs.imu.ems.control.plugin.PostTranslationPlugin;
 import gr.iccs.imu.ems.control.util.TopicBeacon;
 import gr.iccs.imu.ems.translate.TranslationContext;
@@ -32,6 +32,8 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
     public final static String PREDICTION_SLO_METRIC_DECOMPOSITION = "NEBULOUS_PREDICTION_SLO_METRIC_DECOMPOSITION";
     public final static String PREDICTION_TOP_LEVEL_NODES_METRICS_MAP = "NEBULOUS_PREDICTION_TOP_LEVEL_NODES_METRICS_MAP";
     public final static String PREDICTION_TOP_LEVEL_NODES_METRICS = "NEBULOUS_PREDICTION_TOP_LEVEL_NODES_METRICS";
+
+    private final NameNormalization nameNormalization;
 
     @PostConstruct
     public void created() {
@@ -145,9 +147,9 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
             //MetricConstraint mc = mcMap.get(elementName);
 
             String metricName = mc.getMetricContext().getName();
-            String metricTopic = NebulousEmsTranslator.nameNormalization.apply(metricName);
+            String metricTopic = nameNormalization.apply(metricName);
             return Map.of(
-                    "name", NebulousEmsTranslator.nameNormalization.apply(mc.getName()),
+                    "name", nameNormalization.apply(mc.getName()),
                     "metric", metricTopic,
                     "operator", mc.getComparisonOperator().getOperator(),
                     "threshold", mc.getThreshold());
@@ -164,7 +166,7 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
 
             // create decomposition result
             Map<String,Object> result = new HashMap<>();
-            result.put("name", NebulousEmsTranslator.nameNormalization.apply( lc.getName() ));
+            result.put("name", nameNormalization.apply( lc.getName() ));
             result.put("operator", lc.getLogicalOperator());
             result.put("constraints", list);
             return result;
@@ -179,7 +181,7 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
 
             // create decomposition result
             Map<String,Object> result = new HashMap<>();
-            result.put("name", NebulousEmsTranslator.nameNormalization.apply( itc.getName() ));
+            result.put("name", nameNormalization.apply( itc.getName() ));
             result.put("if", itcIf);
             result.put("then", itcThen);
             result.put("else", itcElse);
@@ -229,7 +231,7 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
         payload.put("metric_list",
                 metricsOfTopLevelNodes.stream().map(mc -> {
                     HashMap<String, Object> map = new HashMap<>();
-                    map.put("name", NebulousEmsTranslator.nameNormalization.apply( mc.getName() ));
+                    map.put("name", nameNormalization.apply( mc.getName() ));
                     MetricTemplate template = mc.getMetric().getMetricTemplate();
                     if (template!=null) {
                         switch (template.getValueType()) {
