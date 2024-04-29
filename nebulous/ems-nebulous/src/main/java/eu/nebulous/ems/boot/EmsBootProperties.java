@@ -36,6 +36,7 @@ public class EmsBootProperties implements InitializingBean {
     private String modelsIndexFile = "models/index.json";
 
     private String dslTopic              = NEBULOUS_TOPIC_PREFIX + "ui.dsl.generic";
+    private String optimiserMetricsTopic = NEBULOUS_TOPIC_PREFIX + "optimiser.controller.metric_list";
     private String modelsTopic           = NEBULOUS_TOPIC_PREFIX + "ui.dsl.metric_model";
     private String modelsResponseTopic   = NEBULOUS_TOPIC_PREFIX + "ui.dsl.metric_model.reply";
     private String emsBootTopic          = NEBULOUS_TOPIC_PREFIX + "ems.boot";

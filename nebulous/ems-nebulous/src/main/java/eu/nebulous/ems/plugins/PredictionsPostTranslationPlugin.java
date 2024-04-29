@@ -16,6 +16,7 @@ import gr.iccs.imu.ems.translate.TranslationContext;
 import gr.iccs.imu.ems.translate.dag.DAGNode;
 import gr.iccs.imu.ems.translate.model.*;
 import jakarta.annotation.PostConstruct;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +35,10 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
     public final static String PREDICTION_TOP_LEVEL_NODES_METRICS = "NEBULOUS_PREDICTION_TOP_LEVEL_NODES_METRICS";
 
     private final NameNormalization nameNormalization;
+    @Getter
+    private List<String> optimiserMetrics = List.of();
+    private TranslationContext lastTranslationContext;
+    private TopicBeacon topicBeacon;
 
     @PostConstruct
     public void created() {
@@ -45,6 +50,18 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
         log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): BEGIN");
 
         // PREDICTION_SLO_METRIC_DECOMPOSITION
+        processSLOMetricDecompositions(translationContext, topicBeacon);
+
+        // PREDICTION_TOP_LEVEL_NODES_METRICS
+        processMetricsForPrediction(translationContext, topicBeacon);
+
+        this.lastTranslationContext = translationContext;
+        this.topicBeacon = topicBeacon;
+
+        log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): END");
+    }
+
+    private void processSLOMetricDecompositions(TranslationContext translationContext, TopicBeacon topicBeacon) {
         Map<String, Object> sloMetricDecompositionsMap = getSLOMetricDecompositionPayload(translationContext, topicBeacon);
         translationContext.getAdditionalResults().put(PREDICTION_SLO_METRIC_DECOMPOSITION_MAP, sloMetricDecompositionsMap);
         log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): SLO metrics decompositions: model={}, decompositions-map={}",
@@ -54,8 +71,9 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
         translationContext.getAdditionalResults().put(PREDICTION_SLO_METRIC_DECOMPOSITION, sloMetricDecompositionsStr);
         log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): SLO metrics decompositions: model={}, decompositions={}",
                 translationContext.getModelName(), sloMetricDecompositionsStr);
+    }
 
-        // PREDICTION_TOP_LEVEL_NODES_METRICS
+    private void processMetricsForPrediction(TranslationContext translationContext, TopicBeacon topicBeacon) {
         HashMap<String, Object> metricsOfTopLevelNodesMap = getMetricsForPredictionPayload(translationContext, topicBeacon);
         translationContext.getAdditionalResults().put(PREDICTION_TOP_LEVEL_NODES_METRICS_MAP, metricsOfTopLevelNodesMap);
         log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): Metrics of Top-Level nodes of model: model={}, metrics-map={}",
@@ -65,8 +83,6 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
         translationContext.getAdditionalResults().put(PREDICTION_TOP_LEVEL_NODES_METRICS, metricsOfTopLevelNodesStr);
         log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): Metrics of Top-Level nodes of model: model={}, metrics={}",
                 translationContext.getModelName(), metricsOfTopLevelNodesMap);
-
-        log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): END");
     }
 
     // ------------------------------------------------------------------------
@@ -194,10 +210,19 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
     // ------------------------------------------------------------------------
 
     private HashMap<String, Object> getMetricsForPredictionPayload(@NonNull TranslationContext _TC, TopicBeacon topicBeacon) {
-        HashSet<MetricContext> metricsOfTopLevelNodes = getMetricsForPrediction(_TC);
+        Set<MetricContext> metricsOfTopLevelNodes = getMetricsForPrediction(_TC);
+        log.debug("getMetricsForPredictionPayload: metricsOfTopLevelNodes: {}", metricsOfTopLevelNodes);
         if (metricsOfTopLevelNodes.isEmpty()) {
             return null;
         }
+
+        // Get intersection with optimiser metrics
+        if (optimiserMetrics!=null && ! optimiserMetrics.isEmpty()) {
+            metricsOfTopLevelNodes = metricsOfTopLevelNodes.stream()
+                    .filter(mc -> optimiserMetrics.contains(nameNormalization.apply( mc.getName() )))
+                    .collect(Collectors.toSet());
+        }
+        log.debug("getMetricsForPredictionPayload: Intersection of metricsOfTopLevelNodes with optimiser metrics: {}", metricsOfTopLevelNodes);
 
         // Convert to Translator-to-Forecasting Methods event format
         /*final long currVersion = topicBeacon.getModelVersion();
@@ -257,6 +282,7 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
                 })
                 .filter(Objects::nonNull)
                 .toList() );
+        log.debug("getMetricsForPredictionPayload: payload: {}", payload);
 
         return payload;
     }
@@ -286,5 +312,13 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
             }
         }
         return tcMetricsOfTopLevelNodes;
+    }
+
+    public void setOptimiserMetrics(List<String> metricsList) {
+        if (metricsList!=null && ! metricsList.isEmpty()) {
+            optimiserMetrics = new ArrayList<>(metricsList);
+            if (lastTranslationContext!=null)
+                processMetricsForPrediction(lastTranslationContext, topicBeacon);
+        }
     }
 }

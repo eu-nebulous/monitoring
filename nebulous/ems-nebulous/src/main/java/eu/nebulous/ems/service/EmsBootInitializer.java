@@ -9,6 +9,7 @@
 package eu.nebulous.ems.service;
 
 import eu.nebulous.ems.EmsNebulousProperties;
+import eu.nebulous.ems.plugins.PredictionsPostTranslationPlugin;
 import eu.nebulous.ems.translate.NebulousEmsTranslatorProperties;
 import eu.nebulouscloud.exn.core.Consumer;
 import eu.nebulouscloud.exn.core.Context;
@@ -127,17 +128,20 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 			String appId = body.get("application").toString();
 			String modelStr = body.get("metric-model").toString();
 			Map<String,String> bindingsMap = (Map) body.get("bindings");
+			List<String> metricsList = (List) body.get("optimiser-metrics");
 			log.info("""
 					EmsBootInitializer: Received an EMS Boot Response:
-					    App-Id: {}
-					  Bindings: {}
-					     Model: {}
-					""", appId, bindingsMap, modelStr);
+					      App-Id: {}
+					    Bindings: {}
+					Opt. Metrics: {}
+					       Model: {}
+					""", appId, bindingsMap, metricsList, modelStr);
 
 			try {
 				// Process metric model and bindings
 				processMetricModel(appId, modelStr);
 				processBindings(appId, bindingsMap);
+				processOptimiserMetrics(appId, metricsList);
 
 				// Stop further EMS Boot requests
 				if (bootFuture!=null && ! bootFuture.isDone())
@@ -150,6 +154,11 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 		}
 
 		processingResponse.set(false);
+	}
+
+	private void processOptimiserMetrics(String appId, List<String> metricsList) {
+		applicationContext.getBean(PredictionsPostTranslationPlugin.class).setOptimiserMetrics(metricsList);
+		log.info("Set optimiser metrics to: {}", metricsList);
 	}
 
 	public void processBindings(String appId, Map<String, String> bindingsMap) {

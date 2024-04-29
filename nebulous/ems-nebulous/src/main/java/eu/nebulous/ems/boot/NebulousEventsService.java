@@ -80,6 +80,7 @@ public class NebulousEventsService implements InitializingBean {
 		// Create consumer
         List<Consumer> consumers = List.of(
 				new Consumer(properties.getDslTopic(), properties.getDslTopic(), messageHandler, null, true, true),
+				new Consumer(properties.getOptimiserMetricsTopic(), properties.getOptimiserMetricsTopic(), messageHandler, null, true, true),
 				new Consumer(properties.getModelsTopic(), properties.getModelsTopic(), messageHandler, null, true, true),
                 new Consumer(properties.getEmsBootTopic(), properties.getEmsBootTopic(), messageHandler, null, true, true)
         );
@@ -145,6 +146,11 @@ public class NebulousEventsService implements InitializingBean {
 
 		if (properties.getDslTopic().equals(command.address())) {
 			String result = modelsService.extractBindings(command, appId);
+			if (!"OK".equalsIgnoreCase(result))
+				sendResponse(modelsResponsePublisher, appId, result);
+		} else
+		if (properties.getOptimiserMetricsTopic().equals(command.address())) {
+			String result = modelsService.extractOptimiserMetrics(command, appId);
 			if (!"OK".equalsIgnoreCase(result))
 				sendResponse(modelsResponsePublisher, appId, result);
 		} else

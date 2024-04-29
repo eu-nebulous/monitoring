@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 public class ModelsService implements InitializingBean {
 	final static String MODEL_FILE_KEY = "model-file";
 	final static String BINDINGS_FILE_KEY = "bindings-file";
+	final static String OPTIMISER_METRICS_FILE_KEY = "optimiser-metrics-file";
 
 	private final TranslationService translationService;
 	private final EmsBootProperties properties;
@@ -60,7 +61,7 @@ public class ModelsService implements InitializingBean {
 	}
 
 	String extractBindings(Command command, String appId) throws IOException {
-		// Process DEL Generic message
+		// Process DSL Generic message
 		log.debug("Received a new DSL Generic message from external broker: {}", command.body());
 
 		// Extract EMS constants-to-Optimizer variables bindings
@@ -92,6 +93,40 @@ public class ModelsService implements InitializingBean {
 
 		// Add appId-modelFile entry in the stored Index
 		indexService.storeToIndex(appId, Map.of(BINDINGS_FILE_KEY, bindingsFile));
+
+		return "OK";
+	}
+
+	String extractOptimiserMetrics(Command command, String appId) throws IOException {
+		// Process Optimiser Metrics message
+		log.debug("Received a new Optimiser Metrics message from external broker: {}", command.body());
+
+		// Extract Optimizer metrics
+		List<String> metricsList = null;
+		try {
+			List<String> list = (List) command.body().get("metrics");
+			if (list==null || list.isEmpty()) {
+				log.warn("No metrics found in Optimiser Metrics message: {}", command.body());
+			} else {
+				metricsList = list.stream()
+						.filter(StringUtils::isNotBlank)
+						.toList();
+				if (metricsList.isEmpty())
+					log.warn("No metrics found in Optimiser Metrics message: {}", command.body());
+			}
+		} catch (Exception e) {
+			log.warn("Error while extracting metrics from Optimiser Metrics message: ", e);
+			return "ERROR: Error while extracting metrics from Optimiser Metrics message: "+e.getMessage();
+		}
+
+		// Store metrics in models store
+		String metricsFile = getFileName("metrics", appId, "json");
+		if (metricsList==null) metricsList = List.of();
+		storeToFile(metricsFile, objectMapper.writeValueAsString(metricsList));
+		log.info("Stored metrics in file: app-id={}, file={}", appId, metricsFile);
+
+		// Add appId-modelFile entry in the stored Index
+		indexService.storeToIndex(appId, Map.of(OPTIMISER_METRICS_FILE_KEY, metricsFile));
 
 		return "OK";
 	}

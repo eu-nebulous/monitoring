@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -40,24 +41,30 @@ public class BootService {
 		}
 		String modelFile = entry.get(ModelsService.MODEL_FILE_KEY);
 		String bindingsFile = entry.get(ModelsService.BINDINGS_FILE_KEY);
+		String optimiserMetricsFile = entry.get(ModelsService.OPTIMISER_METRICS_FILE_KEY);
 		log.info("""
                 Received EMS Boot request:
-                         App-Id: {}
-                     Model File: {}
-                  Bindings File: {}
-                """, appId, modelFile, bindingsFile);
+                           App-Id: {}
+                       Model File: {}
+                    Bindings File: {}
+                Opt. Metrics File: {}
+                """, appId, modelFile, bindingsFile, optimiserMetricsFile);
 
 		String modelStr = Files.readString(Paths.get(properties.getModelsDir(), modelFile));
 		log.debug("Model file contents:\n{}", modelStr);
 		String bindingsStr = Files.readString(Paths.get(properties.getModelsDir(), bindingsFile));
 		Map bindingsMap = objectMapper.readValue(bindingsStr, Map.class);
 		log.debug("Bindings file contents:\n{}", bindingsMap);
+		String metricsStr = Files.readString(Paths.get(properties.getModelsDir(), optimiserMetricsFile));
+		List metricsList = objectMapper.readValue(metricsStr, List.class);
+		log.debug("Optimiser Metrics file contents:\n{}", metricsList);
 
 		// Send EMS Boot response message
 		Map<Object, Object> message = Map.of(
 				"application", appId,
 				"metric-model", modelStr,
-				"bindings", bindingsMap
+				"bindings", bindingsMap,
+				"optimiser-metrics", metricsList
 		);
 		emsBootResponsePublisher.send(message, appId);
 		log.info("EMS Boot response sent");
