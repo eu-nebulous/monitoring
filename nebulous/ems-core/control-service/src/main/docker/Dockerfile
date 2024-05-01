@@ -8,9 +8,9 @@
 #
 
 ARG BUILDER_IMAGE=eclipse-temurin
-ARG BUILDER_IMAGE_TAG=21.0.1_12-jre
+ARG BUILDER_IMAGE_TAG=21.0.3_9-jre
 ARG RUN_IMAGE=eclipse-temurin
-ARG RUN_IMAGE_TAG=21.0.1_12-jre
+ARG RUN_IMAGE_TAG=21.0.3_9-jre
 
 # ----------------- Builder image -----------------
 FROM $BUILDER_IMAGE:$BUILDER_IMAGE_TAG as ems-server-builder
@@ -52,7 +52,7 @@ ENV PUBLIC_DIR ${BASEDIR}/public_resources
 
 # Download a JRE suitable for running EMS clients, and
 # offer it for download
-#ENV JRE_LINUX_PACKAGE zulu21.30.15-ca-jre21.0.1-linux_x64.tar.gz
+#ENV JRE_LINUX_PACKAGE zulu21.34.19-ca-jre21.0.3-linux_x64.tar.gz
 #RUN mkdir -p ${PUBLIC_DIR}/resources && \
 #    wget --progress=dot:giga -O ${PUBLIC_DIR}/resources/${JRE_LINUX_PACKAGE} https://cdn.azul.com/zulu/bin/${JRE_LINUX_PACKAGE}
 

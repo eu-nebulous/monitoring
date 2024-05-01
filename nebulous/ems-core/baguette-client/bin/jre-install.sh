@@ -10,10 +10,10 @@ echo "Architecture: $arch,  Bits: $bits"
 [[ "$bits" == "64" ]] && [[ "${arch,,}" = amd* ]] && TARGET="x86-64"
 [[ "$bits" == "64" ]] && [[ "${arch,,}" = x86* ]] && TARGET="x86-64"
 
-DOWNLOAD_URL="https://download.bell-sw.com/java/21.0.2+14"
-[[ "$TARGET" == "ARM-32" ]] && PACKAGE="bellsoft-jre21.0.2+14-linux-arm32-vfp-hflt-full.tar.gz"
-[[ "$TARGET" == "ARM-64" ]] && PACKAGE="bellsoft-jre21.0.2+14-linux-aarch64-full.tar.gz"
-[[ "$TARGET" == "x86-64" ]] && PACKAGE="bellsoft-jre21.0.2+14-linux-amd64-full.tar.gz"
+DOWNLOAD_URL="https://download.bell-sw.com/java/21.0.3+10"
+[[ "$TARGET" == "ARM-32" ]] && PACKAGE="bellsoft-jre21.0.3+10-linux-arm32-vfp-hflt-full.tar.gz"
+[[ "$TARGET" == "ARM-64" ]] && PACKAGE="bellsoft-jre21.0.3+10-linux-aarch64-full.tar.gz"
+[[ "$TARGET" == "x86-64" ]] && PACKAGE="bellsoft-jre21.0.3+10-linux-amd64-full.tar.gz"
 
 JRE_PACKAGE=/tmp/jre.tar.gz
 
