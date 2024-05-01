@@ -17,6 +17,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -43,6 +44,10 @@ public class BaguetteClientProperties extends SshClientProperties {
 
 	private List<Class<? extends Collector>> collectorClasses;
 	private Map<String,List<Map<String,Object>>> collectorConfigurations;
+
+	private boolean collectFromLocal = true;
+	private boolean autodetectCollectFromLocal = true;		// Checks if 'POD_NAME' env var is set to turn-off collection from localhost
+	private List<String> collectFromAdditionalAddresses = new LinkedList<>();
 
 	private String debugFakeIpAddress;
 

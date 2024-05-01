@@ -10,7 +10,7 @@
 package gr.iccs.imu.ems.baguette.client;
 
 import gr.iccs.imu.ems.baguette.client.cluster.ClusterManagerProperties;
-import gr.iccs.imu.ems.baguette.client.collector.netdata.NetdataCollector;
+import gr.iccs.imu.ems.baguette.client.collector.netdata.K8sNetdataCollector;
 import gr.iccs.imu.ems.baguette.client.collector.prometheus.PrometheusCollector2;
 import gr.iccs.imu.ems.baguette.client.plugin.recovery.SelfHealingPlugin;
 import gr.iccs.imu.ems.util.EventBus;
@@ -48,7 +48,7 @@ public class BaguetteClient implements ApplicationRunner {
     private final ConfigurableApplicationContext applicationContext;
 
     private final List<Class<? extends Collector>> DEFAULT_COLLECTORS_LIST = List.of(
-        NetdataCollector.class, PrometheusCollector2.class
+        K8sNetdataCollector.class, PrometheusCollector2.class
     );
 
     @Getter

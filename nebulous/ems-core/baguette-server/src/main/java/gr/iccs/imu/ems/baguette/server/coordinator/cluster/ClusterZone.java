@@ -193,9 +193,7 @@ public class ClusterZone implements IClusterZone {
     }
 
     public ClientConfiguration sendClientConfigurationToZoneClients() {
-        ClientConfiguration cc = ClientConfiguration.builder()
-                .nodesWithoutClient(new HashSet<>(nodesWithoutClient.keySet()))
-                .build();
+        ClientConfiguration cc = getClientConfiguration();
         ClientShellCommand.sendClientConfigurationToClients(cc , getNodes());
         return cc;
     }

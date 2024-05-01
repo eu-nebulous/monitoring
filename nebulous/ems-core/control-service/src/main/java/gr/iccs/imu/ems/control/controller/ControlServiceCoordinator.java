@@ -246,7 +246,7 @@ public class ControlServiceCoordinator implements InitializingBean {
             _processAppModels(appModelId, appExecModelId, requestInfo);
             this.currentAppModelId = _normalizeModelId(appModelId);
             this.currentAppExecModelId = _normalizeModelId(appExecModelId);
-            return List.of(getCurrentEmsState(), getCurrentEmsStateMessage(), getCurrentEmsStateChangeTimestamp());
+            return Arrays.asList(getCurrentEmsState(), getCurrentEmsStateMessage(), getCurrentEmsStateChangeTimestamp());
         });
     }
 
@@ -285,14 +285,16 @@ public class ControlServiceCoordinator implements InitializingBean {
         }
 
         // Execute callback after acquiring lock
-        EMS_STATE state;
-        String stateMessage;
-        long stateTimestamp;
+        EMS_STATE state = null;
+        String stateMessage = null;
+        long stateTimestamp = -1L;
         try {
             List<Object> result = callback.get();
-            state = (EMS_STATE) result.get(0);
-            stateMessage = result.get(1).toString();
-            stateTimestamp = (long) result.get(2);
+            if (result!=null && result.size()==3) {
+                state = (EMS_STATE) result.get(0);
+                stateMessage = (String) result.get(1);
+                stateTimestamp = (long) result.get(2);
+            }
         } catch (Exception ex) {
             StringBuilder sb = new StringBuilder(ex.getClass().getName()).append(": ").append(ex.getMessage());
             Throwable t = ex;
@@ -321,7 +323,7 @@ public class ControlServiceCoordinator implements InitializingBean {
         // Invoke requestInfo callback if provided
         if (requestInfo.getCallback()!=null) {
             requestInfo.getCallback().accept(Map.of(
-                    "ems-state", StringUtils.defaultIfBlank(state.name(), "UNKNOWN"),
+                    "ems-state", StringUtils.defaultIfBlank(state!=null ? state.name() : null, "UNKNOWN"),
                     "ems-state-message", StringUtils.defaultIfBlank(stateMessage, ""),
                     "ems-state-change-timestamp", stateTimestamp
             ));

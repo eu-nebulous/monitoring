@@ -749,6 +749,7 @@ public class CommandExecutor {
                     config.setCollectorConfigurations(oldConfig.getCollectorConfigurations());
                     log.trace("Copied collector-configs from old client config.: \n{}", oldConfig.getCollectorConfigurations());
                 }
+                config.setNodesWithoutClient(new LinkedHashSet<>( config.getNodesWithoutClient() ));
                 clientConfiguration = config;
             }
             log.debug("New client config.: {}", config);
@@ -756,6 +757,32 @@ public class CommandExecutor {
             payload.put("new", clientConfiguration);
             payload.put("old", oldConfig);
             eventBus.send(EventConstant.EVENT_CLIENT_CONFIG_UPDATED, payload, this);
+
+            // Configure collection from additional addresses
+            if (this.config.getCollectFromAdditionalAddresses()!=null) {
+                this.config.getCollectFromAdditionalAddresses().stream()
+                        .filter(StringUtils::isNotBlank)
+                        .forEach(address -> clientConfiguration.getNodesWithoutClient().add(address));
+            }
+            // Configure collection from localhost
+            boolean collectFromLocal;
+            if (this.config.isAutodetectCollectFromLocal()) {
+                // Auto-detect if we should collect from localhost too
+                // If running in a POD, turn-off collection from localhost
+                collectFromLocal = StringUtils.isBlank(System.getenv("POD_NAME"));
+            } else {
+                // Use configuration setting
+                collectFromLocal = this.config.isCollectFromLocal();
+            }
+            log.debug("collectFromLocal={}", collectFromLocal);
+            if (collectFromLocal) {
+                if (!clientConfiguration.getNodesWithoutClient().contains("localhost")
+                    && !clientConfiguration.getNodesWithoutClient().contains("127.0.0.1")
+                    && !clientConfiguration.getNodesWithoutClient().contains("::1"))
+                {
+                    clientConfiguration.getNodesWithoutClient().add("localhost");
+                }
+            }
 
             // Update collectors' configurations
             Map<String, List<Map<String, Serializable>>> collectorConfigs = clientConfiguration.getCollectorConfigurations();
