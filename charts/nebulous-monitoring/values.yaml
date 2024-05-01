@@ -231,8 +231,8 @@ env:
 #    value: 'ENC(y46CiW6przlpXvz8ToE+T1Sn6uGfO2haP7OhATB0SXo=)'
 
   # =====  Baguette Client Install settings  =====
-  - name: BAGUETTE_CLIENT_INSTALL_INSTRUCTIONS_LINUX
-    value: 'file:${EMS_CONFIG_DIR}/baguette-client-install/helm/app-detection.yml, file:${EMS_CONFIG_DIR}/baguette-client-install/helm/epm-deploy.yml, file:${EMS_CONFIG_DIR}/baguette-client-install/helm/netdata-deploy.yml'
+#  - name: BAGUETTE_CLIENT_INSTALL_INSTRUCTIONS_LINUX
+#    value: 'file:${EMS_CONFIG_DIR}/baguette-client-install/helm/app-detection.yml, file:${EMS_CONFIG_DIR}/baguette-client-install/helm/epm-deploy.yml, file:${EMS_CONFIG_DIR}/baguette-client-install/helm/netdata-deploy.yml'
   - name: BAGUETTE_CLIENT_INSTALL_INSTALLATION_CONTEXT_PROCESSOR_PLUGINS
     value: 'eu.nebulous.ems.plugins.NebulousInstallationContextProcessorPlugin'
 
