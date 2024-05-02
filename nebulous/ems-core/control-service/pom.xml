@@ -20,7 +20,7 @@
     <name>EMS - Control Service</name>
 
     <properties>
-        <hawtio.version>4.0-M4</hawtio.version>
+        <hawtio.version>4.0.0</hawtio.version>
         <spring.boot.admin.version>3.2.2</spring.boot.admin.version>
         <micrometer.registry.prometheus.version>1.12.4</micrometer.registry.prometheus.version>
         <springdoc.version>2.3.0</springdoc.version>

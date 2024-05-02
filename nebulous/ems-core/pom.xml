@@ -62,7 +62,7 @@
         <!-- Bouncy Castle version -->
         <bouncy-castle.version>2.73.5</bouncy-castle.version>
         <!-- Guava version -->
-        <guava.version>33.0.0-jre</guava.version>
+        <guava.version>33.1.0-jre</guava.version>
         <!-- Apache Commons-CSV -->
         <commons-csv.version>1.10.0</commons-csv.version>
         <!-- Cryptacular -->
