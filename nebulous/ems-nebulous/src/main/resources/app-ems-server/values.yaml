@@ -17,7 +17,7 @@ image:
 #  pullPolicy: IfNotPresent
   pullPolicy: Always
 # Overrides the image tag whose default is the chart appVersion.
-  tag: &image_tag "2024-apr-nebulous"
+  tag: &image_tag "2024-may-nebulous"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -184,7 +184,7 @@ env:
   - name: EMS_CLIENT_DAEMONSET_IMAGE_REPOSITORY
     value: "registry.gitlab.com/nebulous-project/ems-main/ems-client"
   - name: EMS_CLIENT_DAEMONSET_IMAGE_TAG
-    #    value: "latest"
+#    value: "latest"
     value: *image_tag
   - name: EMS_CLIENT_DAEMONSET_IMAGE_PULL_POLICY
     value: "Always"
