@@ -67,7 +67,7 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
         log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): SLO metrics decompositions: model={}, decompositions-map={}",
                 translationContext.getModelName(), sloMetricDecompositionsMap);
 
-        String sloMetricDecompositionsStr = topicBeacon.toJson(sloMetricDecompositionsMap);
+        String sloMetricDecompositionsStr = sloMetricDecompositionsMap!=null ? topicBeacon.toJson(sloMetricDecompositionsMap) : null;
         translationContext.getAdditionalResults().put(PREDICTION_SLO_METRIC_DECOMPOSITION, sloMetricDecompositionsStr);
         log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): SLO metrics decompositions: model={}, decompositions={}",
                 translationContext.getModelName(), sloMetricDecompositionsStr);
@@ -79,7 +79,7 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
         log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): Metrics of Top-Level nodes of model: model={}, metrics-map={}",
                 translationContext.getModelName(), metricsOfTopLevelNodesMap);
 
-        String metricsOfTopLevelNodesStr = topicBeacon.toJson(metricsOfTopLevelNodesMap);
+        String metricsOfTopLevelNodesStr = metricsOfTopLevelNodesMap!=null ? topicBeacon.toJson(metricsOfTopLevelNodesMap) : null;
         translationContext.getAdditionalResults().put(PREDICTION_TOP_LEVEL_NODES_METRICS, metricsOfTopLevelNodesStr);
         log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): Metrics of Top-Level nodes of model: model={}, metrics={}",
                 translationContext.getModelName(), metricsOfTopLevelNodesMap);
