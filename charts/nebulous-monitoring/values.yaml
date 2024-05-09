@@ -122,7 +122,7 @@ env:
   #
   # ===== INITIALIZATION settings =====
   - name: BUILD_MESSAGE
-    value: '2024-05-02 09:30:00+03:00 opendev'
+    value: '2024-05-09 11:57:00+03:00 opendev'
   - name: JASYPT_PASSWORD
     value: 'password'                           #+++++++++++++++++++++++++ ?????????????????
   - name: NET_UTIL_ADDRESS_DISCOVERY_SERVICES
@@ -218,6 +218,8 @@ env:
     value: 'nebulous-cd'
 
   # =====  Broker settings  =====
+  - name: EMS_SERVER_BROKER_PORT
+    value: '31617'
   - name: BROKERCEP_ADDITIONAL_BROKER_CREDENTIALS
     value: 'aaa/111, bbb/222'                                           # ++++++++++++++++ ${P_BROKERCEP_CREDENTIALS:-}
 #    value: 'ENC(axeJUxNHajYfBffUwvuT3kwTgLTpRliDMz/ZQ9hROZ3BNOv0Idw72NJsawzIZRuZ)'
@@ -232,6 +234,12 @@ env:
 #    value: 'ENC(y46CiW6przlpXvz8ToE+T1Sn6uGfO2haP7OhATB0SXo=)'
 
   # =====  Baguette Client Install settings  =====
+  - name: EMS_SERVER_ADDRESS
+    value: '158.39.200.177'
+  - name: BAGUETTE_SERVER_ADDRESS
+    value: '158.39.200.177'
+  - name: BAGUETTE_SERVER_PORT
+    value: '32222'
 #  - name: BAGUETTE_CLIENT_INSTALL_INSTRUCTIONS_LINUX
 #    value: 'file:${EMS_CONFIG_DIR}/baguette-client-install/helm/app-detection.yml, file:${EMS_CONFIG_DIR}/baguette-client-install/helm/epm-deploy.yml, file:${EMS_CONFIG_DIR}/baguette-client-install/helm/netdata-deploy.yml'
   - name: BAGUETTE_CLIENT_INSTALL_INSTALLATION_CONTEXT_PROCESSOR_PLUGINS
