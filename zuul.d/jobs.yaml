@@ -19,6 +19,7 @@
           namespace: nebulous
           repo_shortname: monitoring
           repo_description: ""
+          tags: ["r1-latest"]
 
 - job:
     name: nebulous-monitoring-upload-container-images
