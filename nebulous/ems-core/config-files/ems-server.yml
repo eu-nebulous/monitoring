@@ -331,7 +331,7 @@ brokercep:
 
   # Broker URLs for (EMS) consumer and clients
   broker-url-for-consumer: tcp://127.0.0.1:61616?${CLIENT_URL_PROPERTIES}
-  broker-url-for-clients: ${brokercep.broker-protocol}://${EMS_SERVER_ADDRESS}:${brokercep.broker-port}?${CLIENT_URL_PROPERTIES}
+  broker-url-for-clients: ${brokercep.broker-protocol}://${EMS_SERVER_ADDRESS}:${EMS_SERVER_BROKER_PORT:${brokercep.broker-port}}?${CLIENT_URL_PROPERTIES}
   # Must be a public IP address
 
   ssl:
@@ -560,6 +560,7 @@ baguette.client.install:
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/check-ignore.yml
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/detect.yml
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/netdata.yml
+#      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/baguette-remove.yml
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/jre.yml
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/baguette.yml
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/baguette-skip.yml

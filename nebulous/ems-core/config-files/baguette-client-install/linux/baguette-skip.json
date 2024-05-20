@@ -8,7 +8,7 @@
       "description": "DEBUG: Print node pre-registration VARIABLES",
       "taskType": "PRINT_VARS"
     },
-   {
+    {
       "description": "Set __EMS_CLIENT_INSTALL__ variable",
       "taskType": "SET_VARS",
       "variables": {
