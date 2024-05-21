@@ -55,9 +55,9 @@ fi
 
 # Copy dependencies if missing
 if [ -f pom.xml ]; then
-	if [ ! -d ${BASEDIR}/target/dependency ]; then
-		mvn dependency:copy-dependencies
-	fi
+  if [ ! -d ${BASEDIR}/target/dependency ]; then
+    mvn dependency:copy-dependencies
+  fi
 fi
 
 # Set JAVA_OPTS

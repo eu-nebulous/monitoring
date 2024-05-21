@@ -11,21 +11,29 @@
 # ----- Setup -----
 DELAY=5
 PROCNAMES=( "${@:2}" )
-if [ ${#PROCNAMES[@]} -eq 0 ]; then PROCNAMES=('kube' 'etcd'); fi
+if [ ${#PROCNAMES[@]} -eq 0 ]; then PROCNAMES=('kubelet' 'etcd'); fi
 WHATTOKILL=('baguette')
 EXIT_GRACE=5
 
 PROPERTIES_FILE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd ../conf && pwd )/k8smon.properties"
 if [ -f $PROPERTIES_FILE ] && [ -r $PROPERTIES_FILE ]; then
-  source $PROPERTIES_FILE
-  echo "Loaded properties from file: $PROPERTIES_FILE"
+    source $PROPERTIES_FILE
+    echo "Loaded properties from file: $PROPERTIES_FILE"
 fi
 
 # ----- Check if 'k8smon' is already running -----
 current_pid=$$
-if [ `ps aux |grep k8smon |grep -v grep |sed 's/   */:/g'  |cut -d':' -f2 |grep -v $current_pid |wc -l` -gt 1 ]; then
-    echo Another instance of K8S monitor is already running. Exiting.
-    exit 1
+#if [ $# -gt 0 ] && [ "$(echo "$1" | tr '[:upper:]' '[:lower:]')" = "stop" ]; then
+if [ $# -gt 0 ] && [ "${1,,}" = "stop" ]; then
+    for pp in `ps aux |grep 'k8smon' |grep -v 'grep' |sed 's/   */:/g'  |cut -d':' -f2 |grep -v $current_pid`; do
+        kill $pp 2>/dev/null
+    done
+    exit 0
+else
+    if [ `ps aux |grep 'k8smon' |grep -v 'grep' |sed 's/   */:/g'  |cut -d':' -f2 |grep -v $current_pid |wc -l` -gt 1 ]; then
+        echo "Another instance of K8S monitor is already running. Exiting."
+        exit 1
+    fi
 fi
 
 # ----- Logging -----
