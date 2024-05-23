@@ -144,6 +144,7 @@ spec:
                 configMapKeyRef:
                   name: "${EMS_CLIENT_CONFIG_MAP_NAME}"
                   key: BAGUETTE_SERVER_PASSWORD
+${EMS_CLIENT_EXTRA_ENV_VARS}
           ports:
             - name: openwire
               containerPort: 61616

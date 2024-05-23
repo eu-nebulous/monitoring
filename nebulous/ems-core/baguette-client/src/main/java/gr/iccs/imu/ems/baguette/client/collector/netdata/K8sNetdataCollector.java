@@ -277,8 +277,8 @@ public class K8sNetdataCollector implements Collector, InitializingBean {
             log.info("K8sNetdataCollector: Collecting Netdata metric '{}.{}' into '{}', every {} {}",
                     context, dimensions, destinationName, period, unit.name().toLowerCase());
         });
-        log.trace("K8sNetdataCollector: doStart():  scheduledFuturesList={}", scheduledFuturesList);
-        log.debug("K8sNetdataCollector: doStart():  END");
+        log.trace("K8sNetdataCollector: doStart(): scheduledFuturesList={}", scheduledFuturesList);
+        log.debug("K8sNetdataCollector: doStart(): END");
     }
 
     private String get(Map<String,Object> map, String key, String defaultValue) {
@@ -302,20 +302,19 @@ public class K8sNetdataCollector implements Collector, InitializingBean {
                 apiVer, urlSuffix, port, aggregation, destination, component);
 
         // Get nodes to scrape
-        Set nodesToScrape = collectorContext.getNodesWithoutClient();
-        log.debug("K8sNetdataCollector: collectData(): nodes-to-scrape={}", nodesToScrape);
-        if (nodesToScrape == null || nodesToScrape.isEmpty()) {
+        //Set nodesToScrape = collectorContext.getNodesWithoutClient();
+        String address = System.getenv("NODE_ADDRESS");
+        log.debug("K8sNetdataCollector: collectData(): Netdata node-to-scrape={}", address);
+        if (StringUtils.isBlank(address)) {
             long endTm = System.currentTimeMillis();
-            log.debug("K8sNetdataCollector: collectData(): END: No nodes to scrape: duration={}ms", endTm - startTm);
+            log.debug("K8sNetdataCollector: collectData(): END: No Netdata node to scrape: duration={}ms", endTm - startTm);
             return;
         }
 
-        // Scrape nodes
-        nodesToScrape.forEach(address -> {
-            String url = String.format("http://%s:%d%s", address, port, urlSuffix);
-            log.warn("K8sNetdataCollector: collectData(): Scraping node: {}", url);
-            collectDataFromNode(apiVer, url, aggregation, destination, component, address!=null ? address.toString() : null);
-        });
+        // Scrape Netdata node
+        String url = String.format("http://%s:%d%s", address, port, urlSuffix);
+        log.debug("K8sNetdataCollector: collectData(): Scraping Netdata node: {}", url);
+        collectDataFromNode(apiVer, url, aggregation, destination, component, address!=null ? address.toString() : null);
 
         long endTm = System.currentTimeMillis();
         log.debug("K8sNetdataCollector: collectData(): END: duration={}ms", endTm-startTm);

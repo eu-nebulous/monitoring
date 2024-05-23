@@ -26,6 +26,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static gr.iccs.imu.ems.common.k8s.K8sClient.getConfig;
 
@@ -53,6 +54,7 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
     private String additionalCredentials;   // Those specified in EMS_CLIENT_ADDITIONAL_BROKER_CREDENTIALS, plus one generated
     private String brokerUsername;
     private String brokerPassword;
+    private String extraEnvVars;
 
     @Builder
     public K8sClientInstaller(ClientInstallationTask task, long taskCounter, ClientInstallationProperties properties,
@@ -65,6 +67,7 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
         this.passwordUtil = passwordUtil;
 
         initializeAdditionalCredentials();
+        initializeExtraEnvVars();
     }
 
     private void initializeAdditionalCredentials() {
@@ -78,6 +81,21 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
             sb.append(brokerUsername).append("/").append(brokerPassword);
         }
         additionalCredentials = sb.toString();
+    }
+
+    private void initializeExtraEnvVars() {
+        extraEnvVars = "";
+        if (properties.getK8s()==null) return;
+        if (properties.getK8s().getExtraEnvVars()==null) return;
+        String str = properties.getK8s().getExtraEnvVars().entrySet()
+                .stream().filter(e -> StringUtils.isNotBlank(e.getKey()))
+                .map(e -> String.format("""
+                                                    - name: "%s"
+                                                      value: "%s"
+                                        """, e.getKey().trim(), e.getValue()))
+                .collect(Collectors.joining("\n"));
+        log.info("K8sClientInstaller: Extra Env.Vars:\n{}", str);
+        extraEnvVars = str;
     }
 
     @Override
@@ -160,7 +178,8 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
                 "EMS_CLIENT_CONFIG_MAP_NAME", getConfig("EMS_CLIENT_CONFIG_MAP_NAME", EMS_CLIENT_CONFIG_MAP_NAME_DEFAULT),
                 "EMS_CLIENT_ADDITIONAL_BROKER_CREDENTIALS", additionalCredentials,
                 "EMS_CLIENT_KEYSTORE_SECRET", getConfig("EMS_CLIENT_KEYSTORE_SECRET", ""),
-                "EMS_CLIENT_TRUSTSTORE_SECRET", getConfig("EMS_CLIENT_TRUSTSTORE_SECRET", "")
+                "EMS_CLIENT_TRUSTSTORE_SECRET", getConfig("EMS_CLIENT_TRUSTSTORE_SECRET", ""),
+                "EMS_CLIENT_EXTRA_ENV_VARS", extraEnvVars
         );
         log.debug("K8sClientInstaller:       values: {}", values);
 
