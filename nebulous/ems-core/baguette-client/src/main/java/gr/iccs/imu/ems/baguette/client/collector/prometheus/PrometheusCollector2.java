@@ -38,6 +38,11 @@ import java.util.concurrent.ScheduledFuture;
 @Slf4j
 @Component
 public class PrometheusCollector2 extends AbstractEndpointCollector<String> implements Collector {
+    public final static String DEFAULT_PROMETHEUS_PORT = "9090";
+    public final static String DEFAULT_DELAY = "0";
+    public final static String DEFAULT_INTERVAL = "60";
+    public final static String DEFAULT_INTERVAL_UNIT = "SECONDS";
+
     private final PrometheusCollectorProperties properties;
     private List<Map<String, Serializable>> configurations = List.of();
     private final List<ScheduledFuture<?>> scrapingTasks = new LinkedList<>();
@@ -181,7 +186,7 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
 
     private String getUrlPattern(Map<String, Serializable> config) {
         if (config.get("configuration") instanceof Map configMap) {
-            int port = Integer.parseInt( configMap.getOrDefault("port", "0").toString() );
+            int port = Integer.parseInt( configMap.getOrDefault("port", DEFAULT_PROMETHEUS_PORT).toString() );
             String endpoint = configMap.getOrDefault("endpoint", "/").toString();
             return "http://%s:"+port+endpoint;
         }
@@ -190,7 +195,7 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
 
     private Duration getDelay(Map<String, Serializable> config) {
         if (config.get("configuration") instanceof Map configMap) {
-            long delay = Long.parseLong(configMap.getOrDefault("delay", "0").toString());
+            long delay = Long.parseLong(configMap.getOrDefault("delay", DEFAULT_DELAY).toString());
             if (delay>=0)
                 return Duration.ofSeconds(delay);
         }
@@ -199,8 +204,8 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
 
     private Duration getInterval(Map<String, Serializable> config) {
         if (config.get("interval") instanceof Map intervalMap) {
-            long period = Long.parseLong(intervalMap.getOrDefault("period", "60").toString());
-            ChronoUnit unit = ChronoUnit.valueOf(intervalMap.getOrDefault("unit", "SECONDS").toString().toUpperCase());
+            long period = Long.parseLong(intervalMap.getOrDefault("period", DEFAULT_INTERVAL).toString());
+            ChronoUnit unit = ChronoUnit.valueOf(intervalMap.getOrDefault("unit", DEFAULT_INTERVAL_UNIT).toString().toUpperCase());
             if (period>0)
                 return Duration.of(period, unit);
         }
