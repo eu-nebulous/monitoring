@@ -9,6 +9,7 @@
       - nebulous-monitoring-container-images
     description: Build the container images.
     files: &image_files
+      - ^zuul\.d/jobs\.yaml$
       - ^nebulous/
     vars: &image_vars
       promote_container_image_job: nebulous-monitoring-upload-container-images
