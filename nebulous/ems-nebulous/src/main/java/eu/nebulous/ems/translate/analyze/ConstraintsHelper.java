@@ -230,7 +230,7 @@ class ConstraintsHelper extends AbstractHelper {
 
     private Constraint decomposeComposingConstraintSpec(TranslationContext _TC, Map spec, NamesKey parentNamesKey, Constraint parentConstraint) {
         // Construct SLO namesKey
-        String name = "random-"+System.currentTimeMillis();
+        String name = "random_"+System.currentTimeMillis();
         NamesKey namesKey = createNamesKey(getContainerName(spec), name);
 
         // Decompose composing constraint

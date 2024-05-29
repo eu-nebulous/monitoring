@@ -45,6 +45,7 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 	private final NebulousEmsTranslatorProperties translatorProperties;
 	private final String applicationId;
 	private final AtomicBoolean processingResponse = new AtomicBoolean(false);
+	private final AtomicBoolean alreadyInitialized = new AtomicBoolean(false);
 	private ScheduledFuture<?> bootFuture;
 	private Consumer consumer;
 	private Publisher publisher;
@@ -96,7 +97,7 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 				processEmsBootResponseMessage(body);
 			}
 		};
-		consumer = new Consumer(properties.getEmsBootResponseTopic(), properties.getEmsBootResponseTopic(), messageHandler, null, true, true);
+		consumer = new Consumer(properties.getEmsBootResponseTopic(), properties.getEmsBootResponseTopic(), messageHandler, applicationId, true, true);
 		publisher = new Publisher(properties.getEmsBootTopic(), properties.getEmsBootTopic(), true, true);
 		connectToBroker(List.of(publisher), List.of(consumer));
 	}
@@ -118,6 +119,10 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 	}
 
 	protected void processEmsBootResponseMessage(Map body) {
+		if (alreadyInitialized.get()) {
+			log.warn("EmsBootInitializer: Received EMS Boot response but EMS is already initialized. Ignoring it.");
+			return;
+		}
 		if (! processingResponse.compareAndSet(false, true)) {
 			log.warn("EmsBootInitializer: A previous EMS Boot response is still being processed. Ignoring this one.");
 			return;
@@ -137,6 +142,11 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 					       Model: {}
 					""", appId, bindingsMap, metricsList, modelStr);
 
+			if (! StringUtils.equals(applicationId, appId)) {
+				log.warn("EmsBootInitializer: Ignoring EMS Boot response. Response App-Id does not match the configured App Id: {} != {}", appId, applicationId);
+				return;
+			}
+
 			try {
 				// Process metric model and bindings
 				processMetricModel(appId, modelStr);
@@ -152,6 +162,9 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 		} catch (Exception e) {
 			log.warn("EmsBootInitializer: EXCEPTION while processing EMS Boot Response message: ", e);
 		}
+
+		// Mark EMS as initialized
+		alreadyInitialized.set(true);
 
 		processingResponse.set(false);
 	}
