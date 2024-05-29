@@ -152,7 +152,7 @@ public class ExternalBrokerPublisherService extends AbstractExternalBrokerServic
 						// If an SLO, also send an Event Type VI event to combined SLO topics
 						if (sloSet.contains(topic)) {
 							publishMessage(publishersMap.get(COMBINED_SLO_PUBLISHER_KEY), Map.of(
-									"severity", 0.5,
+									"severity", 1.0,
 									"predictionTime", Instant.now().toEpochMilli(),
 									"probability", 1.0
 							));
