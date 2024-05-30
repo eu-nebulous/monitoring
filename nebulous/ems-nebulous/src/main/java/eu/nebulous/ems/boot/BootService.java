@@ -30,7 +30,7 @@ public class BootService {
 
 	void processEmsBootMessage(Command command, String appId, Publisher emsBootResponsePublisher) throws IOException {
 		// Process EMS Boot message
-		log.debug("Received a new EMS Boot message from external broker: {}", command.body());
+		log.info("Received a new EMS Boot message from external broker: {}", command.body());
 
 		// Load info from models store
 		Map<String, String> entry = indexService.getFromIndex(appId);
