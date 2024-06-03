@@ -123,7 +123,6 @@ public class ShorthandsExpansionHelper {
         // ----- Expand Metric sensors -----
         List<Object> expandedSensors = asList(ctx
                 .read("$.spec.*.*.metrics.*[?(@.sensor)]", List.class)).stream()
-                .filter(item -> JsonPath.read(item, "$.sensor") instanceof String)
                 .peek(this::expandSensor)
                 .toList();
         log.debug("ShorthandsExpansionHelper: Sensors expanded: {}", expandedSensors);
@@ -236,18 +235,38 @@ public class ShorthandsExpansionHelper {
     }
 
     private void expandSensor(Object spec) {
-        log.debug("ShorthandsExpansionHelper.expandSensor: {}", spec);
-        String constraintStr = JsonPath.read(spec, "$.sensor").toString().trim();
-        Matcher matcher = METRIC_SENSOR_PATTERN.matcher(constraintStr);
-        if (matcher.matches()) {
-            asMap(spec).put("sensor", Map.of(
-                    "type", matcher.group(1),
-                    "config", Map.of(
-                            EmsConstant.NETDATA_METRIC_KEY, matcher.group(2)
-                    )
-            ));
+        log.debug("ShorthandsExpansionHelper.expandSensor: BEGIN: {}", spec);
+        Object sensorSpec = JsonPath.read(spec, "$.sensor");
+        log.trace("ShorthandsExpansionHelper.expandSensor: sensorSpec: {}", sensorSpec);
+
+        String typeSpecStr = null;
+        if (sensorSpec instanceof String s) {
+            typeSpecStr = s.trim();
+            sensorSpec = new LinkedHashMap<>();
+            asMap(spec).put("sensor", sensorSpec);
         } else
-            throw createException("Invalid metric sensor shorthand expression: "+spec);
+        if (sensorSpec instanceof Map map) {
+            if (map.get("type")==null || !(map.get("type") instanceof String))
+                throw createException("Invalid metric sensor spec. No sensor type: " + spec);
+            typeSpecStr = map.get("type").toString().trim();
+        }
+
+        if (StringUtils.isNotBlank(typeSpecStr)) {
+            Matcher matcher = METRIC_SENSOR_PATTERN.matcher(typeSpecStr);
+            if (matcher.matches()) {
+                asMap(sensorSpec).put("type", matcher.group(1));
+                Object sensorConfigSpec = asMap(sensorSpec).get("config");
+                Map<String, Object> sensorConfigMap = sensorConfigSpec == null
+                        ? new LinkedHashMap<>()
+                        : asMap(sensorConfigSpec);
+                asMap(sensorSpec).put("config", sensorConfigMap);
+                sensorConfigMap.put(EmsConstant.NETDATA_METRIC_KEY, matcher.group(2));
+            } else {
+                asMap(sensorSpec).put("type", typeSpecStr);
+            }
+        } else
+            throw createException("Invalid metric sensor shorthand expression or sensor specification: " + spec);
+        log.trace("ShorthandsExpansionHelper.expandSensor: END: {}", spec);
     }
 
     /*private void expandConstraint(Object spec) {

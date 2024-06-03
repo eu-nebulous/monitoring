@@ -116,9 +116,7 @@ public class ClientInstallationProperties implements InitializingBean {
 
     private K8sClientInstallationProperties k8s = new K8sClientInstallationProperties();
 
-    @Slf4j
     @Data
-    @Configuration
     public static class K8sClientInstallationProperties {
         private Map<String,String> extraEnvVars = new LinkedHashMap<>();
     }
