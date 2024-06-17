@@ -107,6 +107,9 @@ public class MetricModelAnalyzer {
         log.debug("All Constraints: {}", $$(_TC).allConstraints);
         log.debug("       All SLOs: {}", $$(_TC).allSLOs);
 
+        // ----- Build scope-to-components map -----
+        $$(_TC).scopesComponents = nodeUpdatingHelper.createScopesToComponentsMap(ctx, componentNames);
+
         // ----- Build of constants lists -----
         log.debug("MetricModelAnalyzer.analyzeModel(): Build constants list");
         buildConstantsList(_TC, modelRoot);
@@ -168,6 +171,7 @@ public class MetricModelAnalyzer {
         final Set<String> functionNames = new HashSet<>();
         Map<String, Set<NamesKey>> componentsToSLOsMap;
         Map<NamesKey, Set<String>> slosToComponentsMap;
+        public Map<String, Set<String>> scopesComponents;
     }
 
     // ------------------------------------------------------------------------

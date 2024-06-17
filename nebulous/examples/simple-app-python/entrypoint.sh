@@ -7,8 +7,18 @@
 # https://www.mozilla.org/en-US/MPL/2.0/
 #
 
-# Start prometheus endpoint in background
-./simple-prometheus-exporter.sh &
+echo Argument: $1
 
-# Start simple-app to send messages to broker
-python simple-app.py
+case $1 in
+  client)
+    # Start simple-app to send messages to broker
+    python simple-app.py
+    ;;
+  prometheus-sh)
+    # Start prometheus endpoint using bash script
+    ./simple-prometheus-exporter.sh
+    ;;
+  prometheus-py | *)
+    # Start prometheus endpoint using python programme
+    python simple-prometheus-exporter.py
+esac
