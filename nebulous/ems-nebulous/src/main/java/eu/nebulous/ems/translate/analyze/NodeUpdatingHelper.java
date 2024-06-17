@@ -46,14 +46,16 @@ class NodeUpdatingHelper extends AbstractHelper {
                 .collect(Collectors.groupingByConcurrent(
                         entry -> getContainerName(entry.getValue()),
                         Collectors.mapping(Map.Entry::getKey, Collectors.toSet())));
-        log.trace("MetricModelAnalyzer.analyzeModel(): componentOrScopesToSLOsMapping: {}", componentOrScopesToSLOsMapping);
+        log.trace("NodeUpdatingHelper: componentOrScopesToSLOsMapping: {}", componentOrScopesToSLOsMapping);
 
         // Build component-to-scope mapping
-        Map<String, Set<String>> componentsToScopesMap = createComponentsToScopesMapping(ctx, componentNames);
-        log.trace("MetricModelAnalyzer.analyzeModel(): componentsToScopesMap: {}", componentsToScopesMap);
+        Map<String, Set<String>> componentsToScopesMap = createComponentsToScopesMap(ctx, componentNames);
+        log.trace("NodeUpdatingHelper: componentsToScopesMap: {}", componentsToScopesMap);
 
         // Build integrated components SLO sets
+        log.trace("NodeUpdatingHelper: componentNames: {}", componentNames);
         Map<String, Set<NamesKey>> componentsToSLOsMap = componentNames.stream()
+                .filter(componentsToScopesMap::containsKey)
                 .collect(Collectors.toMap(
                         Function.identity(),
                         componentName -> {
@@ -66,12 +68,12 @@ class NodeUpdatingHelper extends AbstractHelper {
                                     .collect(Collectors.toSet());
                         }
                 ));
-        log.trace("MetricModelAnalyzer.analyzeModel(): componentsToSLOsMap: {}", componentsToSLOsMap);
+        log.trace("NodeUpdatingHelper: componentsToSLOsMap: {}", componentsToSLOsMap);
 
         $$(_TC).componentsToSLOsMap = componentsToSLOsMap;
     }
 
-    Map<String, Set<String>> createComponentsToScopesMapping(DocumentContext ctx, Set<String> componentNames) {
+    Map<String, Set<String>> createComponentsToScopesMap(DocumentContext ctx, Set<String> componentNames) {
         Map<String, Set<String>> componentToScopeMap = new LinkedHashMap<>();
         ctx.read("$.spec.scopes.*", List.class).stream().filter(Objects::nonNull).forEach(scope -> {
             // Get scope name and scope components
@@ -104,6 +106,37 @@ class NodeUpdatingHelper extends AbstractHelper {
         return componentToScopeMap;
     }
 
+    Map<String, Set<String>> createScopesToComponentsMap(DocumentContext ctx, Set<String> componentNames) {
+        Map<String, Set<String>> scopeToComponentMap = new LinkedHashMap<>();
+        ctx.read("$.spec.scopes.*", List.class).stream().filter(Objects::nonNull).forEach(scope -> {
+            // Get scope name and scope components
+            String scopeName = JsonPath.read(scope, "$.name").toString();
+            Object oComponents = ((Map)scope).get("components");
+
+            // Process scope components spec
+            Set<String> includedComponents = componentNames;
+            if (oComponents instanceof String s)
+                includedComponents = Arrays.stream(s.split(","))
+                        .map(String::trim).filter(str->!str.isBlank())
+                        .collect(Collectors.toSet());
+            if (oComponents instanceof List l)
+                includedComponents = ((List<Object>) l).stream().filter(Objects::nonNull)
+                        .filter(i->i instanceof String).map(i -> i.toString().trim())
+                        .filter(str -> !str.isBlank()).collect(Collectors.toSet());
+            if (includedComponents.isEmpty())
+                includedComponents = componentNames;
+            Set<String> notFound = includedComponents.stream()
+                    .filter(i -> !componentNames.contains(i)).collect(Collectors.toSet());
+            if (!notFound.isEmpty())
+                throw createException("Scope component(s) "+notFound+" have not been specified in scope: "+scopeName);
+
+            // Add to results map
+            scopeToComponentMap.put(scopeName, includedComponents);
+        });
+        log.trace("Scopes-to-Components map: {}", scopeToComponentMap);
+        return scopeToComponentMap;
+    }
+
     void buildSLOToComponentsMap(TranslationContext _TC) {
         ConcurrentMap<NamesKey, Set<String>> slosToComponentsMap = $$(_TC).componentsToSLOsMap.entrySet().stream()
                 .map(entry -> entry.getValue().stream()
@@ -114,7 +147,7 @@ class NodeUpdatingHelper extends AbstractHelper {
                         AbstractMap.SimpleEntry::getValue,
                         Collectors.mapping(AbstractMap.SimpleEntry::getKey, Collectors.toSet())
                 ));
-        log.trace("MetricModelAnalyzer.analyzeModel(): slosToComponentsMap: {}", slosToComponentsMap);
+        log.trace("NodeUpdatingHelper: slosToComponentsMap: {}", slosToComponentsMap);
 
         $$(_TC).slosToComponentsMap = slosToComponentsMap;
     }
@@ -184,12 +217,12 @@ class NodeUpdatingHelper extends AbstractHelper {
                 .filter(tlNode -> tlNode.getElement() instanceof MetricVariable
                         && StringUtils.equalsIgnoreCase(tlNode.getName(), properties.getOrphanMetricsParentName()))
                 .findAny().orElse(null);
-        log.trace("MetricModelAnalyzer.analyzeModel(): orphanMetricsNode: {}", orphanMetricsNode);
+        log.trace("NodeUpdatingHelper: orphanMetricsNode: {}", orphanMetricsNode);
 
         if (orphanMetricsNode != null) {
             DAGNode root = _TC.getDAG().getRootNode();
             _TC.getDAG().getNodeChildren(orphanMetricsNode).forEach(node -> {
-                log.trace("MetricModelAnalyzer.analyzeModel(): Making orphan metric top-level: {}", node);
+                log.trace("NodeUpdatingHelper: Making orphan metric top-level: {}", node);
                 _TC.getDAG().addDAGEdge(root, node);
                 _TC.getDAG().removeEdge(orphanMetricsNode, node);
             });

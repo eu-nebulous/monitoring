@@ -18,10 +18,13 @@ COPY requirements.txt /app/
 RUN pip install -r requirements.txt
 
 COPY simple-app.py /app/
+COPY simple-prometheus-exporter.py /app/
 COPY simple-prometheus-exporter.sh /app/
 COPY entrypoint.sh /app/
 RUN chmod + /app/*.sh
 
 EXPOSE 8080
+EXPOSE 9000
 
 ENTRYPOINT [ "./entrypoint.sh" ]
+#CMD ["client"]

@@ -20,7 +20,8 @@ public class SimpleApp {
         // Load configuration
         String brokerAddress = getOrDefault("BROKER_SERVER", "localhost");
         String brokerPort = getOrDefault("BROKER_PORT", "61616");
-        String connectionString = "tcp://"+brokerAddress+":"+brokerPort;
+        String brokerProperties = "daemon=true&trace=false&useInactivityMonitor=false&connectionTimeout=0&keepAlive=true";
+        String connectionString = String.format("tcp://%s:%s?%s", brokerAddress, brokerPort, brokerProperties);
         String username = getOrDefault("BROKER_USERNAME", "aaa");
         String password = getOrDefault("BROKER_PASSWORD", "111");
         String destinationName = getOrDefault("TARGET_TOPIC", "sample_topic");
@@ -53,10 +54,9 @@ public class SimpleApp {
             } catch (Exception e) {
                 System.err.println("EXCEPTION: "+e.getMessage());
                 e.printStackTrace(System.err);
-
-                System.out.println("Retrying in "+retryConnect+" seconds");
-                Thread.sleep(1000L * retryConnect);
             }
+            System.out.println("Retrying in "+retryConnect+" seconds");
+            Thread.sleep(1000L * retryConnect);
         }
     }
 
@@ -92,22 +92,35 @@ public class SimpleApp {
                 publishEvent(producer, valueRange * Math.random() - valueMin);
                 Thread.sleep(sendDelay);
             }
+        } catch (Exception e) {
+            e.printStackTrace(System.err);
+            System.err.println("Exception while opening connection: "+e.getMessage());
         } finally {
             // close connection
-            closeConnection();
+            try {
+                closeConnection();
+            } catch (Exception e) {
+                e.printStackTrace(System.err);
+                System.err.println("Exception while closing connection: "+e.getMessage());
+            }
         }
     }
 
     // ------------------------------------------------------------------------
 
     protected void publishEvent(MessageProducer producer, double value) throws JMSException {
-        // Create a messages
-        String payloadText = String.format("{ \"metricValue\": %f, \"level\": 1, \"timestamp\": %d }", value, System.currentTimeMillis());
-        Message message = session.createTextMessage(payloadText);
+        try {
+            // Create a messages
+            String payloadText = String.format("{ \"metricValue\": %f, \"level\": 1, \"timestamp\": %d }", value, System.currentTimeMillis());
+            Message message = session.createTextMessage(payloadText);
 
-        // Send the message
-        producer.send(message);
-        System.out.println("Sent: " + payloadText);
+            // Send the message
+            producer.send(message);
+            System.out.println("Sent: " + payloadText);
+        } catch (Exception e) {
+            e.printStackTrace(System.err);
+            System.err.println("Exception while sending event: "+e.getMessage());
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -134,8 +147,8 @@ public class SimpleApp {
 
     public void closeConnection() throws JMSException {
         // Clean up
-        session.close();
-        connection.close();
+        if (session!=null) session.close();
+        if (connection!=null) connection.close();
         session = null;
         connection = null;
     }
