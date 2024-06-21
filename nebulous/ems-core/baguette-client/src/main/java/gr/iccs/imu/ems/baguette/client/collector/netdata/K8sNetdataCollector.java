@@ -93,18 +93,27 @@ public class K8sNetdataCollector implements Collector, InitializingBean {
     @Override
     public void setConfiguration(Object config) {
         if (config instanceof List sensorConfigList) {
-            configurations = sensorConfigList.stream()
+            List<Map<String, Object>> newConfigurations = sensorConfigList.stream()
                     .filter(o -> o instanceof Map)
-                    .filter(map -> ((Map)map).keySet().stream().allMatch(k->k instanceof String))
+                    .filter(map -> ((Map) map).keySet().stream().allMatch(k -> k instanceof String))
                     .toList();
-            log.debug("K8sNetdataCollector: setConfiguration: {}", configurations);
+            log.debug("K8sNetdataCollector: setConfiguration: newConfigurations: {}", newConfigurations);
 
-            // If configuration changes while collector running we need to restart it
+            // If configuration is set while collector is running we need to restart it
             if (started) {
-                log.debug("K8sNetdataCollector: setConfiguration: Restarting collector");
-                stop();
-                start();
-                log.info("K8sNetdataCollector: setConfiguration: Restarted collector");
+                if ((configurations==null || configurations.isEmpty() && ! newConfigurations.isEmpty())) {
+                    configurations = newConfigurations;
+                    log.info("K8sNetdataCollector: setConfiguration: Collector configuration updated while collector is running");
+                    log.debug("K8sNetdataCollector: setConfiguration: Restarting collector");
+                    stop();
+                    start();
+                    log.info("K8sNetdataCollector: setConfiguration: Restarted collector");
+                }
+            }
+            // If collector is not running update configuration anyway
+            if (!started) {
+                configurations = newConfigurations;
+                log.info("K8sNetdataCollector: setConfiguration: Collector configuration updated");
             }
         } else
             log.warn("K8sNetdataCollector: setConfiguration: Ignoring unsupported configuration object: {}", config);
