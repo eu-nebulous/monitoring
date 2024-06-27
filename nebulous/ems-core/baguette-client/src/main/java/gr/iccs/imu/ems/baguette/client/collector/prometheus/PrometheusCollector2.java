@@ -56,17 +56,24 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
     public PrometheusCollector2(PrometheusCollectorProperties properties, CollectorContext collectorContext, TaskScheduler taskScheduler, EventBus<String,Object,Object> eventBus) {
         super("PrometheusCollector2", properties, collectorContext, taskScheduler, eventBus);
         this.properties = properties;
+        this.properties.setEnable(true);    //XXX: TODO: Temporary fix... 'enable' property is not set while initializing 'PrometheusCollectorProperties'
         this.autoStartRunner = false;   // Don't start the default runner
     }
 
     @Override
     public void afterPropertiesSet() {
-        log.debug("Collectors::Prometheus2: properties: {}", properties);
+        log.debug("Collectors::{}: properties: {}", collectorId, properties);
         super.afterPropertiesSet();
     }
 
     @Override
     public void start() {
+        // check if already running
+        if (started) {
+            log.warn("Collectors::{}: Already started", collectorId);
+            return;
+        }
+        super.start();
         initRestClientAndParser();
         startEventPublishTask();
         applyNewConfigurations();
@@ -74,6 +81,11 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
 
     @Override
     public void stop() {
+        if (!started) {
+            log.warn("Collectors::{}: Not started", collectorId);
+            return;
+        }
+        super.stop();
         keepRunning = false;
         if (eventPublishThread!=null && eventPublishThread.isAlive()) {
             eventPublishThread.interrupt();
@@ -97,26 +109,29 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
     @Override
     public void setConfiguration(Object config) {
         if (config instanceof List sensorConfigList) {
-            configurations = sensorConfigList.stream()
-                    .filter(o -> o instanceof Map)
-                    .toList();
-            applyNewConfigurations();
+            if (!started || configurations==null || configurations.isEmpty() && ! sensorConfigList.isEmpty()) {
+                configurations = sensorConfigList.stream()
+                        .filter(o -> o instanceof Map)
+                        .toList();
+                if (started)
+                    applyNewConfigurations();
+            }
         }
     }
 
     public synchronized void activeGroupingChanged(String oldGrouping, String newGrouping) {
-        log.info("Collectors::Prometheus2: activeGroupingChanged: New Allowed Topics for active grouping: {} -- !! Not used !!", newGrouping);
+        log.info("Collectors::{}: activeGroupingChanged: New Allowed Topics for active grouping: {} -- !! Not used !!", collectorId, newGrouping);
     }
 
     private void applyNewConfigurations() {
-        log.debug("Collectors::Prometheus2: applyNewConfigurations: {}", configurations);
+        log.debug("Collectors::{}: applyNewConfigurations: {}", collectorId, configurations);
         if (configurations==null) return;
 
         // Cancel previous tasks
         cancelScrapingTasks();
 
         // Create new scraping tasks
-        log.trace("Collectors::Prometheus2: applyNewConfigurations: Starting new scraping tasks: configurations: {}", configurations);
+        log.trace("Collectors::{}: applyNewConfigurations: Starting new scraping tasks: configurations: {}", collectorId, configurations);
         Instant startInstant = Instant.now();
         configurations.forEach(config -> {
             if (checkConfig(config)) {
@@ -129,21 +144,21 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
 
                 scrapingTasks.add(taskScheduler.scheduleAtFixedRate(
                         () -> scrapeEndpoint(url, prometheusMetric, destination), startsAt, period));
-                log.info("Collectors::Prometheus2: Added monitoring task: prometheus-metric={}, destination={}, url={}, starts-at={}, period={}",
-                        prometheusMetric, destination, url, startsAt, period);
+                log.info("Collectors::{}: Added monitoring task: prometheus-metric={}, destination={}, url={}, starts-at={}, period={}",
+                        collectorId, prometheusMetric, destination, url, startsAt, period);
             } else
-                log.warn("Collectors::Prometheus2: applyNewConfigurations: Skipped sensor: {}", config);
+                log.warn("Collectors::{}: applyNewConfigurations: Skipped sensor: {}", collectorId, config);
         });
-        log.debug("Collectors::Prometheus2: applyNewConfigurations: Started new scraping tasks: {}", scrapingTasks);
+        log.debug("Collectors::{}: applyNewConfigurations: Started new scraping tasks: {}", collectorId, scrapingTasks);
     }
 
     private void cancelScrapingTasks() {
         if (! scrapingTasks.isEmpty()) {
-            log.trace("Collectors::Prometheus2: cancelScrapingTasks: Cancelling previous scraping tasks: {}", scrapingTasks);
+            log.trace("Collectors::{}: cancelScrapingTasks: Cancelling previous scraping tasks: {}", collectorId, scrapingTasks);
             List<ScheduledFuture<?>> list = new ArrayList<>(scrapingTasks);
             scrapingTasks.clear();
             list.forEach(task -> task.cancel(true));
-            log.trace("Collectors::Prometheus2: cancelScrapingTasks: Cancelled previous scraping tasks: {}", scrapingTasks);
+            log.trace("Collectors::{}: cancelScrapingTasks: Cancelled previous scraping tasks: {}", collectorId, scrapingTasks);
         }
     }
 
@@ -171,7 +186,7 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
         if (errors.isEmpty()) return true;
 
         // Print errors and return false
-        log.warn("Collectors::Prometheus2: checkConfig: Sensor specification has errors: spec={}, errors={}", config, errors);
+        log.warn("Collectors::{}: checkConfig: Sensor specification has errors: spec={}, errors={}", collectorId, config, errors);
         return false;
     }
 
@@ -228,58 +243,58 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
     }
 
     private void scrapeEndpoint(String urlPattern, String prometheusMetric, String destination) {
-        log.debug("Collectors::Prometheus2: scrapeEndpoint: BEGIN: Scraping Prometheus endpoints for sensor: url-pattern={}, prometheusMetric={}, destination={}",
-                urlPattern, prometheusMetric, destination);
+        log.debug("Collectors::{}: scrapeEndpoint: BEGIN: Scraping Prometheus endpoints for sensor: url-pattern={}, prometheusMetric={}, destination={}",
+                collectorId, urlPattern, prometheusMetric, destination);
 
         // Get nodes/pods to scrape
         Set<Serializable> nodes = collectorContext.getNodesWithoutClient();
-        log.trace("Collectors::Prometheus2: scrapeEndpoint: Nodes to scrape: {}", nodes);
+        log.trace("Collectors::{}: scrapeEndpoint: Nodes to scrape: {}", collectorId, nodes);
         if (nodes==null || nodes.isEmpty()) {
-            log.debug("Collectors::Prometheus2: scrapeEndpoint: END: No nodes to scrape: url-pattern={}, prometheusMetric={}, destination={}",
-                    urlPattern, prometheusMetric, destination);
+            log.debug("Collectors::{}: scrapeEndpoint: END: No nodes to scrape: url-pattern={}, prometheusMetric={}, destination={}",
+                    collectorId, urlPattern, prometheusMetric, destination);
             return;
         }
 
         // Scrape nodes and process responses
         nodes.forEach(node -> {
             String url = urlPattern.formatted(node);
-            log.trace("Collectors::Prometheus2: scrapeEndpoint: Scraping node: {} -- Endpoint: {}", node, url);
+            log.trace("Collectors::{}: scrapeEndpoint: Scraping node: {} -- Endpoint: {}", collectorId, node, url);
 
             // Scrape endpoint
             String payload = restClient
                     .get().uri(url)
                     .retrieve()
                     .body(String.class);
-            log.debug("Collectors::Prometheus2: scrapeEndpoint: Scrapped node: {} -- Endpoint: {} -- Payload:\n{}", node, url, payload);
+            log.debug("Collectors::{}: scrapeEndpoint: Scrapped node: {} -- Endpoint: {} -- Payload:\n{}", collectorId, node, url, payload);
 
             // Parser response
             List<OpenMetricsParser.MetricInstance> results = null;
             if (StringUtils.isNotBlank(payload)) {
                 results = openMetricsParser.processInput(payload.split("\n"));
-                log.trace("Collectors::Prometheus2: scrapeEndpoint: Parsed payload: {} -- Metrics:\n{}", node, results);
+                log.trace("Collectors::{}: scrapeEndpoint: Parsed payload: {} -- Metrics:\n{}", collectorId, node, results);
             }
 
             // Get values for the requested metric
             if (results!=null) {
                 List<OpenMetricsParser.MetricInstance> matches = results.stream()
                         .filter(m -> m.getMetricName().equalsIgnoreCase(prometheusMetric)).toList();
-                log.trace("Collectors::Prometheus2: scrapeEndpoint: Found metric: {} -- Metric(s):\n{}", node, matches);
+                log.trace("Collectors::{}: scrapeEndpoint: Found metric: {} -- Metric(s):\n{}", collectorId, node, matches);
                 List<Double> values = matches.stream().map(OpenMetricsParser.MetricInstance::getMetricValue).toList();
-                log.trace("Collectors::Prometheus2: scrapeEndpoint: Metric value(s): {} -- Value(s):\n{}", node, values);
+                log.trace("Collectors::{}: scrapeEndpoint: Metric value(s): {} -- Value(s):\n{}", collectorId, node, values);
 
                 // Publish extracted values
                 queueForPublish(prometheusMetric, destination, values, node, url);
             }
 
-            log.trace("Collectors::Prometheus2: scrapeEndpoint: Done scraping node: {} -- Endpoint: {}", node, url);
+            log.trace("Collectors::{}: scrapeEndpoint: Done scraping node: {} -- Endpoint: {}", collectorId, node, url);
         });
 
-        log.debug("Collectors::Prometheus2: scrapeEndpoint: END");
+        log.debug("Collectors::{}: scrapeEndpoint: END", collectorId);
     }
 
     private void queueForPublish(String prometheusMetric, String destination, List<Double> values, Serializable node, String endpoint) {
-        log.debug("Collectors::Prometheus2: queueForPublish: metric={}, destination={}, values={}, node={}, endpoint={}",
-                node, prometheusMetric, destination, values, endpoint);
+        log.debug("Collectors::{}: queueForPublish: metric={}, destination={}, values={}, node={}, endpoint={}",
+                collectorId, node, prometheusMetric, destination, values, endpoint);
         values.forEach(v -> {
             EventMap event = new EventMap(v);
             event.setEventProperty("metric", prometheusMetric);
@@ -299,14 +314,14 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
                     String destination = event.getEventProperty("destination-topic").toString();
                     CollectorContext.PUBLISH_RESULT result = collectorContext
                             .sendEvent(null, destination, event, properties.isCreateTopic());
-                    log.debug("Collectors::Prometheus2: Event Publishing: Published event: {} -- Result: {}", event, result);
+                    log.debug("Collectors::{}: Event Publishing: Published event: {} -- Result: {}", collectorId, event, result);
                 } catch (InterruptedException e) {
-                    log.warn("Collectors::Prometheus2: Event Publishing: Interrupted. Exiting event publish loop");
+                    log.warn("Collectors::{}: Event Publishing: Interrupted. Exiting event publish loop", collectorId);
                     break;
                 }
             }
         });
-        eventPublishThread.setName("PrometheusCollector2-event-publish-thread");
+        eventPublishThread.setName(collectorId + "-event-publish-thread");
         eventPublishThread.setDaemon(true);
         eventPublishThread.start();
     }

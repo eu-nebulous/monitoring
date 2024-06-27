@@ -75,7 +75,7 @@ public abstract class AbstractEndpointCollector<T> implements InitializingBean, 
         log.debug("Collectors::{}: properties: {}", collectorId, properties);
         processAllowedTopics(properties.getAllowedTopics());
 
-        registerInternalEvents("ABSTRACT");
+        registerInternalEvents(collectorId);
     }
 
     public void processAllowedTopics(Collection<String> allowedTopicsSpec) {
