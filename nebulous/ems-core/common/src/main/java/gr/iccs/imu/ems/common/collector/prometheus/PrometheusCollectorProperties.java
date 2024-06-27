@@ -13,6 +13,7 @@ import gr.iccs.imu.ems.common.collector.AbstractEndpointCollectorProperties;
 import gr.iccs.imu.ems.util.EmsConstant;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
@@ -22,6 +23,7 @@ import java.util.Set;
 @Slf4j
 @Data
 @EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
 @Configuration
 @ConfigurationProperties(prefix = EmsConstant.EMS_PROPERTIES_PREFIX + "collector.prometheus")
 public class PrometheusCollectorProperties extends AbstractEndpointCollectorProperties {
