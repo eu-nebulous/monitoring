@@ -34,7 +34,7 @@ import static eu.nebulous.ems.translate.analyze.AnalysisUtils.*;
 @RequiredArgsConstructor
 class SensorsHelper extends AbstractHelper implements InitializingBean {
     private static final String DEFAULT_SENSOR_NAME_SUFFIX = "_SENSOR";
-    private static final String DEFAULT_SENSOR_TYPE = "netdata";
+    static final String DEFAULT_SENSOR_TYPE = "custom";
 
     private final NebulousEmsTranslatorProperties properties;
     private final List<SensorPostProcessorPlugin> sensorPostProcessorPlugins;
