@@ -20,6 +20,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -63,11 +64,13 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
 
     private void processSLOMetricDecompositions(TranslationContext translationContext, TopicBeacon topicBeacon) {
         Map<String, Object> sloMetricDecompositionsMap = getSLOMetricDecompositionPayload(translationContext, topicBeacon);
+        String sloMetricDecompositionsStr = sloMetricDecompositionsMap!=null ? topicBeacon.toJson(sloMetricDecompositionsMap) : null;
+        sloMetricDecompositionsMap = StringUtils.isNotBlank(sloMetricDecompositionsStr) ? topicBeacon.fromJson(sloMetricDecompositionsStr, Map.class) : null;
+
         translationContext.getAdditionalResults().put(PREDICTION_SLO_METRIC_DECOMPOSITION_MAP, sloMetricDecompositionsMap);
         log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): SLO metrics decompositions: model={}, decompositions-map={}",
                 translationContext.getModelName(), sloMetricDecompositionsMap);
 
-        String sloMetricDecompositionsStr = sloMetricDecompositionsMap!=null ? topicBeacon.toJson(sloMetricDecompositionsMap) : null;
         translationContext.getAdditionalResults().put(PREDICTION_SLO_METRIC_DECOMPOSITION, sloMetricDecompositionsStr);
         log.debug("PredictionsPostTranslationPlugin.processTranslationResults(): SLO metrics decompositions: model={}, decompositions={}",
                 translationContext.getModelName(), sloMetricDecompositionsStr);
