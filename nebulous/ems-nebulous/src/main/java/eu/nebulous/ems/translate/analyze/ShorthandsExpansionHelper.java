@@ -126,6 +126,28 @@ public class ShorthandsExpansionHelper {
                 .peek(this::expandSensor)
                 .toList();
         log.debug("ShorthandsExpansionHelper: Sensors expanded: {}", expandedSensors);
+
+        // ----- Fix SLO names (due to Nebulous GUI default) -----
+        List<Object> fixedSloNames = asList(ctx
+                .read("$.spec.*.*.requirements.*[?(@.name)]", List.class)).stream()
+                .peek(this::fixSloName)
+                .toList();
+        log.debug("ShorthandsExpansionHelper: Sensors expanded: {}", expandedSensors);
+    }
+
+    private void fixSloName(Object spec) {
+        log.debug("ShorthandsExpansionHelper.fixSloName: BEGIN: {}", spec);
+        String sloName = JsonPath.read(spec, "$.name").toString().trim();
+        log.debug("ShorthandsExpansionHelper.fixSloName: SLO name: {}", sloName);
+
+        if ("combined-slo".equalsIgnoreCase(sloName)) {
+            sloName = "combined_slo_" + System.currentTimeMillis();
+            asMap(spec).put("name", sloName);
+            log.debug("ShorthandsExpansionHelper.fixSloName: SLO name fixed to: {}", sloName);
+        } else {
+            log.debug("ShorthandsExpansionHelper.fixSloName: No need to fix SLO name: {}", sloName);
+        }
+        log.debug("ShorthandsExpansionHelper.fixSloName: END: spec: {}", spec);
     }
 
     private static Map<String, Map> readMetricTemplate(@NonNull String path, @NonNull DocumentContext ctx) {
@@ -239,6 +261,7 @@ public class ShorthandsExpansionHelper {
         Object sensorSpec = JsonPath.read(spec, "$.sensor");
         log.trace("ShorthandsExpansionHelper.expandSensor: sensorSpec: {}", sensorSpec);
 
+        // Get sensor type
         String typeSpecStr = null;
         if (sensorSpec instanceof String s) {
             typeSpecStr = s.trim();
@@ -251,6 +274,11 @@ public class ShorthandsExpansionHelper {
             typeSpecStr = map.get("type").toString().trim();
         }
 
+        // If sensor type is not provided, use 'custom'
+        if (StringUtils.isBlank(typeSpecStr))
+            typeSpecStr = SensorsHelper.DEFAULT_SENSOR_TYPE;
+
+        // Initialize sensor config map, and sensor type
         if (StringUtils.isNotBlank(typeSpecStr)) {
             Matcher matcher = METRIC_SENSOR_PATTERN.matcher(typeSpecStr);
             if (matcher.matches()) {
