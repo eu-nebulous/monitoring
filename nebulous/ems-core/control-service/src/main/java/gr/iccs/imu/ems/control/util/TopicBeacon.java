@@ -156,6 +156,12 @@ public class TopicBeacon implements InitializingBean {
         return gson.toJson(o);
     }
 
+    public <T> T fromJson(String s, Class<T> type) {
+        if (gson==null)
+            initializeGson();
+        return gson.fromJson(s, type);
+    }
+
     public void transmitInfo() throws JMSException {
         log.debug("Topic Beacon: Start transmitting info: {}", new Date());
         updateModelVersion();
