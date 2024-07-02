@@ -42,7 +42,7 @@ public class BaguetteClientProperties extends SshClientProperties {
 	private boolean exitCommandAllowed = false;
 	private int killDelay = 5;
 
-	private List<Class<? extends Collector>> collectorClasses;
+	private List<Class<? extends IClientCollector>> collectorClasses;
 	private Map<String,List<Map<String,Object>>> collectorConfigurations;
 
 	private boolean collectFromLocal = true;

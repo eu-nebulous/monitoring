@@ -635,7 +635,7 @@ public class CommandExecutor {
                 baguetteClient.getCollectorsList().stream()
                         .filter(c -> all || c.getClass().getName().equals(target))
                         .peek(c -> log.debug(" - Starting collector: {}...", c.getClass().getName()))
-                        .forEach(Collector::start);
+                        .forEach(IClientCollector::start);
                 log.info("BaguetteClient: Starting Collector: {}... done", target);
             } else
             if ("STOP".equalsIgnoreCase(operation)) {
@@ -648,7 +648,7 @@ public class CommandExecutor {
                 baguetteClient.getCollectorsList().stream()
                         .filter(c -> all || c.getClass().getName().equals(target))
                         .peek(c -> log.debug(" - Stopping collector: {}...", c.getClass().getName()))
-                        .forEach(Collector::stop);
+                        .forEach(IClientCollector::stop);
                 log.info("BaguetteClient: Stopping Collector: {}... done", target);
             } else
                 log.error("BaguetteClient: Unknown Collector operation: {}", operation);

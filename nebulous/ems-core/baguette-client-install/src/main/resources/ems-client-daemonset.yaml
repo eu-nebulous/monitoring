@@ -25,6 +25,8 @@ spec:
       hostNetwork: true
 
       terminationGracePeriodSeconds: 10
+
+      tolerations: ${EMS_CLIENT_TOLERATIONS}
       containers:
         - name: "${EMS_CLIENT_DAEMONSET_NAME}"
           image: "${EMS_CLIENT_DAEMONSET_IMAGE_REPOSITORY}:${EMS_CLIENT_DAEMONSET_IMAGE_TAG}"

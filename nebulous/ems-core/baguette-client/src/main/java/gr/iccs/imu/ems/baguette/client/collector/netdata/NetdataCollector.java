@@ -9,7 +9,7 @@
 
 package gr.iccs.imu.ems.baguette.client.collector.netdata;
 
-import gr.iccs.imu.ems.baguette.client.Collector;
+import gr.iccs.imu.ems.baguette.client.IClientCollector;
 import gr.iccs.imu.ems.baguette.client.collector.ClientCollectorContext;
 import gr.iccs.imu.ems.common.collector.CollectorContext;
 import gr.iccs.imu.ems.common.collector.netdata.NetdataCollectorProperties;
@@ -30,7 +30,7 @@ import java.util.Map;
  */
 @Slf4j
 @Component
-public class NetdataCollector extends gr.iccs.imu.ems.common.collector.netdata.NetdataCollector implements Collector {
+public class NetdataCollector extends gr.iccs.imu.ems.common.collector.netdata.NetdataCollector implements IClientCollector {
     private List<Map<String,Object>> configurations;
 
     public NetdataCollector(@NonNull NetdataCollectorProperties properties,
@@ -41,11 +41,6 @@ public class NetdataCollector extends gr.iccs.imu.ems.common.collector.netdata.N
         super("NetdataCollector", properties, collectorContext, taskScheduler, eventBus);
         if (!(collectorContext instanceof ClientCollectorContext))
             throw new IllegalArgumentException("Invalid CollectorContext provided. Expected: ClientCollectorContext, but got "+collectorContext.getClass().getName());
-    }
-
-    @Override
-    public String getName() {
-        return "netdata";
     }
 
     @Override

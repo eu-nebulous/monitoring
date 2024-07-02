@@ -9,10 +9,11 @@
 
 package gr.iccs.imu.ems.baguette.client.collector.prometheus;
 
-import gr.iccs.imu.ems.baguette.client.Collector;
+import gr.iccs.imu.ems.baguette.client.IClientCollector;
 import gr.iccs.imu.ems.brokercep.event.EventMap;
 import gr.iccs.imu.ems.common.collector.AbstractEndpointCollector;
 import gr.iccs.imu.ems.common.collector.CollectorContext;
+import gr.iccs.imu.ems.common.collector.prometheus.IPrometheusCollector;
 import gr.iccs.imu.ems.common.collector.prometheus.OpenMetricsParser;
 import gr.iccs.imu.ems.common.collector.prometheus.PrometheusCollectorProperties;
 import gr.iccs.imu.ems.util.EventBus;
@@ -37,7 +38,7 @@ import java.util.concurrent.ScheduledFuture;
  */
 @Slf4j
 @Component
-public class PrometheusCollector2 extends AbstractEndpointCollector<String> implements Collector {
+public class PrometheusCollector2 extends AbstractEndpointCollector<String> implements IClientCollector, IPrometheusCollector {
     public final static String DEFAULT_PROMETHEUS_PORT = "9090";
     public final static String DEFAULT_DELAY = "0";
     public final static String DEFAULT_INTERVAL = "60";
@@ -99,11 +100,6 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
     }
 
     protected void processData(String data, String nodeAddress, ProcessingStats stats) {
-    }
-
-    @Override
-    public String getName() {
-        return "prometheus";
     }
 
     @Override

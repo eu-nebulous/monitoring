@@ -18,13 +18,12 @@ import gr.iccs.imu.ems.util.ClientConfiguration;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 import java.io.Serializable;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -33,6 +32,7 @@ import java.util.stream.Collectors;
 public class ServerCollectorContext implements CollectorContext {
     private final NodeRegistry nodeRegistry;
     private final BrokerCepService brokerCepService;
+    private final ApplicationContext applicationContext;
 
     @Override
     public List<ClientConfiguration> getNodeConfigurations() {
@@ -64,5 +64,19 @@ public class ServerCollectorContext implements CollectorContext {
             return PUBLISH_RESULT.SENT;
         }
         return PUBLISH_RESULT.SKIPPED;
+    }
+
+    public Collection<IServerCollector> getCollectors() {
+        return applicationContext.getBeansOfType(IServerCollector.class, true, true).values();
+    }
+
+    public IServerCollector getCollectorByName(String name) {
+        if (StringUtils.isBlank(name))
+            throw new IllegalArgumentException("getCollectorByName: Argument cannot be blank");
+        List<IServerCollector> list = getCollectors().stream()
+                .filter(col -> col.getName().equals(name)).toList();
+        if (list.size()>1)
+            throw new IllegalArgumentException("getCollectorByName: Multiple collectors match name: "+name);
+        return list.size()==1 ? list.getFirst() : null;
     }
 }

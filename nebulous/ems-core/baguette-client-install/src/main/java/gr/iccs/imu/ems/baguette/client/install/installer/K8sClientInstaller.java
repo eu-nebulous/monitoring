@@ -44,6 +44,7 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
     private static final String EMS_CLIENT_DAEMONSET_IMAGE_REPOSITORY_DEFAULT = "registry.gitlab.com/nebulous-project/ems-main/ems-client";
     private static final String EMS_CLIENT_DAEMONSET_IMAGE_TAG_DEFAULT = EmsRelease.EMS_VERSION;
     private static final String EMS_CLIENT_DAEMONSET_IMAGE_PULL_POLICY_DEFAULT = "Always";
+    private static final String EMS_CLIENT_DEPLOY_AT_CONTROL_PLANE_DEFAULT = "true";
 
     private final ClientInstallationTask task;
     private final long taskCounter;
@@ -55,6 +56,7 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
     private String brokerUsername;
     private String brokerPassword;
     private String extraEnvVars;
+    private String tolerations;
 
     @Builder
     public K8sClientInstaller(ClientInstallationTask task, long taskCounter, ClientInstallationProperties properties,
@@ -68,6 +70,7 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
 
         initializeAdditionalCredentials();
         initializeExtraEnvVars();
+        initializeTolerations();
     }
 
     private void initializeAdditionalCredentials() {
@@ -96,6 +99,17 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
                 .collect(Collectors.joining("\n"));
         log.info("K8sClientInstaller: Extra Env.Vars:\n{}", str);
         extraEnvVars = str;
+    }
+
+    private void initializeTolerations() {
+        StringBuilder stringBuilder = new StringBuilder("\n");
+        if ("true".equalsIgnoreCase(getConfig("EMS_CLIENT_DEPLOY_AT_CONTROL_PLANE", EMS_CLIENT_DEPLOY_AT_CONTROL_PLANE_DEFAULT))) {
+            stringBuilder
+                    .append("        - key: \"node-role.kubernetes.io/control-plane\"\n")
+                    .append("          operator: \"Exists\"\n")
+                    .append("          effect: \"NoSchedule\"\n");
+        }
+        tolerations = stringBuilder.isEmpty() ? "[]" : stringBuilder.toString();
     }
 
     @Override
@@ -179,6 +193,7 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
                 "EMS_CLIENT_ADDITIONAL_BROKER_CREDENTIALS", additionalCredentials,
                 "EMS_CLIENT_KEYSTORE_SECRET", getConfig("EMS_CLIENT_KEYSTORE_SECRET", ""),
                 "EMS_CLIENT_TRUSTSTORE_SECRET", getConfig("EMS_CLIENT_TRUSTSTORE_SECRET", ""),
+                "EMS_CLIENT_TOLERATIONS", tolerations,
                 "EMS_CLIENT_EXTRA_ENV_VARS", extraEnvVars
         );
         log.debug("K8sClientInstaller:       values: {}", values);

@@ -29,7 +29,7 @@ import java.util.Set;
  * Collects measurements from a Prometheus exporter endpoint
  */
 @Slf4j
-public class PrometheusCollector extends AbstractEndpointCollector<String> {
+public class PrometheusCollector extends AbstractEndpointCollector<String> implements IPrometheusCollector {
     protected PrometheusCollectorProperties properties;
     protected RestTemplate restTemplate = new RestTemplate();
 

@@ -9,7 +9,7 @@
 
 package gr.iccs.imu.ems.baguette.client.collector.prometheus;
 
-import gr.iccs.imu.ems.baguette.client.Collector;
+import gr.iccs.imu.ems.baguette.client.IClientCollector;
 import gr.iccs.imu.ems.baguette.client.collector.ClientCollectorContext;
 import gr.iccs.imu.ems.common.collector.CollectorContext;
 import gr.iccs.imu.ems.common.collector.prometheus.PrometheusCollectorProperties;
@@ -30,7 +30,7 @@ import java.util.Map;
  */
 @Slf4j
 @Component
-public class PrometheusCollector extends gr.iccs.imu.ems.common.collector.prometheus.PrometheusCollector implements Collector {
+public class PrometheusCollector extends gr.iccs.imu.ems.common.collector.prometheus.PrometheusCollector implements IClientCollector {
     private List<Map<String,Object>> configurations;
 
     public PrometheusCollector(@NonNull PrometheusCollectorProperties properties,
@@ -41,11 +41,6 @@ public class PrometheusCollector extends gr.iccs.imu.ems.common.collector.promet
         super("PrometheusCollector", properties, collectorContext, taskScheduler, eventBus);
         if (!(collectorContext instanceof ClientCollectorContext))
             throw new IllegalArgumentException("Invalid CollectorContext provided. Expected: ClientCollectorContext, but got "+collectorContext.getClass().getName());
-    }
-
-    @Override
-    public String getName() {
-        return "prometheus";
     }
 
     @Override
