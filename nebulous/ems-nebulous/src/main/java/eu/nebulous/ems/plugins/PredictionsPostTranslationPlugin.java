@@ -186,7 +186,7 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
             // create decomposition result
             Map<String,Object> result = new HashMap<>();
             result.put("name", nameNormalization.apply( lc.getName() ));
-            result.put("operator", lc.getLogicalOperator());
+            result.put("operator", lc.getLogicalOperator().name());
             result.put("constraints", list);
             return result;
         } else

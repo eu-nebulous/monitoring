@@ -7,12 +7,12 @@
  * https://www.mozilla.org/en-US/MPL/2.0/
  */
 
-package gr.iccs.imu.ems.baguette.client;
+package gr.iccs.imu.ems.common.collector.netdata;
 
-import gr.iccs.imu.ems.util.Plugin;
+import gr.iccs.imu.ems.common.collector.ICollector;
 
-public interface Collector extends Plugin {
-    String getName();
-    void setConfiguration(Object config);
-    void activeGroupingChanged(String oldGrouping, String newGrouping);
+public interface INetdataCollector extends ICollector {
+    default String getName() {
+        return "netdata";
+    }
 }

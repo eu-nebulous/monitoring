@@ -27,7 +27,7 @@ import java.util.Map;
  * Collects measurements from Netdata http server
  */
 @Slf4j
-public class NetdataCollector extends AbstractEndpointCollector<HashMap> {
+public class NetdataCollector extends AbstractEndpointCollector<HashMap> implements INetdataCollector {
     public final static String NETDATA_COLLECTION_START = "NETDATA_COLLECTION_START";
     public final static String NETDATA_COLLECTION_OK = "NETDATA_COLLECTION_OK";
     public final static String NETDATA_COLLECTION_ERROR = "NETDATA_COLLECTION_ERROR";

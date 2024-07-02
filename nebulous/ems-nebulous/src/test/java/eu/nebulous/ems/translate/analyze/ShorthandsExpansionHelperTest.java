@@ -25,7 +25,7 @@ class ShorthandsExpansionHelperTest {
                         "            job_process_time_instance < 1 AND time > 10 AND NOT (tstee <\n" +
                         "            312432))"
         ));
-        ShorthandsExpansionHelper helper = new ShorthandsExpansionHelper();
+        ShorthandsExpansionHelper helper = new ShorthandsExpansionHelper(null);
         helper.expandConstraintExpression(spec);
         log.warn(">>>>  ShorthandsExpansionHelperTest:\n{}", spec);
     }

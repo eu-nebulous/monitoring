@@ -15,9 +15,10 @@ import com.jayway.jsonpath.ParseContext;
 import eu.nebulous.ems.translate.analyze.antlr4.ConstraintsBaseVisitor;
 import eu.nebulous.ems.translate.analyze.antlr4.ConstraintsLexer;
 import eu.nebulous.ems.translate.analyze.antlr4.ConstraintsParser;
+import gr.iccs.imu.ems.control.collector.IServerCollector;
+import gr.iccs.imu.ems.control.collector.ServerCollectorContext;
 import gr.iccs.imu.ems.translate.model.MetricTemplate;
 import gr.iccs.imu.ems.translate.model.ValueType;
-import gr.iccs.imu.ems.util.EmsConstant;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -41,7 +43,7 @@ import static eu.nebulous.ems.translate.analyze.AnalysisUtils.*;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ShorthandsExpansionHelper {
+public class ShorthandsExpansionHelper implements InitializingBean {
     /*private final static Pattern METRIC_CONSTRAINT_PATTERN =
             Pattern.compile("^([^<>=!]+)([<>]=|=[<>]|<>|!=|[=><])(.+)$");*/
     private final static Pattern METRIC_WINDOW_PATTERN =
@@ -54,6 +56,16 @@ public class ShorthandsExpansionHelper {
             Pattern.compile("^\\s*(\\d+(?:\\.\\d*)?|\\.\\d+)\\s*(\\w+)\\s*");
     private final static Pattern METRIC_SENSOR_PATTERN =
             Pattern.compile("^\\s*(\\w+)\\s+(\\w[\\w\\.]+\\w)\\s*");
+
+    private final ServerCollectorContext serverCollectorContext;
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        if (serverCollectorContext!=null)
+            log.debug("ShorthandsExpansionHelper: serverCollectorContext={}", serverCollectorContext);
+        else
+            throw new IllegalArgumentException("Field 'serverCollectorContext' is NULL. Probably a bug?");
+    }
 
     // ------------------------------------------------------------------------
     //  Methods for expanding shorthand expressions
@@ -288,13 +300,30 @@ public class ShorthandsExpansionHelper {
                         ? new LinkedHashMap<>()
                         : asMap(sensorConfigSpec);
                 asMap(sensorSpec).put("config", sensorConfigMap);
-                sensorConfigMap.put(EmsConstant.NETDATA_METRIC_KEY, matcher.group(2));
+                updateSensorConfigMap(sensorConfigMap, matcher.group(1), matcher.group(2));
             } else {
                 asMap(sensorSpec).put("type", typeSpecStr);
             }
         } else
             throw createException("Invalid metric sensor shorthand expression or sensor specification: " + spec);
         log.trace("ShorthandsExpansionHelper.expandSensor: END: {}", spec);
+    }
+
+    private void updateSensorConfigMap(Map<String, Object> sensorConfigMap, String sensorType, String stringConfigExpression) {
+        log.debug("ShorthandsExpansionHelper.updateSensorConfigMap: BEGIN: sensorType={}, expression={}, sensorConfigMap={}", sensorType, stringConfigExpression, sensorConfigMap);
+        if (serverCollectorContext!=null) {
+            IServerCollector collector = serverCollectorContext.getCollectorByName(sensorType);
+            log.debug("ShorthandsExpansionHelper.updateSensorConfigMap: sensorType={}, collector={}", sensorType, collector);
+            if (collector != null) {
+                Map<String, Object> result = collector.stringToConfigMap(stringConfigExpression);
+                log.debug("ShorthandsExpansionHelper.updateSensorConfigMap: stringConfigExpression={}, config-map={}", stringConfigExpression, result);
+                if (result != null)
+                    sensorConfigMap.putAll(result);
+            }
+        } else {
+            log.warn("ShorthandsExpansionHelper.updateSensorConfigMap: Field 'serverCollectorContext' is NULL");
+        }
+        log.debug("ShorthandsExpansionHelper.updateSensorConfigMap: END: sensorConfigMap={}", sensorConfigMap);
     }
 
     /*private void expandConstraint(Object spec) {

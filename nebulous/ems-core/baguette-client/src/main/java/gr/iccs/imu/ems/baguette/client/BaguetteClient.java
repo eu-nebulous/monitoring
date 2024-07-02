@@ -47,12 +47,12 @@ public class BaguetteClient implements ApplicationRunner {
     private final ClusterManagerProperties clusterManagerProperties;
     private final ConfigurableApplicationContext applicationContext;
 
-    private final List<Class<? extends Collector>> DEFAULT_COLLECTORS_LIST = List.of(
+    private final List<Class<? extends IClientCollector>> DEFAULT_COLLECTORS_LIST = List.of(
         K8sNetdataCollector.class, PrometheusCollector2.class
     );
 
     @Getter
-    private final List<Collector> collectorsList = new ArrayList<>();
+    private final List<IClientCollector> collectorsList = new ArrayList<>();
 
     private static int killDelay;
 
@@ -136,10 +136,10 @@ public class BaguetteClient implements ApplicationRunner {
         log.debug("BaguetteClient: Starting collectors...");
         if (baguetteClientProperties.getCollectorClasses()==null)
             baguetteClientProperties.setCollectorClasses(DEFAULT_COLLECTORS_LIST);
-        for (Class<? extends Collector> collectorClass : baguetteClientProperties.getCollectorClasses()) {
+        for (Class<? extends IClientCollector> collectorClass : baguetteClientProperties.getCollectorClasses()) {
             try {
                 log.debug("BaguetteClient: Starting collector: {}...", collectorClass.getName());
-                Collector collector = applicationContext.getBean(collectorClass);
+                IClientCollector collector = applicationContext.getBean(collectorClass);
                 log.debug("BaguetteClient: Starting collector: {}: instance={}", collectorClass.getName(), collector);
                 if (baguetteClientProperties.getCollectorConfigurations()!=null) {
                     Object config = baguetteClientProperties.getCollectorConfigurations().get(collector.getName());
@@ -159,7 +159,7 @@ public class BaguetteClient implements ApplicationRunner {
 
     protected void stopCollectors() {
         log.debug("BaguetteClient: Stopping collectors...");
-        for (Collector collector : collectorsList) {
+        for (IClientCollector collector : collectorsList) {
             try {
                 log.debug("BaguetteClient: Stopping collector: {}...", collector.getClass().getName());
                 collector.stop();
