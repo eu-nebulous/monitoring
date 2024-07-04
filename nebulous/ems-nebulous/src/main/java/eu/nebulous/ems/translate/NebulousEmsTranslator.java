@@ -25,6 +25,8 @@ import org.yaml.snakeyaml.Yaml;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -53,6 +55,11 @@ public class NebulousEmsTranslator implements Translator, InitializingBean {
 
 	@Override
 	public TranslationContext translate(String metricModelPath, String applicationId) {
+		return translate(metricModelPath, null, null);
+	}
+
+	@Override
+	public TranslationContext translate(String metricModelPath, String applicationId, Map<String,Object> additionalArguments) {
 		if (StringUtils.isBlank(metricModelPath)) {
 			log.error("NebulousEmsTranslator: No metric model specified");
 			throw new NebulousEmsTranslationException("No metric model specified");
@@ -72,7 +79,7 @@ public class NebulousEmsTranslator implements Translator, InitializingBean {
 
 			// -- Translate model ---------------------------------------------
 			log.info("NebulousEmsTranslator: Translating metric model: {}", metricModelPath);
-			TranslationContext _TC = translate(modelObj, metricModelPath, applicationId);
+			TranslationContext _TC = translate(modelObj, metricModelPath, applicationId, additionalArguments);
 			log.info("NebulousEmsTranslator: Translating metric model completed: {}", metricModelPath);
 
 			return _TC;
@@ -134,7 +141,7 @@ public class NebulousEmsTranslator implements Translator, InitializingBean {
 	// ================================================================================================================
 	// Private methods
 
-	private TranslationContext translate(Object modelObj, String modelFileName, String appId) throws Exception {
+	private TranslationContext translate(Object modelObj, String modelFileName, String appId, Map<String,Object> additionalArguments) throws Exception {
 		log.debug("NebulousEmsTranslator.translate():  BEGIN: metric-model={}", modelObj);
 
 		// Get model name
@@ -143,6 +150,12 @@ public class NebulousEmsTranslator implements Translator, InitializingBean {
 		// Initialize data structures
 		TranslationContext _TC = new TranslationContext(modelName, modelFileName);
 		_TC.setAppId(appId);
+		if (additionalArguments!=null && additionalArguments.get("required-metrics") instanceof List l) {
+			List<String> list = l.stream().filter(o -> o instanceof String).map(o -> String.class.cast(o)).toList();
+			_TC.getAdditionalArguments().put("required-metrics", list);
+		} else {
+			_TC.getAdditionalArguments().put("required-metrics", List.of());
+		}
 
 		// -- Expand shorthand expressions ------------------------------------
 		log.debug("NebulousEmsTranslator.translate(): Expanding shorthand expressions: {}", modelName);

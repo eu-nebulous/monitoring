@@ -149,7 +149,7 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 
 			try {
 				// Process metric model and bindings
-				processMetricModel(appId, modelStr);
+				processMetricModel(appId, modelStr, metricsList);
 				processBindings(appId, bindingsMap);
 				processOptimiserMetrics(appId, metricsList);
 
@@ -179,7 +179,7 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 		log.info("Set MVV bindings to: {}", bindingsMap);
 	}
 
-	public void processMetricModel(String appId, String modelStr) throws IOException {
+	public void processMetricModel(String appId, String modelStr, List<String> requiredMetricsList) throws IOException {
 		// If 'model' string is provided, store it in a file
 		String modelFile;
 		if (StringUtils.isNotBlank(modelStr)) {
@@ -193,6 +193,7 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 		// Call control-service to process model, also pass a callback to get the result
 		applicationContext.getBean(ControlServiceCoordinator.class).processAppModel(modelFile, null,
 				ControlServiceRequestInfo.create(appId, null, null, null,
+						Map.of("required-metrics", requiredMetricsList),
 						(result) -> {
 							// Send message with the processing result
 							log.info("Metric model processing result: {}", result);

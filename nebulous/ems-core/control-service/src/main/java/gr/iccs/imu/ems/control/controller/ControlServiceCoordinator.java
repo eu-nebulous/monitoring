@@ -343,7 +343,7 @@ public class ControlServiceCoordinator implements InitializingBean {
         // Translate model into Translation Context (with EPL rules etc.)
         log.info("ControlServiceCoordinator._translateAppModel(): Translating app model: {}", appModelId);
         TranslationContext _TC;
-        _TC = translateAppModelAndStore(appModelId, requestInfo.getApplicationId(), false);
+        _TC = translateAppModelAndStore(appModelId, requestInfo, false);
 
         // Run TranslationContext plugins
         if (translationContextPlugins!=null && !translationContextPlugins.isEmpty()) {
@@ -384,7 +384,7 @@ public class ControlServiceCoordinator implements InitializingBean {
         // Translate model into Translation Context (with EPL rules etc.)
         TranslationContext _TC;
         if (!properties.isSkipTranslation()) {
-            _TC = translateAppModelAndStore(appModelId, requestInfo.getApplicationId(), true);
+            _TC = translateAppModelAndStore(appModelId, requestInfo, true);
         } else {
             log.warn("ControlServiceCoordinator._processAppModel(): Skipping translation due to configuration");
             _TC = loadStoredTranslationContext(appModelId);
@@ -540,13 +540,14 @@ public class ControlServiceCoordinator implements InitializingBean {
         setCurrentEmsState(EMS_STATE.READY, null);
     }
 
-    private TranslationContext translateAppModelAndStore(String appModelId, String applicationId, boolean updateEmsState) {
+    private TranslationContext translateAppModelAndStore(String appModelId, ControlServiceRequestInfo requestInfo, boolean updateEmsState) {
+        final String applicationId = requestInfo.getApplicationId();
         final TranslationContext _TC;
         if (updateEmsState) setCurrentEmsState(EMS_STATE.INITIALIZING, "Retrieving and translating model");
 
         // Translate application model into a TranslationContext object
         log.info("ControlServiceCoordinator.translateAppModelAndStore(): Model translation: model-id={}", appModelId);
-        _TC = translator.translate(appModelId, applicationId);
+        _TC = translator.translate(appModelId, applicationId, requestInfo.getAdditionalArguments());
         _TC.populateTopLevelMetricNames();
         log.debug("ControlServiceCoordinator.translateAppModelAndStore(): Model translation: RESULTS: {}", _TC);
 

@@ -14,6 +14,8 @@ import lombok.Data;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Map;
+
 @Slf4j
 @Data
 @Builder
@@ -26,6 +28,7 @@ public class ControlServiceRequestInfo {
     private final String jwtToken;
 
     private final String applicationId;
+    private final Map<String,Object> additionalArguments;
     private final java.util.function.Consumer<Object> callback;
 
     public static ControlServiceRequestInfo create(String notificationUri, String requestUuid, String jwtToken) {
@@ -46,6 +49,20 @@ public class ControlServiceRequestInfo {
                 .requestUuid(requestUuid)
                 .jwtToken(jwtToken)
                 .applicationId(applicationId)
+                .callback(callback)
+                .build();
+    }
+
+    public static ControlServiceRequestInfo create(String applicationId, String notificationUri, String requestUuid,
+                                                   String jwtToken, Map<String,Object> additionalArguments,
+                                                   java.util.function.Consumer<Object> callback)
+    {
+        return ControlServiceRequestInfo.builder()
+                .notificationUri(notificationUri)
+                .requestUuid(requestUuid)
+                .jwtToken(jwtToken)
+                .applicationId(applicationId)
+                .additionalArguments(additionalArguments)
                 .callback(callback)
                 .build();
     }

@@ -42,6 +42,9 @@ public class TranslationContext implements Serializable {
     @Getter @Setter
     private String appName;
 
+    @Getter
+    private Map<String, Object> additionalArguments = new LinkedHashMap<>();
+
     // Decomposition DAG
     @Getter
     @JsonIgnore
