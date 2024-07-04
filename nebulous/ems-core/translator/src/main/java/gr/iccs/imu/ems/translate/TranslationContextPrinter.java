@@ -28,9 +28,14 @@ public class TranslationContextPrinter {
 	private final DAGExporter dagExporter;
 
 	public void printResults(TranslationContext _TC, String exportName) {
+		String dot = doPrintResults(_TC, exportName);
+		exportDagToFiles(_TC, exportName, dot);
+	}
+
+	private String doPrintResults(TranslationContext _TC, String exportName) {
 		if (! properties.isPrintResults()) {
 			log.debug("TranslationContextPrinter.printResults(): Translation results printing is disabled");
-			return;
+			return null;
 		}
 
 		// Print analysis results
@@ -41,9 +46,9 @@ public class TranslationContextPrinter {
 
 		// Print DAG
 		String dot = null;
-		if (properties.getDag().isExportToDotEnabled()) {
-			log.info("Decomposition Graph:\n{}", _TC.getDAG());
+		if (properties.getDag().isPrintDotEnabled()) {
 			log.info("*********************************************************");
+			log.info("Decomposition Graph:\n{}", _TC.getDAG());
 			try {
 				if (_TC.getDAG().getRootNode()!=null) {
 					dot = dagExporter.exportToDot(_TC.getDAG());
@@ -54,33 +59,6 @@ public class TranslationContextPrinter {
 				}
 			} catch (Exception ex) {
 				log.error("Decomposition Graph in DOT format: EXCEPTION: ", ex);
-			}
-		}
-		// Export DAG to files
-		if (properties.getDag().isExportToFileEnabled()) {
-			log.info("*********************************************************");
-			log.info("Decomposition Graph export to file(s)");
-			try {
-				// Get graph export configuration
-				String exportPath = properties.getDag().getExportPath();
-				String[] exportFormats = properties.getDag().getExportFormats();
-				int imageWidth = properties.getDag().getExportImageWidth();
-
-				// Get base name and path of export files
-				if (StringUtils.isBlank(exportPath)) exportPath = "";
-				exportName = StringUtils.stripToEmpty(exportName);
-				if (exportName.isEmpty()) exportName = "export";
-				String baseFileName = "%s/%s-%d".formatted(exportPath, exportName, System.currentTimeMillis());
-				List<String> exportFiles;
-				if (dot!=null) {
-					exportFiles = dagExporter.exportDAG(dot, baseFileName, exportFormats, imageWidth);
-				} else {
-					exportFiles = dagExporter.exportDAG(_TC.getDAG(), baseFileName, exportFormats, imageWidth);
-				}
-				_TC.setExportFiles(exportFiles);
-				//log.info("Decomposition Graph export to file(s): ok");
-			} catch (Exception ex) {
-				log.error("Decomposition Graph export to file(s): EXCEPTION: ", ex);
 			}
 		}
 
@@ -140,8 +118,41 @@ public class TranslationContextPrinter {
 		log.info("*********************************************************");
 		log.info("Additional Results:\n{}", _TC.getAdditionalResults());
 		log.info("*********************************************************");
-		log.info("Export files:\n{}", _TC.getExportFiles());
-		log.info("*********************************************************");
+
+		return dot;
+	}
+
+	private void exportDagToFiles(TranslationContext _TC, String exportName, String dot) {
+		// Export DAG to files
+		if (properties.getDag().isExportToFileEnabled()) {
+			log.info("*********************************************************");
+			log.info("Decomposition Graph export to file(s)");
+			try {
+				// Get graph export configuration
+				String exportPath = properties.getDag().getExportPath();
+				String[] exportFormats = properties.getDag().getExportFormats();
+				int imageWidth = properties.getDag().getExportImageWidth();
+
+				// Get base name and path of export files
+				if (StringUtils.isBlank(exportPath)) exportPath = "";
+				exportName = StringUtils.stripToEmpty(exportName);
+				if (exportName.isEmpty()) exportName = "export";
+				String baseFileName = "%s/%s-%d".formatted(exportPath, exportName, System.currentTimeMillis());
+				List<String> exportFiles;
+				if (dot !=null) {
+					exportFiles = dagExporter.exportDAG(dot, baseFileName, exportFormats, imageWidth);
+				} else {
+					exportFiles = dagExporter.exportDAG(_TC.getDAG(), baseFileName, exportFormats, imageWidth);
+				}
+				_TC.setExportFiles(exportFiles);
+				//log.info("Decomposition Graph export to file(s): ok");
+			} catch (Exception ex) {
+				log.error("Decomposition Graph export to file(s): EXCEPTION: ", ex);
+			}
+			log.info("*********************************************************");
+			log.info("Export files:\n{}", _TC.getExportFiles());
+			log.info("*********************************************************");
+		}
 	}
 
 	public static void separator() {

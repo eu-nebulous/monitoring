@@ -9,9 +9,14 @@
 
 package gr.iccs.imu.ems.translate;
 
+import java.util.Map;
+
 public interface Translator {
     TranslationContext translate(String modelPath);
     default TranslationContext translate(String modelPath, String applicationId) {
+        return translate(modelPath);
+    }
+    default TranslationContext translate(String modelPath, String applicationId, Map<String,Object> additionalArguments) {
         return translate(modelPath);
     }
 

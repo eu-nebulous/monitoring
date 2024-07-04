@@ -95,9 +95,18 @@ class MetricsHelper extends AbstractHelper {
             metric.getMetric().setMetricTemplate(template);
 
         // Check if it is a Busy-Status metric
-        if (getSpecBoolean(metricSpec, "busy-status", false)) {
-            log.trace("decomposeMetric: {}: It is a BUSY-STATUS metric", metricNamesKey.name());
-            _TC.addBusyStatusMetric(metric.getName());
+        List<Object> requiredMetrics =
+                _TC.getAdditionalArguments()!=null && _TC.getAdditionalArguments().get("required-metrics")!=null
+                        ? asList(_TC.getAdditionalArguments().get("required-metrics")) : List.of();
+        boolean isRequired = requiredMetrics.contains(metric.getName());
+        boolean isBusyStatus = getSpecBoolean(metricSpec, "busy-status", false);
+        log.trace("decomposeMetric: {}: is-required={}, is-busy-metric={}, required-metrics={}",
+                metricNamesKey.name(), isRequired, isBusyStatus, requiredMetrics);
+        if (isBusyStatus || isRequired) {
+            if (isBusyStatus)
+                log.trace("decomposeMetric: {}: It is a BUSY-STATUS metric", metricNamesKey.name());
+            if (isRequired)
+                log.trace("decomposeMetric: {}: It is a REQUIRED metric", metricNamesKey.name());
 
             // Add a top-level node to connect busy-status metric
             String busyStatusMetricName =
@@ -111,11 +120,16 @@ class MetricsHelper extends AbstractHelper {
             log.debug("decomposeMetric: {}: New Busy-Status metric variable: {}", metricNamesKey.name(), newMv.getName());
 
             // Update TC
-            _TC.addBusyStatusDestinationNameToMetricContextName(metric.getName(), busyStatusMetricName);
+            if (isBusyStatus) {
+                _TC.addBusyStatusMetric(metric.getName());
+                _TC.addBusyStatusDestinationNameToMetricContextName(metric.getName(), busyStatusMetricName);
+            }
+
+            // Update DAG
             //_TC.addElementToNamePair(newMv, newMv.getName());
             _TC.getDAG().addTopLevelNode(newMv);
             _TC.getDAG().addNode(newMv, metric);
-            log.trace("decomposeMetric: {}: New Busy-Status metric added to DAG: {}", metricNamesKey.name(), newMv.getName());
+            log.trace("decomposeMetric: {}: New Required / Busy-Status metric added to DAG: {}", metricNamesKey.name(), newMv.getName());
         }
 
         return metric;
