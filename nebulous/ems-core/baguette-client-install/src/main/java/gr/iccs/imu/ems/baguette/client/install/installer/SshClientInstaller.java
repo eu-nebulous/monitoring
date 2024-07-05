@@ -102,7 +102,7 @@ public class SshClientInstaller implements ClientInstallerPlugin {
         this.taskCounter = taskCounter;
 
         this.maxRetries = properties.getMaxRetries()>=0 ? properties.getMaxRetries() : 5;
-        this.retryDelay = properties.getRetryDelay()>0 ? properties.getRetryDelay() : 1000L;
+        this.retryDelay = properties.getRetryDelay()>0 ? properties.getRetryDelay() : 10000L;
         this.retryBackoffFactor = properties.getRetryBackoffFactor()>0 ? properties.getRetryBackoffFactor() : 1.0;
 
         this.connectTimeout = properties.getConnectTimeout()>0 ? properties.getConnectTimeout() : 60000;
