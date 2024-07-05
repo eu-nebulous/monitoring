@@ -114,17 +114,37 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
 
     @Override
     public boolean executeTask() {
-        boolean success = true;
-        try {
-            deployOnCluster();
-        } catch (Exception ex) {
-            log.error("K8sClientInstaller: Failed executing installation instructions for task #{}, Exception: ", taskCounter, ex);
-            success = false;
+        boolean success = false;
+        int retries = 0;
+        int maxRetries = properties.getMaxRetries();
+        while (!success && retries<=maxRetries) {
+            if (retries > 0)
+                log.warn("K8sClientInstaller: Retry {}/{}: Executing task #{}", retries, maxRetries, taskCounter);
+
+            try {
+                deployOnCluster();
+                success = true;
+            } catch (Exception ex) {
+                log.error("K8sClientInstaller: Failed executing installation instructions for task #{}, Exception: ", taskCounter, ex);
+                retries++;
+                if (retries<=maxRetries)
+                    waitToRetry(retries);
+            }
         }
 
         if (success) log.info("K8sClientInstaller: Task completed successfully #{}", taskCounter);
-        else log.info("K8sClientInstaller: Error occurred while executing task #{}", taskCounter);
+        else log.warn("K8sClientInstaller: Task #{} failed after {} retries", taskCounter, retries);
         return true;
+    }
+
+    private void waitToRetry(int retries) {
+        long delay = Math.max(1, (long)(properties.getRetryDelay() * Math.pow(properties.getRetryBackoffFactor(), retries-1)));
+        try {
+            log.debug("K8sClientInstaller: waitToRetry: Waiting for {}ms to retry", delay);
+            Thread.sleep(delay);
+        } catch (InterruptedException e) {
+            log.warn("K8sClientInstaller: waitToRetry: Waiting to retry interrupted: ", e);
+        }
     }
 
     private void deployOnCluster() throws IOException {
