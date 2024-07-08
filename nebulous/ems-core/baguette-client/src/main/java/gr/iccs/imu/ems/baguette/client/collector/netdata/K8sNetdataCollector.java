@@ -403,71 +403,87 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
             }
         } else
         if (cfgCtx.apiVer==2) {
-            log.warn("K8sNetdataCollector: collectDataFromNode(): Calling Netdata: apiVer={}, url={}", cfgCtx.apiVer, url);
+            log.debug("K8sNetdataCollector: collectDataFromNode(): Calling Netdata: apiVer={}, url={}", cfgCtx.apiVer, url);
             Map response = restClient.get()
                     .uri(url)
                     .retrieve()
                     .body(Map.class);
             log.trace("K8sNetdataCollector: collectDataFromNode(): apiVer={}, response={}", cfgCtx.apiVer, response);
 
-            double result = Double.parseDouble( response.get("result").toString() );
-            Map view = (Map) response.get("view");
-            long after = Long.parseLong( view.get("after").toString() );
-            long before = Long.parseLong( view.get("before").toString() );
-            timestamp = before;
-            log.trace("K8sNetdataCollector: collectDataFromNode(): result={}, after={}, before={}", result, after, before);
-            Map dimensions = (Map) view.get("dimensions");
-            List<String> ids = (List<String>) dimensions.get("ids");
-            List<String> units = (List<String>) dimensions.get("units");
-            List<Number> values = (List<Number>) ((Map)dimensions.get("sts")).get("avg");
-            log.trace("K8sNetdataCollector: collectDataFromNode():    ids={}", ids);
-            log.trace("K8sNetdataCollector: collectDataFromNode():  units={}", units);
-            log.trace("K8sNetdataCollector: collectDataFromNode(): values={}", values);
-            for (int i=0, n=ids.size(); i<n; i++) {
+            if (response!=null) {
+                Map view = (Map) response.get("view");
+
+                // Check and (debug) print few values
                 try {
-                    if (includeResult(cfgCtx, ids.get(i))) {
-                        double v = values.get(i).doubleValue();
-                        resultsMap.put(ids.get(i), v);
+                    double result = Double.parseDouble(response.get("result").toString());
+                    //resultsMap.put("result", result);
+                    if (view!=null) {
+                        long after = Long.parseLong(view.get("after").toString());
+                        long before = Long.parseLong(view.get("before").toString());
+                        timestamp = before;
+                        log.trace("K8sNetdataCollector: collectDataFromNode(): result={}, after={}, before={}", result, after, before);
                     }
                 } catch (Exception e) {
-                    log.warn("K8sNetdataCollector: collectDataFromNode(): ERROR at index #{}: id={}, value={}, Exception: ",
-                            i, ids.get(i), values.get(i), e);
-                    if (! cfgCtx.skipValueOnError)
-                        resultsMap.put(ids.get(i), cfgCtx.valueOnError);
+                    Map v = (Map) response.get("view");
+                    log.warn("K8sNetdataCollector: collectDataFromNode(): result={}, view={}, after={}, before={} :: Exception: ",
+                            response.get("result"), v, v!=null ? v.get("after") : null, v!=null ? v.get("before") : null, e);
+                }
+
+                // Extract measurements
+                if (view!=null && view.get("dimensions") instanceof Map) {
+                    Map dimensions = (Map) view.get("dimensions");
+                    List<String> ids = (List<String>) dimensions.get("ids");
+                    List<String> units = (List<String>) dimensions.get("units");
+                    List<Number> values = (List<Number>) ((Map) dimensions.get("sts")).get("avg");
+                    log.trace("K8sNetdataCollector: collectDataFromNode():    ids={}", ids);
+                    log.trace("K8sNetdataCollector: collectDataFromNode():  units={}", units);
+                    log.trace("K8sNetdataCollector: collectDataFromNode(): values={}", values);
+                    if (ids!=null && units!=null && values!=null) {
+                        for (int i = 0, n = ids.size(); i < n; i++) {
+                            try {
+                                if (includeResult(cfgCtx, ids.get(i))) {
+                                    double v = values.get(i).doubleValue();
+                                    resultsMap.put(ids.get(i), v);
+                                }
+                            } catch (Exception e) {
+                                log.warn("K8sNetdataCollector: collectDataFromNode(): ERROR at index #{}: id={}, value={}, Exception: ",
+                                        i, ids.get(i), values.get(i), e);
+                                if (!cfgCtx.skipValueOnError)
+                                    resultsMap.put(ids.get(i), cfgCtx.valueOnError);
+                            }
+                        }
+                    }
                 }
             }
-            //resultsMap.put("result", result);
         }
 
-        log.warn("K8sNetdataCollector: collectDataFromNode(): Data collected: timestamp={}, results={}", timestamp, resultsMap);
+        log.debug("K8sNetdataCollector: collectDataFromNode(): Data collected: timestamp={}, results={}", timestamp, resultsMap);
 
         // Publish collected data to destination
-        final long timestamp1 = timestamp;
-        Map<String, CollectorContext.PUBLISH_RESULT> publishResults = new LinkedHashMap<>();
-        if (cfgCtx.aggregation==RESULTS_AGGREGATION.NONE) {
-            resultsMap.forEach((k, v) -> {
-                publishResults.put(k + "=" + v, publishMetricEvent(cfgCtx.destination, k, v, timestamp1, address));
-            });
+        if (!resultsMap.isEmpty()) {
+            final long timestamp1 = timestamp;
+            Map<String, CollectorContext.PUBLISH_RESULT> publishResults = new LinkedHashMap<>();
+            if (cfgCtx.aggregation == RESULTS_AGGREGATION.NONE) {
+                resultsMap.forEach((k, v) -> {
+                    publishResults.put(k + "=" + v, publishMetricEvent(cfgCtx.destination, k, v, timestamp1, address));
+                });
+            } else {
+                double result = switch (cfgCtx.aggregation) {
+                    case SUM -> resultsMap.values().stream().mapToDouble(Double::doubleValue).sum();
+                    case AVERAGE -> resultsMap.values().stream().mapToDouble(Double::doubleValue).average().orElse(0);
+                    case COUNT -> resultsMap.values().size();
+                    case MIN -> resultsMap.values().stream().mapToDouble(Double::doubleValue).min().orElse(0);
+                    case MAX -> resultsMap.values().stream().mapToDouble(Double::doubleValue).max().orElse(0);
+                    case NONE -> throw new IllegalArgumentException("FATAL: Execution should never reached this point");
+                };
+                if (!resultsMap.isEmpty())
+                    publishResults.put(null, publishMetricEvent(cfgCtx.destination, null, result, timestamp1, address));
+                //else log.trace("K8sNetdataCollector: collectDataFromNode(): No results. Will not publish anything");
+            }
+            log.debug("K8sNetdataCollector: collectDataFromNode(): Events published: results={}", publishResults);
         } else {
-            double result = switch (cfgCtx.aggregation) {
-                case SUM ->
-                        resultsMap.values().stream().mapToDouble(Double::doubleValue).sum();
-                case AVERAGE ->
-                        resultsMap.values().stream().mapToDouble(Double::doubleValue).average().orElse(0);
-                case COUNT ->
-                        resultsMap.values().size();
-                case MIN ->
-                        resultsMap.values().stream().mapToDouble(Double::doubleValue).min().orElse(0);
-                case MAX ->
-                        resultsMap.values().stream().mapToDouble(Double::doubleValue).max().orElse(0);
-                case NONE ->
-                        throw new IllegalArgumentException("FATAL: Execution should never reached this point");
-            };
-            if (! resultsMap.isEmpty())
-                publishResults.put(null, publishMetricEvent(cfgCtx.destination, null, result, timestamp1, address));
-            //else log.trace("K8sNetdataCollector: collectDataFromNode(): No results. Will not publish anything");
+            log.debug("K8sNetdataCollector: collectDataFromNode(): No Events published because resultsMap is empty");
         }
-        log.debug("K8sNetdataCollector: collectDataFromNode(): Events published: results={}", publishResults);
 
         long endTm = System.currentTimeMillis();
         log.debug("K8sNetdataCollector: collectDataFromNode(): END: duration={}ms", endTm-startTm);

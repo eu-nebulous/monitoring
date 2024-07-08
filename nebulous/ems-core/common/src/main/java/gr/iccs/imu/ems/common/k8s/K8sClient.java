@@ -34,6 +34,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * EMS Kubernetes (K8S) client
@@ -46,10 +47,13 @@ import java.util.*;
 @AllArgsConstructor
 public class K8sClient implements Closeable {
     private static final String K8S_SERVICE_ACCOUNT_SECRETS_PATH_DEFAULT = "/var/run/secrets/kubernetes.io/serviceaccount";
+    private static final int K8S_CLIENT_TIMEOUT_DEFAULT = 10;
 
     private KubernetesClient client;
     private String namespace;
     private boolean dryRun;
+    private int timeout;
+    private TimeUnit timeoutUnit;
 
     public static K8sClient create() throws IOException {
         // Get K8S client configuration
@@ -71,13 +75,16 @@ public class K8sClient implements Closeable {
         if (dryRun)
             log.warn("K8sClient: NOTE: Dry Run set!!  Will not make any changes to cluster");
 
+        // Get timeout configuration
+        int timeout = Integer.parseInt(getConfig("K8S_CLIENT_TIMEOUT", String.valueOf(K8S_CLIENT_TIMEOUT_DEFAULT)));
+
         // Configure and start Kubernetes API client
         Config config = new ConfigBuilder()
                 .withMasterUrl(masterUrl)
                 .withCaCertData(caCert)
                 .withOauthToken(token)
                 .build();
-        return new K8sClient(new KubernetesClientBuilder().withConfig(config).build(), namespace, dryRun);
+        return new K8sClient(new KubernetesClientBuilder().withConfig(config).build(), namespace, dryRun, timeout, TimeUnit.SECONDS);
     }
 
     public static String getConfig(@NonNull String key, String defaultValue) {
@@ -103,6 +110,34 @@ public class K8sClient implements Closeable {
             log.debug("K8sClient.createConfigMap:    ConfigMap created: {}", configMap);
         } else {
             log.warn("K8sClient.createConfigMap: DRY-RUN: Didn't create configmap: {}", configMapName);
+        }
+        return this;
+    }
+
+    public K8sClient deleteConfigMap(String name) {
+        log.debug("K8sClient.deleteConfigMap: BEGIN: name={}, namespace={}, dry-run={}", name, namespace, dryRun);
+
+        // Delete resource
+        if (!dryRun) {
+            List<StatusDetails> statusDetailsList = client.configMaps()
+                    .inNamespace(namespace)
+                    .withName(name)
+                    .delete();
+            log.debug("K8sClient.deleteConfigMap:    ConfigMap delete result: {}", statusDetailsList);
+
+            // Wait until deletion is complete
+            log.trace("K8sClient.deleteConfigMap:    Waiting ConfigMap deletion to complete: timeout={} {}", timeout, timeoutUnit);
+            ConfigMap result = client.configMaps()
+                    .inNamespace(namespace)
+                    .withName(name)
+                    .waitUntilCondition(Objects::isNull, timeout, timeoutUnit);
+            log.trace("K8sClient.deleteConfigMap:    ConfigMap deletion result: {}", result);
+            if (result==null)
+                log.info("K8sClient.deleteConfigMap: ConfigMap deleted: {}", name);
+            else
+                log.warn("K8sClient.deleteConfigMap: ConfigMap failed to delete: {}", name);
+        } else {
+            log.warn("K8sClient.deleteConfigMap: DRY-RUN: Didn't delete ConfigMap: {}", name);
         }
         return this;
     }
@@ -141,6 +176,34 @@ public class K8sClient implements Closeable {
             }
         } else {
             log.warn("K8sClient.createDaemonSet: ERROR: DaemonSet spec is empty");
+        }
+        return this;
+    }
+
+    public K8sClient deleteDaemonSet(String name) {
+        log.debug("K8sClient.deleteDaemonSet: BEGIN: name={}, namespace={}, dry-run={}", name, namespace, dryRun);
+
+        // Delete resource
+        if (!dryRun) {
+            List<StatusDetails> statusDetailsList = client.apps().daemonSets()
+                    .inNamespace(namespace)
+                    .withName(name)
+                    .delete();
+            log.debug("K8sClient.deleteDaemonSet:    DaemonSet delete result: {}", statusDetailsList);
+
+            // Wait until deletion is complete
+            log.trace("K8sClient.deleteDaemonSet:    Waiting DaemonSet deletion to complete: timeout={} {}", timeout, timeoutUnit);
+            DaemonSet result = client.apps().daemonSets()
+                    .inNamespace(namespace)
+                    .withName(name)
+                    .waitUntilCondition(Objects::isNull, timeout, timeoutUnit);
+            log.debug("K8sClient.deleteDaemonSet:    DaemonSet deletion result: {}", result);
+            if (result==null)
+                log.info("K8sClient.deleteDaemonSet: DaemonSet deleted: {}", name);
+            else
+                log.warn("K8sClient.deleteDaemonSet: DaemonSet failed to delete: {}", name);
+        } else {
+            log.warn("K8sClient.deleteConfigMap: DRY-RUN: Didn't delete DaemonSet: {}", name);
         }
         return this;
     }

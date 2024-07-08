@@ -12,11 +12,13 @@ package eu.nebulous.ems.controller;
 import eu.nebulous.ems.boot.IndexService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -91,5 +93,51 @@ public class BootController {
         log.trace("BootController.purgeFiles(): JWT token: {}", jwtToken);
 
         return indexService.deleteAll(true);
+    }
+
+    @DeleteMapping(value = "/purge-unused", produces = MediaType.APPLICATION_JSON_VALUE)
+    public boolean purgeUnusedFiles(@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String jwtToken) throws IOException {
+        log.debug("BootController.purgeUnusedFiles(): Received request");
+        log.trace("BootController.purgeUnusedFiles(): JWT token: {}", jwtToken);
+
+        return indexService.deleteUnused();
+    }
+
+    @DeleteMapping(value = "/purge-older-than/{before}/{deleteFiles}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public boolean purgeAppsOlderThan(@PathVariable("before") String before,
+                                      @PathVariable("deleteFiles") boolean deleteFiles,
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String jwtToken) throws IOException
+    {
+        log.debug("BootController.purgeAppsOlderThan(): Received request");
+        log.debug("BootController.purgeAppsOlderThan(): Args: before={}, deleteFiles={}", before, deleteFiles);
+        log.trace("BootController.purgeAppsOlderThan(): JWT token: {}", jwtToken);
+
+        before = before.trim();
+        Instant beforeInstant;
+        if (StringUtils.isNumeric(before)) {
+            if (before.length()>10)
+                beforeInstant = Instant.ofEpochMilli(Long.parseLong(before));
+            else
+                beforeInstant = Instant.ofEpochSecond(Long.parseLong(before));
+        } else {
+            beforeInstant = Instant.parse(before);
+        }
+        log.debug("BootController.purgeAppsOlderThan(): before-instant: {}", beforeInstant);
+
+        return indexService.deleteAppsBefore(beforeInstant, deleteFiles);
+    }
+
+    @PutMapping(value = "/add-app/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Map<String, String> addApp(@PathVariable("id") String id,
+                                      @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String jwtToken) throws IOException
+    {
+        log.debug("BootController.addApp(): Received request");
+        log.trace("BootController.addApp(): Args: appId={}", id);
+        log.trace("BootController.addApp(): JWT token: {}", jwtToken);
+
+        indexService.addAppData(id);
+        Map<String, String> data = indexService.getAppData(id);
+        log.debug("BootController.purgeAppsOlderThan(): Result: {}", data);
+        return data;
     }
 }

@@ -29,10 +29,11 @@ export const FORM_TYPE_OPTIONS = [
             'priority': 1,
             'options': [
                 { 'id': 'new-vm', 'text': 'Register Node', 'url': '/baguette/registerNode', 'method': 'POST', 'form': 'vm-form', 'priority': 1 },
-                { 'id': 'vm-list', 'text': 'Node IP addresses', 'url': '/baguette/node/list', 'method': 'GET', 'form': '', 'priority': 2 },
-                { 'id': 'vm-reinstall', 'text': 'Reinstall Node', 'url': '/baguette/node/reinstall/{ip-address}', 'method': 'GET', 'form': 'vm-reinstall', 'priority': 3 },
+                { 'id': 'vm-reinstall', 'text': 'Reinstall Node', 'url': '/baguette/node/reinstall/{ip-address}', 'method': 'GET', 'form': 'ip-form', 'priority': 2 },
+                { 'id': 'vm-unregister', 'text': 'Unregister Node', 'url': '/baguette/node/unregister/{ip-address}', 'method': 'GET', 'form': 'ip-form', 'priority': 3 },
+                { 'id': 'vm-list', 'text': 'Node IP addresses', 'url': '/baguette/node/list', 'method': 'GET', 'form': '', 'priority': 4 },
 
-                { 'id': 'topology-group-sep1', 'text': '-', 'disabled': true, 'priority': 4 },
+                { 'id': 'topology-group-sep1', 'text': '-', 'disabled': true, 'priority': 5 },
 
                 { 'id': 'client-list', 'text': 'Client list', 'url': '/client/list', 'method': 'GET', 'form': '', 'priority': 11 },
                 { 'id': 'client-map', 'text': 'Client map', 'url': '/client/list/map', 'method': 'GET', 'form': '', 'priority': 12 },
@@ -110,11 +111,6 @@ export const FORM_SPECS = {
                         { 'name': 'ssh.username', 'text': 'SSH username' },
                         { 'name': 'ssh.password', 'text': 'SSH password', 'type': 'password' },
                         { 'name': 'ssh.key', 'text': 'SSH key', 'type': 'password' },
-                    ]
-                },
-                'vm-reinstall': {
-                    'fields': [
-                        { 'name': 'ip-address', 'text': 'IP address' },
                     ]
                 },
                 'logger-form': {
