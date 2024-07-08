@@ -236,7 +236,7 @@ public class ClientShellCommand implements Command, Runnable, ServerSessionAware
         // Add this CSC in active list
         synchronized (activeCmdList) {
             if (activeCmdMap.containsKey(getClientIpAddress()) || activeCmdMap.containsValue(this))
-                throw new IllegalArgumentException("ClientShellCommand has already been registered");
+                throw new IllegalArgumentException("ClientShellCommand has already been registered: "+getClientIpAddress());
             activeCmdList.add(this);
             activeCmdMap.put(getClientIpAddress(), this);
         }

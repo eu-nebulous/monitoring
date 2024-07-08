@@ -357,7 +357,7 @@ public class BrokerCepService {
         }
     }
 
-    public Certificate addOrReplaceCertificateInTruststore(String alias, Certificate cert) throws Exception {
+    public synchronized Certificate addOrReplaceCertificateInTruststore(String alias, Certificate cert) throws Exception {
         log.trace("BrokerCepService.addOrReplaceCertificateInTruststore(): BEGIN: alias={}, cert=\n{}", alias, cert);
         brokerConfig.getBrokerTruststore().setCertificateEntry(alias, cert);
         brokerConfig.writeTruststore();
@@ -367,7 +367,7 @@ public class BrokerCepService {
         return cert;
     }
 
-    public void deleteCertificateFromTruststore(String alias) throws KeyStoreException {
+    public synchronized void deleteCertificateFromTruststore(String alias) throws KeyStoreException {
         log.trace("BrokerCepService.deleteCertificateFromTruststore(): BEGIN: alias={}", alias);
         brokerConfig.getBrokerTruststore().deleteEntry(alias);
         log.debug("BrokerCepService.deleteCertificateFromTruststore(): Deleted certificate with alias: {}", alias);

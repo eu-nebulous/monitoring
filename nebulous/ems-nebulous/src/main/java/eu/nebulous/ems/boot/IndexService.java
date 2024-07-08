@@ -21,13 +21,19 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class IndexService {
+	private static final Collection<String> FILES_TO_EXCLUDE_FROM_PURGE = Set.of("index.json", "empty.yml");
+
 	private final ApplicationContext applicationContext;
 	private final EmsBootProperties properties;
 	private final ObjectMapper objectMapper;
@@ -62,6 +68,7 @@ public class IndexService {
 				if (StringUtils.isNotBlank(key) && StringUtils.isNotBlank(val))
 					entry.put(key, val);
 			});
+			entry.put("creation-ts", Instant.now().toString());
 
 			// Store index contents back to file
 			storeIndexContents(indexContents);
@@ -155,6 +162,7 @@ public class IndexService {
 			File[] files = Path.get(properties.getModelsDir()).toFile().listFiles();
 			if (files!=null) {
 				Arrays.stream(files).filter(File::isFile)
+						.filter(f -> ! FILES_TO_EXCLUDE_FROM_PURGE.contains(f.getName()))
 						.peek(f -> log.warn("  Deleting file: {}", f))
 						.forEach(File::delete);
 			}
@@ -164,5 +172,94 @@ public class IndexService {
 		storeIndexContents(Map.of());
 		log.info("Index file initialized");
 		return true;
+	}
+
+	public synchronized boolean deleteUnused() throws IOException {
+		log.info("Purging unused files from EMS Boot cache...");
+
+		// Find files in use
+		Map<String, Map<String, String>> map = getAll();
+		Set<String> filesInUse = map.values().stream().flatMap(m -> m.values().stream()).collect(Collectors.toSet());
+		filesInUse.addAll(FILES_TO_EXCLUDE_FROM_PURGE);
+		log.debug("Files in use: {}", filesInUse);
+
+		// Delete unused files in models dir. (folders are excluded)
+		log.trace("Models Dir: {}", properties.getModelsDir());
+		File[] files = Path.get(properties.getModelsDir()).toFile().listFiles();
+		AtomicInteger deletedCnt = new AtomicInteger(0);
+		if (files!=null) {
+			Arrays.stream(files).filter(File::isFile)
+					.filter(f -> ! filesInUse.contains(f.getName()))
+					.peek(f -> log.warn("  Deleting file: {}", f))
+					.forEach(f -> {
+						if (f.delete()) deletedCnt.incrementAndGet();
+					});
+		}
+
+		log.info("{} unused files removed from EMS Boot cache", deletedCnt);
+		return true;
+	}
+
+	public synchronized boolean deleteAppsBefore(Instant before) throws IOException {
+		return deleteAppsBefore(before, false);
+	}
+
+	public synchronized boolean deleteAppsBefore(Instant before, boolean deleteFiles) throws IOException {
+		log.info("Purging apps from EMS Boot cache, older than {}...", before);
+
+		// Find apps older than 'before'
+		Map<String, Map<String, String>> map = getAll();
+		Map<String, Map<String, String>> appsToDelete = map.entrySet().stream()
+				.filter(e -> StringUtils.isNotBlank(e.getValue().get("creation-ts")))
+				.filter(e -> Instant.parse(e.getValue().get("creation-ts")).isBefore(before))
+				.collect(Collectors.toMap(
+                        Map.Entry::getKey, Map.Entry::getValue
+				));
+		log.debug("Apps to delete: {}", appsToDelete.keySet());
+
+		// Delete appsToDelete
+		AtomicInteger deletedCnt = new AtomicInteger(0);
+		for (String id : appsToDelete.keySet()) {
+			log.warn("  Deleting app: {}", id);
+			deleteAppData(id);
+			deletedCnt.incrementAndGet();
+		}
+		log.info("{} apps removed from EMS Boot cache", deletedCnt);
+
+		// Also delete the files of the deleted apps
+		if (deleteFiles) {
+			Set<String> fileToDelete = appsToDelete.values().stream().flatMap(v -> v.values().stream()).collect(Collectors.toSet());
+			log.debug("Files to delete: {}", fileToDelete);
+
+			// Delete remaining files in models dir. (folders are excluded)
+			log.trace("Models Dir: {}", properties.getModelsDir());
+			File[] files = Path.get(properties.getModelsDir()).toFile().listFiles();
+			deletedCnt.set(0);
+			if (files != null) {
+				Arrays.stream(files).filter(File::isFile)
+						.filter(f -> fileToDelete.contains(f.getName()))
+						.peek(f -> log.warn("  Deleting file: {}", f))
+						.forEach(f -> {
+							if (f.delete()) deletedCnt.incrementAndGet();
+						});
+			}
+
+			log.info("{} files removed from EMS Boot cache", deletedCnt);
+		}
+		return true;
+	}
+
+	public synchronized void addAppData(String appId) throws IOException {
+		long ts = Instant.now().toEpochMilli();
+		String modelStr, bindingsStr, metricsStr;
+		Map<String, String> data = Map.of(
+				"model-file", modelStr = appId + "--model--" + ts + ".yml",
+				"bindings-file", bindingsStr = appId + "--bindings--" + ts + ".json",
+				"optimiser-metrics-file", metricsStr = appId + "--metrics--" + ts + ".json"
+		);
+		Files.writeString(Paths.get(properties.getModelsDir(), modelStr), "{}");
+		Files.writeString(Paths.get(properties.getModelsDir(), bindingsStr), "{}");
+		Files.writeString(Paths.get(properties.getModelsDir(), metricsStr), "[]");
+		storeToIndex(appId, data);
 	}
 }

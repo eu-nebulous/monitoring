@@ -122,7 +122,16 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
                 log.warn("K8sClientInstaller: Retry {}/{}: Executing task #{}", retries, maxRetries, taskCounter);
 
             try {
-                deployOnCluster();
+                // Clear any previous deployment
+                switch (getTask().getTaskType()) {
+                    case INSTALL, REINSTALL, UNINSTALL -> undeployFromCluster();
+                }
+
+                // New deployment
+                switch (getTask().getTaskType()) {
+                    case INSTALL, REINSTALL -> deployOnCluster();
+                }
+
                 success = true;
             } catch (Exception ex) {
                 log.error("K8sClientInstaller: Failed executing installation instructions for task #{}, Exception: ", taskCounter, ex);
@@ -166,6 +175,27 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
             createEmsClientDaemonSet(client);
 
             task.getNodeRegistryEntry().nodeInstallationComplete(null);
+        }
+    }
+
+    private void undeployFromCluster() throws IOException {
+        boolean dryRun = Boolean.parseBoolean( getConfig("EMS_CLIENT_DEPLOYMENT_DRY_RUN", "false") );
+        if (dryRun)
+            log.warn("K8sClientInstaller: NOTE: Dry Run set!!  Will not make any changes to cluster");
+        undeployFromCluster(dryRun);
+    }
+
+    private void undeployFromCluster(boolean dryRun) throws IOException {
+        try (K8sClient client = K8sClient.create().dryRun(dryRun)) {
+            task.getNodeRegistryEntry().nodeRemoving(null);
+
+            // Undeploy ems client DaemonSet
+            deleteEmsClientDaemonSet(client);
+
+            // Delete ems client and app config maps
+            deleteConfigMaps(client);
+
+            task.getNodeRegistryEntry().nodeRemoved(null);
         }
     }
 
@@ -219,6 +249,23 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
         log.debug("K8sClientInstaller:       values: {}", values);
 
         client.createDaemonSet(null, resourceName, values);
+    }
+
+    private void deleteConfigMaps(K8sClient client) {
+        log.debug("K8sClientInstaller.deleteConfigMaps: BEGIN");
+        String emsClientConfigMapName = getConfig("EMS_CLIENT_CONFIG_MAP_NAME", EMS_CLIENT_CONFIG_MAP_NAME_DEFAULT);
+        String appConfigMapName = getConfig("APP_CONFIG_MAP_NAME", APP_CONFIG_MAP_NAME_DEFAULT);
+        log.debug("K8sClientInstaller.deleteConfigMaps: emsClientConfigMapName: {}", emsClientConfigMapName);
+        log.debug("K8sClientInstaller.deleteConfigMaps:       appConfigMapName: {}", appConfigMapName);
+        client.deleteConfigMap(emsClientConfigMapName);
+        client.deleteConfigMap(appConfigMapName);
+    }
+
+    private void deleteEmsClientDaemonSet(K8sClient client) {
+        log.debug("K8sClientInstaller.deleteEmsClientDaemonSet: BEGIN");
+        String daemonSetName = getConfig("EMS_CLIENT_DAEMONSET_NAME", EMS_CLIENT_DAEMONSET_NAME_DEFAULT);
+        log.debug("K8sClientInstaller.deleteEmsClientDaemonSet: name={}", daemonSetName);
+        client.deleteDaemonSet(daemonSetName);
     }
 
     @Override
