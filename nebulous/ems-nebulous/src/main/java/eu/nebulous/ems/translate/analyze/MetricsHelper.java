@@ -186,8 +186,13 @@ class MetricsHelper extends AbstractHelper {
 
         // Remove constants and custom function names from 'formulaArgs'
         String containerName = getContainerName(metricSpec);
+        log.trace("decomposeCompositeMetric: {}: container-name={}", metricNamesKey.name(), containerName);
+        log.trace("decomposeCompositeMetric: {}: constants={}", metricNamesKey.name(), $$(_TC).constants);
+        log.trace("decomposeCompositeMetric: {}: constants-keys={}", metricNamesKey.name(), $$(_TC).constants.keySet());
         formulaArgs.removeAll( $$(_TC).constants.keySet().stream()
-                .filter(nk ->  nk.parent.equals(containerName))         // Check that all formula args are metrics under the same parent
+                //.peek(nk -> log.trace("decomposeCompositeMetric: {}:       NK: {}, parent: {}", metricNamesKey.name(), nk, nk != null ? nk.parent : null))
+                .filter(Objects::nonNull)
+                .filter(nk ->  properties.isUseCompositeNames() ? nk.parent.equals(containerName) : true)           // Check that all formula args are metrics under the same parent
                 .map(nk->nk.child)
                 .collect(Collectors.toSet()));
         formulaArgs.removeAll( $$(_TC).functionNames );
@@ -261,7 +266,7 @@ class MetricsHelper extends AbstractHelper {
     void processConstant(TranslationContext _TC, Map<String, Object> metricSpec, String parentName) {
         // Get needed fields
         String metricName = getSpecName(metricSpec);
-        Double defaultValue = getSpecNumber(metricSpec, "default");
+        Double defaultValue = getSpecNumber(metricSpec, "initial");
 
         NamesKey metricNamesKey = createNamesKey(parentName, metricName);
 

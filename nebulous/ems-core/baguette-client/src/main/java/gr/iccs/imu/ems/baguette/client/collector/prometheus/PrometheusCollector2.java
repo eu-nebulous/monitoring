@@ -40,6 +40,7 @@ import java.util.concurrent.ScheduledFuture;
 @Component
 public class PrometheusCollector2 extends AbstractEndpointCollector<String> implements IClientCollector, IPrometheusCollector {
     public final static String DEFAULT_PROMETHEUS_PORT = "9090";
+    public final static String DEFAULT_PROMETHEUS_PATH = "/metrics";
     public final static String DEFAULT_DELAY = "0";
     public final static String DEFAULT_INTERVAL = "60";
     public final static String DEFAULT_INTERVAL_UNIT = "SECONDS";
@@ -198,8 +199,10 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
     private String getUrlPattern(Map<String, Serializable> config) {
         if (config.get("configuration") instanceof Map configMap) {
             int port = Integer.parseInt( configMap.getOrDefault("port", DEFAULT_PROMETHEUS_PORT).toString() );
-            String endpoint = configMap.getOrDefault("endpoint", "/").toString();
-            return "http://%s:"+port+endpoint;
+            String path = configMap.getOrDefault("path", "").toString();
+            if (StringUtils.isBlank(path))
+                path = configMap.getOrDefault("endpoint", DEFAULT_PROMETHEUS_PATH).toString();
+            return "http://%s:"+port+path;
         }
         return null;
     }
