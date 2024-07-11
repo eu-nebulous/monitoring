@@ -67,7 +67,8 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
         RESULTS_AGGREGATION aggregation = RESULTS_AGGREGATION.NONE;
     }
 
-    protected final static Set<String> SENSOR_CONFIG_KEYS_EXCLUDED = Set.of("endpoint", "type", "_containerName");
+    protected final static Set<String> SENSOR_CONFIG_KEYS_EXCLUDED =
+            Set.of("endpoint", "port", "type", "_containerName", "results-aggregation", "components", "namespace");
     protected final static String NETDATA_DATA_API_V1_PATH = "/api/v1/data";
     protected final static String NETDATA_DATA_API_V2_PATH = "/api/v2/data";
     protected final static String DEFAULT_NETDATA_DATA_API_PATH = NETDATA_DATA_API_V2_PATH;
