@@ -260,32 +260,40 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
             log.trace("Collectors::{}: scrapeEndpoint: Scraping node: {} -- Endpoint: {}", collectorId, node, url);
 
             // Scrape endpoint
-            String payload = restClient
-                    .get().uri(url)
-                    .retrieve()
-                    .body(String.class);
-            log.debug("Collectors::{}: scrapeEndpoint: Scrapped node: {} -- Endpoint: {} -- Payload:\n{}", collectorId, node, url, payload);
+            try {
+                String payload = restClient
+                        .get().uri(url)
+                        .retrieve()
+                        .body(String.class);
+                log.debug("Collectors::{}: scrapeEndpoint: Scrapped node: {} -- Endpoint: {} -- Payload:\n{}", collectorId, node, url, payload);
 
-            // Parser response
-            List<OpenMetricsParser.MetricInstance> results = null;
-            if (StringUtils.isNotBlank(payload)) {
-                results = openMetricsParser.processInput(payload.split("\n"));
-                log.trace("Collectors::{}: scrapeEndpoint: Parsed payload: {} -- Metrics:\n{}", collectorId, node, results);
+                // Parser response
+                List<OpenMetricsParser.MetricInstance> results = null;
+                if (StringUtils.isNotBlank(payload)) {
+                    results = openMetricsParser.processInput(payload.split("\n"));
+                    log.trace("Collectors::{}: scrapeEndpoint: Parsed payload: {} -- Metrics:\n{}", collectorId, node, results);
+                }
+
+                // Get values for the requested metric
+                if (results != null) {
+                    List<OpenMetricsParser.MetricInstance> matches = results.stream()
+                            .filter(m -> m.getMetricName().equalsIgnoreCase(prometheusMetric)).toList();
+                    log.trace("Collectors::{}: scrapeEndpoint: Found metric: {} -- Metric(s):\n{}", collectorId, node, matches);
+                    List<Double> values = matches.stream().map(OpenMetricsParser.MetricInstance::getMetricValue).toList();
+                    log.trace("Collectors::{}: scrapeEndpoint: Metric value(s): {} -- Value(s):\n{}", collectorId, node, values);
+
+                    // Publish extracted values
+                    queueForPublish(prometheusMetric, destination, values, node, url);
+                }
+
+                log.trace("Collectors::{}: scrapeEndpoint: Done scraping node: {} -- Endpoint: {}", collectorId, node, url);
+
+            } catch (Exception e) {
+                if (log.isDebugEnabled())
+                    log.debug("Collectors::{}: scrapeEndpoint: FAILED scraping node: {} -- Endpoint: {} -- Exception: \n", collectorId, node, url, e);
+                else
+                    log.warn("Collectors::{}: scrapeEndpoint: FAILED scraping node: {} -- Endpoint: {} -- Exception: {}", collectorId, node, url, e.getMessage());
             }
-
-            // Get values for the requested metric
-            if (results!=null) {
-                List<OpenMetricsParser.MetricInstance> matches = results.stream()
-                        .filter(m -> m.getMetricName().equalsIgnoreCase(prometheusMetric)).toList();
-                log.trace("Collectors::{}: scrapeEndpoint: Found metric: {} -- Metric(s):\n{}", collectorId, node, matches);
-                List<Double> values = matches.stream().map(OpenMetricsParser.MetricInstance::getMetricValue).toList();
-                log.trace("Collectors::{}: scrapeEndpoint: Metric value(s): {} -- Value(s):\n{}", collectorId, node, values);
-
-                // Publish extracted values
-                queueForPublish(prometheusMetric, destination, values, node, url);
-            }
-
-            log.trace("Collectors::{}: scrapeEndpoint: Done scraping node: {} -- Endpoint: {}", collectorId, node, url);
         });
 
         log.debug("Collectors::{}: scrapeEndpoint: END", collectorId);
