@@ -90,6 +90,13 @@ public class AnalysisUtils implements InitializingBean {
             return NamesKey.create(null, name);
     }
 
+    static NamesKey createNamesKey2(String parentName, @NonNull String name) {
+        if (useCompositeNames)
+            return NamesKey.create(parentName, name);
+        else
+            return NamesKey.create(null, name);
+    }
+
     static NamesKey createNamesKey(@NonNull String name) {
         if (useCompositeNames)
             return NamesKey.create(name);

@@ -19,10 +19,7 @@ import gr.iccs.imu.ems.brokercep.BrokerCepService;
 import gr.iccs.imu.ems.brokercep.BrokerCepStatementSubscriber;
 import gr.iccs.imu.ems.brokercep.event.EventMap;
 import gr.iccs.imu.ems.control.collector.netdata.ServerNetdataCollector;
-import gr.iccs.imu.ems.control.plugin.AppModelPlugin;
-import gr.iccs.imu.ems.control.plugin.MetasolverPlugin;
-import gr.iccs.imu.ems.control.plugin.PostTranslationPlugin;
-import gr.iccs.imu.ems.control.plugin.TranslationContextPlugin;
+import gr.iccs.imu.ems.control.plugin.*;
 import gr.iccs.imu.ems.control.properties.ControlServiceProperties;
 import gr.iccs.imu.ems.control.util.TopicBeacon;
 import gr.iccs.imu.ems.control.util.TranslationContextMonitorGsonDeserializer;
@@ -82,6 +79,7 @@ public class ControlServiceCoordinator implements InitializingBean {
 
     private final List<Translator> translatorImplementations;
     private Translator translator;                      // Will be populated in 'afterPropertiesSet()'
+    private final List<PreTranslationPlugin> preTranslationPlugins;
     private final List<PostTranslationPlugin> postTranslationPlugins;
     private final List<TranslationContextPlugin> translationContextPlugins;
     private final TranslationContextPrinter translationContextPrinter;
@@ -544,6 +542,24 @@ public class ControlServiceCoordinator implements InitializingBean {
         final String applicationId = requestInfo.getApplicationId();
         final TranslationContext _TC;
         if (updateEmsState) setCurrentEmsState(EMS_STATE.INITIALIZING, "Retrieving and translating model");
+
+        // Run pre-translation plugins
+        if (preTranslationPlugins!=null && !preTranslationPlugins.isEmpty()) {
+            log.info("ControlServiceCoordinator.translateAppModelAndStore(): Running {} pre-translation plugins", preTranslationPlugins.size());
+            AtomicReference<String> appModelIdRef = new AtomicReference<>(appModelId);
+            preTranslationPlugins.stream().filter(Objects::nonNull).forEach(plugin -> {
+                log.debug("ControlServiceCoordinator.translateAppModelAndStore(): Calling pre-translation plugin: {}", plugin.getClass().getName());
+                String newAppModelId = plugin.preprocessModel(appModelIdRef.get(), applicationId, requestInfo.getAdditionalArguments());
+                if (StringUtils.isNotBlank(newAppModelId))
+                    appModelIdRef.set(newAppModelId);
+                log.debug("ControlServiceCoordinator.translateAppModelAndStore(): RESULTS after running pre-translation plugin: {} -- appModelId: {}", plugin.getClass().getName(), appModelIdRef.get());
+            });
+            if (!appModelIdRef.get().equals(appModelId))
+                log.info("ControlServiceCoordinator.translateAppModelAndStore(): Original app-model-id has been replaced during pre-translation: {} --> {}", appModelId, appModelIdRef.get());
+            appModelId = appModelIdRef.get();
+        } else {
+            log.info("ControlServiceCoordinator.translateAppModelAndStore(): No pre-translation plugins found");
+        }
 
         // Translate application model into a TranslationContext object
         log.info("ControlServiceCoordinator.translateAppModelAndStore(): Model translation: model-id={}", appModelId);

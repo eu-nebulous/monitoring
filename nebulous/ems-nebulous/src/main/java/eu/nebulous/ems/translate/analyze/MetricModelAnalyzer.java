@@ -40,12 +40,20 @@ public class MetricModelAnalyzer {
     private final ConstraintsHelper constraintsHelper;
     private final MetricsHelper metricsHelper;
     private final NodeUpdatingHelper nodeUpdatingHelper;
+    private final SensorsHelper sensorsHelper;
 
     // ================================================================================================================
     // Model analysis methods
 
     public void analyzeModel(@NonNull TranslationContext _TC, @NonNull Object metricModel, String modelName) throws Exception {
         log.debug("MetricModelAnalyzer.analyzeModel(): BEGIN: metric-model: {}", metricModel);
+
+        // ----- Initialize components ----------------------------------
+        functionsHelper.reset();
+        constraintsHelper.reset();
+        metricsHelper.reset();
+        nodeUpdatingHelper.reset();
+        sensorsHelper.reset();
 
         // ----- Initialize jsonpath context ----------------------------------
         Configuration jsonpathConfig = Configuration.defaultConfiguration();

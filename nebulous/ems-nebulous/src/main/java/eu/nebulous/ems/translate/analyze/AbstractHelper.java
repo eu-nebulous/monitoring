@@ -18,4 +18,9 @@ abstract class AbstractHelper {
     protected MetricModelAnalyzer.AdditionalTranslationContextData $$(TranslationContext _TC) {
         return _TC.$(MetricModelAnalyzer.AdditionalTranslationContextData.class);
     }
+
+    void reset() {
+        // Invoked at the beginning of 'MetricModelAnalyzer.analyzeModel()' to reset helpers
+        // Subclasses may override this
+    }
 }

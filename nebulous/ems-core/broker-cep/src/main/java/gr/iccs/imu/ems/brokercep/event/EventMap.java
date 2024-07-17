@@ -118,6 +118,13 @@ public class EventMap extends LinkedHashMap<String, Object> implements Serializa
         checkEvent();
     }
 
+    public EventMap(double metricValue, int level) {
+        put(METRIC_VALUE_NAME, metricValue);
+        put(LEVEL_NAME, level);
+        put(TIMESTAMP_NAME, System.currentTimeMillis());
+        checkEvent();
+    }
+
     public EventMap(double metricValue, int level, long timestamp) {
         put(METRIC_VALUE_NAME, metricValue);
         put(LEVEL_NAME, level);
