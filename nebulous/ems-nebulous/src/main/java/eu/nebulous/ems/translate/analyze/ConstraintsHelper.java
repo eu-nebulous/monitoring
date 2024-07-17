@@ -18,6 +18,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static eu.nebulous.ems.translate.analyze.AnalysisUtils.*;
 
@@ -29,10 +30,19 @@ import static eu.nebulous.ems.translate.analyze.AnalysisUtils.*;
 @Service
 @RequiredArgsConstructor
 class ConstraintsHelper extends AbstractHelper {
+    private final static String NESTED_CONSTRAINT_NAME_PREFIX = "_CON_";
+    private final static String NESTED_CONSTRAINT_NAME_SUFFIX = "_NESTED";
     private final static String DEFAULT_CONSTRAINT_NAME_SUFFIX = "_CONSTRAINT";
+
+    private final static AtomicLong constraintCounter = new AtomicLong(1);
 
     private final NebulousEmsTranslatorProperties properties;
     private final MetricsHelper metricsHelper;
+
+    @Override
+    void reset() {
+        constraintCounter.set(1);
+    }
 
     void decomposeConstraints(TranslationContext _TC, Map<NamesKey, Object> sloList) {
         sloList.forEach((sloNamesKey, sloSpec) -> {
@@ -216,10 +226,10 @@ class ConstraintsHelper extends AbstractHelper {
 
     private Constraint decomposeComposingConstraint(TranslationContext _TC, String sloName, NamesKey parentNamesKey, Constraint parentConstraint) {
         // Get referenced constraint spec (its SLO spec actually)
-        Object sloSpec = $$(_TC).allSLOs.get(createNamesKey(parentNamesKey.parent, sloName));
+        Object sloSpec = $$(_TC).allSLOs.get(createNamesKey2(parentNamesKey.parent, sloName));
 
         // Construct SLO namesKey
-        NamesKey sloNamesKey = createNamesKey(getContainerName(sloSpec), sloName);
+        NamesKey sloNamesKey = createNamesKey2(getContainerName(sloSpec), sloName);
 
         // Get constraint spec from SLO spec
         Map<String, Object> constraintSpec = asMap(asMap(sloSpec).get("constraint"));
@@ -230,8 +240,8 @@ class ConstraintsHelper extends AbstractHelper {
 
     private Constraint decomposeComposingConstraintSpec(TranslationContext _TC, Map spec, NamesKey parentNamesKey, Constraint parentConstraint) {
         // Construct SLO namesKey
-        String name = "random_"+System.currentTimeMillis();
-        NamesKey namesKey = createNamesKey(getContainerName(spec), name);
+        String name = NESTED_CONSTRAINT_NAME_PREFIX + constraintCounter.getAndIncrement() + NESTED_CONSTRAINT_NAME_SUFFIX;
+        NamesKey namesKey = createNamesKey2(getContainerName(spec), name);
 
         // Decompose composing constraint
         return decomposeConstraint(_TC, spec, namesKey, parentConstraint);

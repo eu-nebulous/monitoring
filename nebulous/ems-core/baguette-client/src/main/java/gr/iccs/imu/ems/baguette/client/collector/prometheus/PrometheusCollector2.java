@@ -303,7 +303,7 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
         log.debug("Collectors::{}: queueForPublish: metric={}, destination={}, values={}, node={}, endpoint={}",
                 collectorId, node, prometheusMetric, destination, values, endpoint);
         values.forEach(v -> {
-            EventMap event = new EventMap(v);
+            EventMap event = new EventMap(v, 1);
             event.setEventProperty("metric", prometheusMetric);
             event.setEventProperty("source-node", node);
             event.setEventProperty("source-endpoint", endpoint);
