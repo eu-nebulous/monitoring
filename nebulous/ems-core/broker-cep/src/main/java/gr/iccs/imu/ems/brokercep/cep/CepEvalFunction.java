@@ -194,7 +194,12 @@ public class CepEvalFunction {
 
         return event;
     }
-	
+
+    public static Map updateTs(Map e) {
+        e.put("timestamp", System.currentTimeMillis());
+        return e;
+    }
+
 /*	public static double eval(String formula, EPLMethodInvocationContext context) {
 		log.debug(">>>>>>>>>>>>>>>>>>   formula: {}", formula);
 		log.debug(">>>>>>>>>>>>>>>>>>   statement-name: {}", context.getStatementName());
