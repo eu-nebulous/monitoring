@@ -136,7 +136,7 @@ translator.generator:
       PER_INSTANCE:
         - |
           /* RAW-CTX-PER_INSTANCE */ /*INSERT INTO [(${outputStream})]*/
-          SELECT * FROM [(${sensor})] [(${scheduleClause})]
+          SELECT UPDATETS(*) FROM [(${sensor})] [(${scheduleClause})]
           
     # Metric templates
     TL-MET:

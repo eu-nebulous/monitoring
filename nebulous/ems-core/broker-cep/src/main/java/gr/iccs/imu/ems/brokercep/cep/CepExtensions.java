@@ -29,6 +29,7 @@ public class CepExtensions {
         cepService.addSingleRowFunction("EVAL", CepEvalFunction.class.getName(), "eval");
         cepService.addSingleRowFunction("MATH", CepEvalFunction.class.getName(), "evalMath");
         cepService.addSingleRowFunction("NEWEVENT", CepEvalFunction.class.getName(), "newEvent");
+        cepService.addSingleRowFunction("UPDATETS", CepEvalFunction.class.getName(), "updateTs");
         cepService.addSingleRowFunction("PROP", CepEvalFunction.class.getName(), "prop");
         cepService.addAggregatorFunction("EVALAGG", CepEvalAggregatorFactory.class.getName());
     }
