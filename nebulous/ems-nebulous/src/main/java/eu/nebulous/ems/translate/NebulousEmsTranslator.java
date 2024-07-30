@@ -25,6 +25,7 @@ import org.yaml.snakeyaml.Yaml;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -76,6 +77,25 @@ public class NebulousEmsTranslator implements Translator, InitializingBean {
 			Yaml yaml = new Yaml();
 			modelObj = yaml.loadAs(yamlStr, Object.class);
 			log.trace("NebulousEmsTranslator: YAML model contents:\n{}", modelObj);
+
+			// -- Load extension model ------------------------------------------------------
+			String extensionModel = properties.getExtensionModel();
+			if (StringUtils.isNotBlank(extensionModel)) {
+				// Read extension metric model
+				Path inputFileExt = Paths.get(properties.getModelsDir(), extensionModel);
+				String yamlStrExt = Files.readString(inputFileExt);
+				// Replace placeholders
+				yamlStrExt = yamlStrExt
+						.replace("{{TS}}", String.valueOf(System.currentTimeMillis()))
+						.replace("{{RANDOM}}", String.valueOf((long)(Math.random()*1E10)));
+
+				// Parse extension metric model
+				Object modelObjExt = yaml.loadAs(yamlStrExt, Object.class);
+				log.trace("NebulousEmsTranslator: YAML extension model contents:\n{}", modelObjExt);
+				if (additionalArguments==null)
+					additionalArguments = new LinkedHashMap<>();
+				additionalArguments.put("extension-model", modelObjExt);
+			}
 
 			// -- Translate model ---------------------------------------------
 			log.info("NebulousEmsTranslator: Translating metric model: {}", metricModelPath);
@@ -161,6 +181,20 @@ public class NebulousEmsTranslator implements Translator, InitializingBean {
 		log.debug("NebulousEmsTranslator.translate(): Expanding shorthand expressions: {}", modelName);
 		shorthandsExpansionHelper.expandShorthandExpressions(modelObj, modelName);
 
+		// -- Extend Model -------------------------------------------
+		Object modelObjExt = additionalArguments!=null ? additionalArguments.get("extension-model") : null;
+		if (modelObj instanceof Map modelMap && modelObjExt instanceof Map extensionMap) {
+			log.debug("NebulousEmsTranslator.translate(): Extension metric model: {}", modelObjExt);
+
+			// -- Expand shorthand expressions ------------------------------------
+			log.debug("NebulousEmsTranslator.translate(): Expanding shorthand expressions of extension model");
+			shorthandsExpansionHelper.expandShorthandExpressions(modelObjExt, modelName);
+
+			// -- Merge extension model into main model ------------------------------------
+			modelObj = mergeMaps(modelMap, extensionMap);
+			log.debug("NebulousEmsTranslator.translate(): Extended metric model: {}", modelObj);
+		}
+
 		// -- Schematron Validation -------------------------------------------
 		log.debug("NebulousEmsTranslator.translate(): Validating metric model: {}", modelName);
 		if (!properties.isSkipModelValidation()) {
@@ -195,6 +229,25 @@ public class NebulousEmsTranslator implements Translator, InitializingBean {
 		modelName = StringUtils.removeEndIgnoreCase(modelName, ".yaml");
 		modelName = StringUtils.removeEndIgnoreCase(modelName, ".yml");
 		return modelName;
+	}
+
+	private Map<String,Object> mergeMaps(Map<String,Object> modelMap, Map<String,Object> extensionMap) {
+		extensionMap.forEach((k, v) -> {
+			if (StringUtils.isNotBlank(k) && v!=null) {
+				modelMap.merge(k, v, (v1, v2) -> {
+					if (v1 instanceof Map map1 && v2 instanceof Map map2) {
+						return mergeMaps(map1, map2);
+					}
+					if (v1 instanceof List list1 && v2 instanceof List list2) {
+						list1.addAll(list2);
+						return list1;
+					}
+					if (v1 != null && v2 != null && v1.equals(v2)) return v1;
+					throw new IllegalArgumentException("Conflict at key: " + k + " -- values1: " + v1 + " -- value2: " + v2);
+				});
+			}
+		});
+		return modelMap;
 	}
 
 }

@@ -22,6 +22,7 @@
 
     <properties>
         <node.version>v14.17.3</node.version>
+        <frontend-maven-plugin.version>1.15.0</frontend-maven-plugin.version>
     </properties>
 
     <profiles>
@@ -39,7 +40,7 @@
                     <!-- Remove previous files from /public_resources -->
                     <plugin>
                         <artifactId>maven-clean-plugin</artifactId>
-                        <version>3.3.1</version>
+                        <version>${maven-clean-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>remove-dist</id>
@@ -106,7 +107,7 @@
                     <!-- Copy and filter .env file -->
                     <plugin>
                         <artifactId>maven-resources-plugin</artifactId>
-                        <version>3.3.1</version>
+                        <version>${maven-resources-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>create-env-file</id>
@@ -132,7 +133,7 @@
                         <!-- See: https://www.futurespace.es/en/crear-un-proyecto-spring-boot-vue-js/ -->
                         <groupId>com.github.eirslett</groupId>
                         <artifactId>frontend-maven-plugin</artifactId>
-                        <version>1.13.4</version>
+                        <version>${frontend-maven-plugin.version}</version>
                         <executions>
                             <!-- Install our node and npm version to run npm/node scripts-->
                             <execution>

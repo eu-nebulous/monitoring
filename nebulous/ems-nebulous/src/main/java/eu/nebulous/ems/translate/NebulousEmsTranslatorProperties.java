@@ -36,6 +36,7 @@ public class NebulousEmsTranslatorProperties implements InitializingBean {
 
     // Translator parameters
     private String modelsDir = "models";
+    private String extensionModel;
 
     // Name processing parameters
     private boolean useCompositeNames = false;

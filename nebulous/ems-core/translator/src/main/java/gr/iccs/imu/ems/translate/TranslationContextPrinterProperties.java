@@ -34,7 +34,7 @@ public class TranslationContextPrinterProperties implements InitializingBean {
     @Data
     public static class Dag {
         // Graph rendering/export
-        private boolean printDotEnabled = true;
+        private boolean printDotEnabled = false;
         private boolean exportToFileEnabled = true;
 
         // Graph rendering parameters

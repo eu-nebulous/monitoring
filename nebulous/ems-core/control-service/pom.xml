@@ -20,11 +20,6 @@
     <name>EMS - Control Service</name>
 
     <properties>
-        <hawtio.version>4.0.0</hawtio.version>
-        <spring.boot.admin.version>3.2.2</spring.boot.admin.version>
-        <micrometer.registry.prometheus.version>1.12.4</micrometer.registry.prometheus.version>
-        <springdoc.version>2.3.0</springdoc.version>
-        <jjwt.version>0.12.5</jjwt.version>
         <!-- Build timestamp -->
         <timestamp>${maven.build.timestamp}</timestamp>
         <maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
@@ -32,8 +27,6 @@
         <docker.controlServiceJar>${project.build.finalName}.jar</docker.controlServiceJar>
         <docker.esperJar>esper-${esper.version}.jar</docker.esperJar>
 
-        <!-- io.fabricat8 docker-maven-plugin properties -->
-        <docker-maven-plugin.version>0.44.0</docker-maven-plugin.version>
         <docker.image.name>ems-server</docker.image.name>
         <!--<docker.image.tag>${revision}</docker.image.tag>
         <build.description></build.description>-->
@@ -226,7 +219,7 @@
             <!-- Remove previous files from /public_resources -->
             <plugin>
                 <artifactId>maven-clean-plugin</artifactId>
-                <version>3.3.1</version>
+                <version>${maven-clean-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>remove-old-public-resources</id>
@@ -254,7 +247,7 @@
             <plugin>
                 <groupId>io.github.git-commit-id</groupId>
                 <artifactId>git-commit-id-maven-plugin</artifactId>
-                <version>7.0.0</version>
+                <version>${git-commit-id-maven-plugin.version}</version>
                 <!--<executions>
                     <execution>
                         <id>get-the-git-infos</id>
@@ -356,7 +349,7 @@
             <plugin>
                 <groupId>net.nicoulaj.maven.plugins</groupId>
                 <artifactId>checksum-maven-plugin</artifactId>
-                <version>1.11</version>
+                <version>${net.nicoulaj.checksum-maven-plugin.version}</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -394,7 +387,7 @@
             <plugin>
                 <groupId>com.coderplus.maven.plugins</groupId>
                 <artifactId>copy-rename-maven-plugin</artifactId>
-                <version>1.0</version>
+                <version>${copy-rename-maven-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>copy-files</id>
@@ -461,7 +454,7 @@
 
             <plugin>
                 <artifactId>maven-resources-plugin</artifactId>
-                <version>3.3.1</version>
+                <version>${maven-resources-plugin.version}</version>
                 <executions>
                     <!-- Copy Web Admin distribution files to /public_resources -->
                     <execution>
@@ -568,7 +561,7 @@
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>properties-maven-plugin</artifactId>
-                        <version>1.2.0</version>
+                        <version>${properties-maven-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>read-docker-image-properties</id>
@@ -601,7 +594,7 @@
                     <!-- Rename docker context folder to 'docker-context'. Remove previous if exists. -->
                     <plugin>
                         <artifactId>maven-antrun-plugin</artifactId>
-                        <version>3.1.0</version>
+                        <version>${maven-antrun-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>set-docker-properties</id>
@@ -637,7 +630,7 @@
                     <plugin>
                         <groupId>com.coderplus.maven.plugins</groupId>
                         <artifactId>copy-rename-maven-plugin</artifactId>
-                        <version>1.0.1</version>
+                        <version>${copy-rename-maven-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>rename-docker-context-dir</id>
@@ -690,7 +683,7 @@
                     <plugin>
                         <groupId>com.internetitem</groupId>
                         <artifactId>write-properties-file-maven-plugin</artifactId>
-                        <version>1.0.1</version>
+                        <version>${write-properties-file-maven-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>write-docker-image-properties-file</id>
@@ -727,7 +720,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-install-plugin</artifactId>
-                        <version>3.1.1</version>
+                        <version>${maven-install-plugin.version}</version>
                         <executions>
                             <execution>
                                 <goals>

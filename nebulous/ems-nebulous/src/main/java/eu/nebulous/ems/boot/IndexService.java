@@ -9,11 +9,13 @@
 package eu.nebulous.ems.boot;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import eu.nebulous.ems.translate.NebulousEmsTranslatorProperties;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okio.Path;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
@@ -31,13 +33,22 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class IndexService {
-	private static final Collection<String> FILES_TO_EXCLUDE_FROM_PURGE = Set.of("index.json", "empty.yml");
+public class IndexService implements InitializingBean {
+	private final Collection<String> FILES_TO_EXCLUDE_FROM_PURGE = new LinkedHashSet<>(Set.of("index.json", "empty.yml"));
 
+	private final NebulousEmsTranslatorProperties translatorProperties;
 	private final ApplicationContext applicationContext;
 	private final EmsBootProperties properties;
 	private final ObjectMapper objectMapper;
 	private final Object LOCK = new Object();
+
+	@Override
+	public void afterPropertiesSet() throws Exception {
+		if (translatorProperties!=null && StringUtils.isNotBlank(translatorProperties.getExtensionModel())) {
+			FILES_TO_EXCLUDE_FROM_PURGE.add(translatorProperties.getExtensionModel());
+		}
+		log.debug("IndexService: FILES_TO_EXCLUDE_FROM_PURGE: {}", FILES_TO_EXCLUDE_FROM_PURGE);
+	}
 
 	public void initIndexFile() throws IOException {
 		try {

@@ -91,6 +91,12 @@ public class BrokerCepProperties implements InitializingBean {
     private boolean eventCacheEnabled = true;
     private int eventCacheSize = EventCache.DEFAULT_EVENT_CACHE_SIZE;
 
+    private boolean statsPrinterEnabled;
+    private boolean statsPrinterAsJson = true;
+    private boolean statsPrinterAsCsv = false;
+    private long statsPrinterInitDelay = 30;
+    private long statsPrinterRate = 30;
+
     @Data
     public static class Usage {
         private Memory memory = new Memory();
