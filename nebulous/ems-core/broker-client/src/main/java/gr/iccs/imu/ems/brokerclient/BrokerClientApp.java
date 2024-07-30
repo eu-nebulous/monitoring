@@ -51,6 +51,7 @@ public class BrokerClientApp {
     private static long playbackDelay = -1;
     private static double playbackSpeed = 1.0;
     private static Gson gson = new Gson();
+    private static boolean printAsJson = true;
 
     private enum RECORD_FORMAT { CSV, JSON }
 
@@ -66,6 +67,9 @@ public class BrokerClientApp {
 
         filterAMQMessages = args.length>aa && args[aa].startsWith("-Q") ? false : true;
         if (!filterAMQMessages) aa++;
+
+        printAsJson = args.length>aa && args[aa].equals("-NPJ") ? false : true;
+        if (!printAsJson) aa++;
 
         String username = args.length>aa && args[aa].startsWith("-U") ? args[aa++].substring(2) : null;
         String password = username!=null && args.length>aa && args[aa].startsWith("-P") ? args[aa++].substring(2) : null;
@@ -311,7 +315,7 @@ public class BrokerClientApp {
                     Object obj = objMessage.getObject();
                     String objClass = obj!=null ? obj.getClass().getName() : null;
                     log.trace("BrokerClientApp:  - {}: Received object message: {}: {}", destinationName, objClass, obj);
-                    log.info("OBJ: {}: properties: {}\n{}: {}", destinationName, properties, objClass, obj);
+                    log.info("OBJ: {}: {}: properties: {}\n{}", destinationName, objClass, properties, asJson(obj));
                 } else if (message instanceof MapMessage mapMessage) {
                     Enumeration en = mapMessage.getMapNames();
                     Map<Object,Object> map = new HashMap<>();
@@ -320,7 +324,7 @@ public class BrokerClientApp {
                         map.put(k, mapMessage.getObject(k));
                     }
                     log.trace("BrokerClientApp:  - {}: Received map message: {}", destinationName, map);
-                    log.info("MAP: {}: properties: {}\n{}", destinationName, properties, map);
+                    log.info("MAP: {}: properties: {}\n{}", destinationName, properties, asJson(map));
                 } else if (message instanceof BytesMessage bytesMessage) {
                     byte[] bytes = new byte[(int)bytesMessage.getBodyLength()];
                     bytesMessage.readBytes(bytes);
@@ -334,11 +338,11 @@ public class BrokerClientApp {
                         obj = bytes;
                     }
                     log.trace("BrokerClientApp:  - {}: Received bytes message: {}", destinationName, bytes);
-                    log.info("BYTES: {}: properties: {}\n{}\n{}", destinationName, properties, bytes, obj);
+                    log.info("BYTES: {}: properties: {}\n{}\n{}", destinationName, properties, bytes, asJson(obj));
                 } else if (message instanceof TextMessage textMessage) {
                     String text = textMessage.getText();
                     log.trace("BrokerClientApp:  - {}: Received text message: {}", destinationName, text);
-                    log.info("TXT: {}: properties: {}\n{}", destinationName, properties, text);
+                    log.info("TXT: {}: properties: {}\n{}", destinationName, properties, asJson(text));
                 } else {
                     log.trace("BrokerClientApp:  - {}: Received message: {}", destinationName, message);
                     log.info("MSG: {}: properties: {}\n{}", destinationName, properties, message);
@@ -351,6 +355,14 @@ public class BrokerClientApp {
                 log.warn("BrokerClientApp: onMessage: EXCEPTION: ", je);
             }
         };
+    }
+
+    private static String asJson(Object obj) {
+        if (obj==null) return null;
+        if (!printAsJson) return obj.toString();
+        if (obj instanceof String s)
+            obj = gson.fromJson(s, Map.class);
+        return gson.toJson(obj);
     }
 
     private static int initRecording(String[] args, int aa) throws IOException {
@@ -411,26 +423,20 @@ public class BrokerClientApp {
         if (!isRecording) return;
 
         try {
-            if (!(message instanceof ActiveMQMessage)) {
-                throw new IllegalArgumentException("Unsupported Message type: "+message.getClass().getName());
-            }
-
-            ActiveMQMessage amqMessage = (ActiveMQMessage) message;
             long timestamp = message.getJMSTimestamp();
             String destinationName = getDestinationName(message);
-            String mime = amqMessage.getJMSXMimeType();
+            String mime = //amqMessage.getJMSXMimeType();
+                    message.getClass().getName();
             String type;
 
             String content;
-            if (amqMessage instanceof ActiveMQTextMessage textMessage) {
+            if (message instanceof TextMessage textMessage) {
                 type = BrokerClient.MESSAGE_TYPE.TEXT.name();
                 content = textMessage.getText();
             } else
-            if (amqMessage instanceof ActiveMQObjectMessage objectMessage) {
+            if (message instanceof ObjectMessage objectMessage) {
                 type = BrokerClient.MESSAGE_TYPE.OBJECT.name();
                 Object obj = objectMessage.getObject();
-                /*String objClass = obj!=null ? obj.getClass().getName() : null;
-                content = objClass + ":" + obj.toString();*/
                 try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
                      ObjectOutputStream oos = new ObjectOutputStream(baos))
                 {
@@ -439,29 +445,45 @@ public class BrokerClientApp {
                     content = Base64.getEncoder().encodeToString(bytes);
                 }
             } else
-            if (amqMessage instanceof ActiveMQMapMessage mapMessage) {
+            if (message instanceof MapMessage mapMessage) {
                 type = BrokerClient.MESSAGE_TYPE.MAP.name();
                 /*content = ((ActiveMQMapMessage)amqMessage).getContentMap()
                         .entrySet().stream()
                         .map(x -> x.getKey() + "=" + x.getValue())
                         .collect(Collectors.joining(",", "{", "}"));*/
-                content = gson.toJson(mapMessage.getContentMap());
+                Enumeration en = mapMessage.getMapNames();
+                Map<Object,Object> map = new LinkedHashMap<>();
+                while (en.hasMoreElements()) {
+                    String k = en.nextElement().toString();
+                    map.put(k, mapMessage.getObject(k));
+                }
+                content = gson.toJson(map);
             } else
-            if (amqMessage instanceof ActiveMQBytesMessage) {
+            if (message instanceof BytesMessage bytesMessage) {
                 type = BrokerClient.MESSAGE_TYPE.BYTES.name();
-                byte[] bytes = amqMessage.getContent().getData();
+                //byte[] bytes = amqMessage.getContent().getData();
+                byte[] bytes = new byte[(int)bytesMessage.getBodyLength()];
+                bytesMessage.readBytes(bytes);
                 content = Base64.getEncoder().encodeToString(bytes);
             } else {
-                type = BrokerClient.MESSAGE_TYPE.BYTES.name();
-                byte[] bytes = amqMessage.getContent().getData();
-                content = Base64.getEncoder().encodeToString(bytes);
+                throw new IllegalArgumentException("Unexpected message type: " + message.getClass());
             }
 
-            String properties = amqMessage.getProperties()
+            // Get message properties
+            Enumeration en = message.getPropertyNames();
+            Map<Object,Object> propertiesMap = new LinkedHashMap<>();
+            while (en.hasMoreElements()) {
+                String k = en.nextElement().toString();
+                propertiesMap.put(k, message.getStringProperty(k));
+            }
+            String properties = gson.toJson(propertiesMap);
+
+            /*String properties = amqMessage.getProperties()
                     .entrySet().stream()
                     .map(x -> x.getKey() + "=" + x.getValue())
-                    .collect(Collectors.joining(",", "{", "}"));
+                    .collect(Collectors.joining(",", "{", "}"));*/
 
+            // Record message data
             log.trace("REC> timestamp={}, topic={}, mime={}, type={}, contents={}, properties={}", timestamp, destinationName, mime, type, content, properties);
             if (recordFormat==RECORD_FORMAT.CSV) {
                 csvPrinter.printRecord(timestamp, destinationName, mime, type, content, properties);
@@ -583,12 +605,14 @@ public class BrokerClientApp {
                             timestamp, destinationName, mime, type, contents, properties);
 
                     // read event properties
-                    if (properties.startsWith("{") && properties.endsWith("}"))
+                    Map<String, String> propertiesMap = getPropertiesFromString(properties);
+
+                    /*if (properties.startsWith("{") && properties.endsWith("}"))
                         properties = properties.substring(1, properties.length()-1);
                     Map<String, String> propertiesMap = Arrays.stream(properties.split(","))
                             .filter(StringUtils::isNotBlank)
                             .map(p -> p.split("=",2))
-                            .collect(Collectors.toMap(p->p[0], p->p.length>1 ? p[1] : ""));
+                            .collect(Collectors.toMap(p->p[0], p->p.length>1 ? p[1] : ""));*/
 
                     // wait and send
                     try {
@@ -635,11 +659,13 @@ public class BrokerClientApp {
                         timestamp, destinationName, mime, type, contents, properties);
 
                 // read event properties
-                if (properties.startsWith("{") && properties.endsWith("}"))
+                Map<String, String> propertiesMap = getPropertiesFromString(properties);
+
+                /*if (properties.startsWith("{") && properties.endsWith("}"))
                     properties = properties.substring(1, properties.length()-1);
                 Map<String, String> propertiesMap = Arrays.stream(properties.split(","))
                         .map(p -> p.split("=",2))
-                        .collect(Collectors.toMap(p->p[0], p->p[1]));
+                        .collect(Collectors.toMap(p->p[0], p->p[1]));*/
 
                 // wait and send
                 try {
@@ -656,6 +682,15 @@ public class BrokerClientApp {
         playbackReader.close();
     }
 
+    private static Map<String, String> getPropertiesFromString(String properties) {
+        LinkedHashMap<String,String> result = new LinkedHashMap<>();
+        gson.fromJson(properties, Map.class).forEach((k,v) -> {
+            if (k!=null && v!=null)
+                result.put(k.toString(), v.toString());
+        });
+        return result;
+    }
+
     private static void waitAndSend(BrokerClient client, long[] prevValues, boolean useInterval, boolean useDelay, String url,
                                     long timestamp, String destinationName, String type, String contents, Map<String,String> propertiesMap,
                                     AtomicLong countSuccess, AtomicLong countFail)
@@ -667,8 +702,6 @@ public class BrokerClientApp {
             payload = contents;
         } else
         if ("OBJECT".equalsIgnoreCase(type)) {
-            /*String[] part = contents.split(":",2);
-            payload = part[1];*/
             byte[] bytes = Base64.getDecoder().decode(contents);
             try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
                  ObjectInputStream ois = new ObjectInputStream(bais))
@@ -682,8 +715,7 @@ public class BrokerClientApp {
         if ("BYTES".equalsIgnoreCase(type)) {
             payload = Base64.getDecoder().decode(contents);
         } else {
-            //payload = contents;
-            payload = Base64.getDecoder().decode(contents);
+            throw new IllegalArgumentException("Unexpected message type: " + type);
         }
 
         // calculate wait time and sleep
@@ -759,19 +791,19 @@ public class BrokerClientApp {
     protected static void usage() {
         log.info("BrokerClientApp: Usage: ");
         log.info("BrokerClientApp: client list [-U<USERNAME> [-P<PASSWORD]] <URL> ");
-        log.info("BrokerClientApp: client publish [ -U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] <VALUE> <LEVEL> [<PROPERTY>]*");
+        log.info("BrokerClientApp: client publish  [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] <VALUE> <LEVEL> [<PROPERTY>]*");
         log.info("BrokerClientApp: client publish2 [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] [-PP<true|false>] <JSON-PAYLOAD|-|@file>  [<PROPERTY>]*");
         log.info("BrokerClientApp: client publish3 [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] [-PP<true|false>] <TEXT-PAYLOAD|-|@file>  [<PROPERTY>]*");
         log.info("BrokerClientApp:     <MSG-TYPE>: text, object, bytes, map");
         log.info("BrokerClientApp:            -PP: Process placeholders (default 'true')");
         log.info("BrokerClientApp:  '-' | '@file': Read payload from STDIN | Read payload from file 'file' ");
         log.info("BrokerClientApp:     <PROPERTY>: <Property name>=<Property value>  (use quotes if needed)");
-        log.info("BrokerClientApp: client receive [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> ");
-        log.info("BrokerClientApp: client subscribe [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> ");
+        log.info("BrokerClientApp: client receive   [-Q] [-NJP] [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> ");
+        log.info("BrokerClientApp: client subscribe [-Q] [-NJP] [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> ");
+        log.info("BrokerClientApp: client record    [-Q] [-NJP] [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-Mcsv|-Mjson] <REC-FILE> ");
+        log.info("BrokerClientApp: client playback  [-U<USERNAME> [-P<PASSWORD]] <URL> [-Innn|-Dnnn|-Sd[.d]] [-Mcsv|-Mjson] <REC-FILE> ");
         log.info("BrokerClientApp: client generator [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> <INTERVAL> <HOWMANY> <LOWER-VALUE> <UPPER-VALUE> <LEVEL> ");
-        log.info("BrokerClientApp: client record [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-Mcsv|-Mjson] <REC-FILE> ");
-        log.info("BrokerClientApp: client playback [-U<USERNAME> [-P<PASSWORD]] <URL> [-Innn|-Dnnn|-Sd[.d]] [-Mcsv|-Mjson] <REC-FILE> ");
         log.info("BrokerClientApp: client js [-E<engine-name>] <JS-file> ");
-        log.info("BrokerClientApp:     <URL>: (tcp:|ssl:)//<ADDRESS>:<PORT>[?[%KAP%][&...additional properties]*]   KAP: Keep-Alive Properties ");
+        log.info("BrokerClientApp:     <URL>: (tcp:|ssl|amqp:)//<ADDRESS>:<PORT>[?[%KAP%][&...additional properties]*]   KAP: Keep-Alive Properties ");
     }
 }

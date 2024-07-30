@@ -97,6 +97,12 @@ public abstract class AbstractEndpointCollector<T> implements InitializingBean, 
     }
 
     public synchronized void start() {
+        // Check
+        if (properties==null || StringUtils.isBlank(properties.getUrlOfNodesWithoutClient())) {
+            log.warn("Collectors::{}: Config error: 'UrlOfNodesWithoutClient' not set", collectorId);
+            return;
+        }
+
         // check if already running
         if (started) {
             log.warn("Collectors::{}: Already started", collectorId);
@@ -104,7 +110,7 @@ public abstract class AbstractEndpointCollector<T> implements InitializingBean, 
         }
 
         // check parameters
-        if (properties==null || !properties.isEnable()) {
+        if (!properties.isEnable()) {
             log.warn("Collectors::{}: Collector not enabled", collectorId);
             return;
         }

@@ -386,6 +386,7 @@ public class BrokerCepService {
         bcepStats.put("count-total-events-object", BrokerCepConsumer.getObjectEventCounter());
         bcepStats.put("count-total-events-other", BrokerCepConsumer.getOtherEventCounter());
         bcepStats.put("count-total-events-failures", BrokerCepConsumer.getEventFailuresCounter());
+        bcepStats.put("count-cep-events", CepService.getEventCounter());
 
         bcepStats.put("latest-events", eventCache.asList());
 
@@ -395,6 +396,7 @@ public class BrokerCepService {
     public void clearBrokerCepStatistics() {
         BrokerCepStatementSubscriber.clearCounters();
         BrokerCepConsumer.clearCounters();
+        CepService.clearCounters();
         log.debug("BrokerCepService.clearBrokerCepStatistics(): broker-CEP statistics cleared");
     }
 }

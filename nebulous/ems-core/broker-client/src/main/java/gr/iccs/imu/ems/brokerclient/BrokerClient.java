@@ -25,6 +25,7 @@ import org.apache.activemq.command.ActiveMQTempQueue;
 import org.apache.activemq.command.ActiveMQTempTopic;
 import org.apache.activemq.command.ActiveMQTopic;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.qpid.jms.JmsConnectionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -402,11 +403,21 @@ public class BrokerClient {
 
     // ------------------------------------------------------------------------
 
-    public ActiveMQConnectionFactory createConnectionFactory() {
+    public ConnectionFactory createConnectionFactory(String brokerUrl, String username, String password) {
+        if (StringUtils.startsWithIgnoreCase(brokerUrl, "amqp:"))
+            return createQpidConnectionFactory(brokerUrl, username, password);
+        return createActiveMQConnectionFactory(brokerUrl, username, password);
+    }
+
+    private ConnectionFactory createQpidConnectionFactory(String brokerUrl, String username, String password) {
+        return new JmsConnectionFactory(username, password, brokerUrl);
+    }
+
+    private ActiveMQConnectionFactory createActiveMQConnectionFactory(String brokerUrl, String username, String password) {
         // Create connection factory based on Broker URL scheme
         checkProperties();
         final ActiveMQConnectionFactory connectionFactory;
-        String brokerUrl = properties.getBrokerUrl();
+        //String brokerUrl = properties.getBrokerUrl();
         if (brokerUrl.startsWith("ssl")) {
             log.debug("BrokerClient.createConnectionFactory(): Creating new SSL connection factory instance: url={}", brokerUrl);
             final ActiveMQSslConnectionFactory sslConnectionFactory = new ActiveMQSslConnectionFactory(brokerUrl);
@@ -419,13 +430,16 @@ public class BrokerClient {
                 sslConnectionFactory.setKeyStorePassword(properties.getSsl().getKeystorePassword());
                 //sslConnectionFactory.setKeyStoreKeyPassword( properties........ );
 
+                sslConnectionFactory.setUserName(username);
+                sslConnectionFactory.setPassword(password);
+
                 connectionFactory = sslConnectionFactory;
             } catch (final Exception theException) {
                 throw new Error(theException);
             }
         } else {
             log.debug("BrokerClient.createConnectionFactory(): Creating new non-SSL connection factory instance: url={}", brokerUrl);
-            connectionFactory = new ActiveMQConnectionFactory(brokerUrl);
+            connectionFactory = new ActiveMQConnectionFactory(username, password, brokerUrl);
         }
 
         // Other connection factory settings
@@ -463,12 +477,7 @@ public class BrokerClient {
         }
 
         // Create connection factory
-        ActiveMQConnectionFactory connectionFactory = createConnectionFactory();
-        connectionFactory.setBrokerURL(connectionString);
-        if (StringUtils.isNotBlank(username) && password != null) {
-            connectionFactory.setUserName(username);
-            connectionFactory.setPassword(password);
-        }
+        ConnectionFactory connectionFactory = createConnectionFactory(connectionString, username, password);
         log.debug("BrokerClient: Connection credentials: username={}, password={}", username, passwordUtil.encodePassword(password));
 
         // Create a Connection

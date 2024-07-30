@@ -10,7 +10,6 @@
 package gr.iccs.imu.ems.brokercep.cep;
 
 import com.espertech.esper.client.*;
-import com.google.gson.Gson;
 import gr.iccs.imu.ems.brokercep.event.EventMap;
 import gr.iccs.imu.ems.util.FunctionDefinition;
 import gr.iccs.imu.ems.util.StrUtil;
@@ -22,14 +21,14 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class CepService implements InitializingBean {
-
-    private final Gson gson;
+    private final static AtomicLong eventCounter = new AtomicLong(0);
 
     /**
      * Esper service
@@ -127,6 +126,7 @@ public class CepService implements InitializingBean {
         log.debug("CepService.handleEvent(): type={}, event={}", eventType, event.toString());
         EventMap.checkEvent(event);
         epService.getEPRuntime().sendEvent(event, eventType);
+        eventCounter.incrementAndGet();
     }
 
     /**
@@ -137,6 +137,7 @@ public class CepService implements InitializingBean {
         EventMap eventMap = EventMap.parseEventMap(event);
         log.trace("CepService.handleEvent(): event-map={}", eventMap);
         epService.getEPRuntime().sendEvent(eventMap, eventType);
+        eventCounter.incrementAndGet();
     }
 
     /**
@@ -146,6 +147,7 @@ public class CepService implements InitializingBean {
         log.debug("CepService.handleEvent(): event={}", event);
         EventMap.checkEvent(StrUtil.castToMapStringObject(event));
         epService.getEPRuntime().sendEvent(event);
+        eventCounter.incrementAndGet();
     }
 
     /**
@@ -220,5 +222,13 @@ public class CepService implements InitializingBean {
     public void clearConstants() {
         log.debug("CepService.clearConstants(): Clear constants");
         MathUtil.clearConstants();
+    }
+
+    public static long getEventCounter() {
+        return eventCounter.get();
+    }
+
+    public static synchronized void clearCounters() {
+        eventCounter.set(0L);
     }
 }

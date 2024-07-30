@@ -1,0 +1,25 @@
+#
+# Copyright (C) 2023-2025 Institute of Communication and Computer Systems (imu.iccs.gr)
+#
+# This Source Code Form is subject to the terms of the Mozilla Public License, v2.0.
+# If a copy of the MPL was not distributed with this file, you can obtain one at
+# https://www.mozilla.org/en-US/MPL/2.0/
+#
+
+#apiVersion: nebulous/v1
+#kind: MetricModel
+metadata:
+  extension-model:
+    description: 'Nebulous extension metric model'
+    timestamp: '{{TS}}'
+    random: '{{RANDOM}}'
+spec:
+  components:
+    - name: prometheus-prometheus-kube-prometheus-prometheus
+      requirements:
+        - name: serverless_{{RANDOM}}_workqueue_length_slo
+          type: slo
+          constraint: "(serverless_{{RANDOM}}_workqueue_length > 100)"
+      metrics:
+        - name: serverless_{{RANDOM}}_workqueue_length
+          sensor: 'prometheus workqueue_length'

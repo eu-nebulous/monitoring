@@ -1301,7 +1301,8 @@ public class CommandExecutor {
 
     @SneakyThrows
     private void getStatistics(String inputUuid) {
-        Map<String,Object> statsMap = brokerCepService.getBrokerCepStatistics();
+        //Map<String,Object> statsMap = brokerCepService.getBrokerCepStatistics();
+        Map<String,Object> statsMap = _collectAndSendStatistics(false);
         log.debug("Statistics: {}", statsMap);
         if (out!=null) out.println("-INPUT:"+inputUuid+":"+SerializationUtil.serializeToString(statsMap));
     }
@@ -1313,17 +1314,7 @@ public class CommandExecutor {
             boolean result = systemResourceMonitor.runImmediatelyBlocking(-1);  // >=0: timeout in millis; <0: wait forever
             log.debug("Running system metrics collection... {}", result ? "done" : "cancel/timeout");
 
-            // Collect metrics
-            Map<String, Object> statsMap = brokerCepService.getBrokerCepStatistics();
-            log.debug("BCEP Statistics: {}", statsMap);
-            Map<String, Object> sysMap = systemResourceMonitor.getLatestMeasurements();
-            log.debug("System Statistics: {}", sysMap);
-
-            // Prepare and send response
-            Map<String, Object> clientStats = new HashMap<>();
-            if (statsMap!=null) clientStats.putAll(statsMap);
-            if (sysMap!=null) clientStats.putAll(sysMap);
-            if (out!=null) out.println("-STATS:" + SerializationUtil.serializeToString(statsMap));
+            _collectAndSendStatistics(true);
         } catch (Exception ex) {
             log.error("Exception while getting Statistics to server: ", ex);
         }
@@ -1333,20 +1324,27 @@ public class CommandExecutor {
     private void sendStatisticsStart() {
         statsSendTask = taskScheduler.scheduleWithFixedDelay(() -> {
             try {
-                Map<String, Object> statsMap = brokerCepService.getBrokerCepStatistics();
-                log.debug("BCEP Statistics: {}", statsMap);
-                Map<String, Object> sysMap = systemResourceMonitor.getLatestMeasurements();
-                log.debug("System Statistics: {}", sysMap);
-
-                Map<String, Object> clientStats = new HashMap<>();
-                if (statsMap!=null) clientStats.putAll(statsMap);
-                if (sysMap!=null) clientStats.putAll(sysMap);
-                if (out != null) out.println("-STATS:" + SerializationUtil.serializeToString(clientStats));
+                _collectAndSendStatistics(true);
             } catch (Exception ex) {
                 log.error("Exception while sending Statistics to server: ", ex);
             }
         }, Duration.ofMillis(baguetteClient.getBaguetteClientProperties().getSendStatisticsDelay()));
         log.info("Start sending STATS to server");
+    }
+
+    private Map<String, Object> _collectAndSendStatistics(boolean sendStats) throws IOException {
+        // Collect metrics
+        Map<String, Object> statsMap = brokerCepService.getBrokerCepStatistics();
+        log.debug("BCEP Statistics: {}", statsMap);
+        Map<String, Object> sysMap = systemResourceMonitor.getLatestMeasurements();
+        log.debug("System Statistics: {}", sysMap);
+
+        // Prepare and send response
+        Map<String, Object> clientStats = new HashMap<>();
+        if (statsMap!=null) clientStats.putAll(statsMap);
+        if (sysMap!=null) clientStats.putAll(sysMap);
+        if (sendStats && out!=null) out.println("-STATS:" + SerializationUtil.serializeToString(statsMap));
+        return clientStats;
     }
 
     @SneakyThrows

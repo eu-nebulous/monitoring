@@ -20,10 +20,6 @@
 	<name>EMS - Baguette Client</name>
 
 	<properties>
-		<atomix.version>3.1.12</atomix.version>
-
-		<!-- io.fabricat8 docker-maven-plugin properties -->
-		<docker-maven-plugin.version>0.43.2</docker-maven-plugin.version>
 		<docker.image.name>ems-client</docker.image.name>
 		<docker.user>emsuser</docker.user>
 		<docker.user.home>/opt/baguette-client</docker.user.home>
@@ -145,7 +141,7 @@
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>exec-maven-plugin</artifactId>
-				<version>1.6.0</version>
+				<version>${exec-maven-plugin.version}</version>
 				<executions>
 					<execution>
 						<goals>
@@ -196,7 +192,7 @@
 					<plugin>
 						<groupId>org.codehaus.mojo</groupId>
 						<artifactId>properties-maven-plugin</artifactId>
-						<version>1.2.0</version>
+						<version>${properties-maven-plugin.version}</version>
 						<executions>
 							<execution>
 								<id>read-docker-image-properties</id>
@@ -228,7 +224,7 @@
 					<!-- Set docker image properties -->
 					<plugin>
 						<artifactId>maven-antrun-plugin</artifactId>
-						<version>3.1.0</version>
+						<version>${maven-antrun-plugin.version}</version>
 						<executions>
 							<execution>
 								<id>set-docker-properties</id>

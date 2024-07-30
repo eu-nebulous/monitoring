@@ -19,12 +19,6 @@
     <artifactId>translator</artifactId>
     <name>EMS - Translator</name>
 
-    <properties>
-        <!-- Dependencies versions -->
-        <jgrapht.version>1.5.2</jgrapht.version>
-        <graphviz-java.version>0.18.1</graphviz-java.version>
-    </properties>
-
     <dependencies>
         <!-- EMS dependencies -->
         <dependency>
