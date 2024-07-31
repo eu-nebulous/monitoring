@@ -49,6 +49,7 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 	private ScheduledFuture<?> bootFuture;
 	private Consumer consumer;
 	private Publisher publisher;
+	private Publisher reportPublisher;
 
 	public EmsBootInitializer(ApplicationContext applicationContext,
 							  EmsNebulousProperties emsNebulousProperties,
@@ -86,6 +87,8 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 		// Schedule sending EMS Boot message
 		bootFuture = taskScheduler.scheduleAtFixedRate(this::sendEmsBootReadyEvent,
 				Instant.now().plus(bootInitializerProperties.getInitialWait()), bootInitializerProperties.getRetryPeriod());
+		bootFuture = taskScheduler.scheduleAtFixedRate(this::sendPeriodicReport,
+				Instant.now().plus(bootInitializerProperties.getInitialWait()), bootInitializerProperties.getRetryPeriod());
 	}
 
 	private void startConnector() {
@@ -99,7 +102,31 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 		};
 		consumer = new Consumer(properties.getEmsBootResponseTopic(), properties.getEmsBootResponseTopic(), messageHandler, applicationId, true, true);
 		publisher = new Publisher(properties.getEmsBootTopic(), properties.getEmsBootTopic(), true, true);
-		connectToBroker(List.of(publisher), List.of(consumer));
+		if (StringUtils.isNoneBlank(properties.getEmsReportTopic()))
+			reportPublisher = new Publisher(properties.getEmsReportTopic(), properties.getEmsReportTopic(), true, true);
+		connectToBroker(List.of(publisher, reportPublisher), List.of(consumer));
+	}
+
+	protected void sendPeriodicReport() {
+		if (reportPublisher==null) {
+			log.warn("ExternalBrokerPublisherService: EMS Boot message not sent because External broker publisher is null");
+			return;
+		}
+		try {
+			String internalAddress = StringUtils.defaultIfBlank(NetUtil.getDefaultIpAddress(), "");
+			String publicAddress = StringUtils.defaultIfBlank(NetUtil.getPublicIpAddress(), "");
+			Map<String, String> message = Map.of(
+					"application", applicationId,
+					"internal-address", internalAddress,
+					"public-address", publicAddress,
+					"address", NetUtil.getIpAddress()
+			);
+			log.debug("ExternalBrokerPublisherService: Sending periodic report: {}", message);
+			reportPublisher.send(message, null, true);
+			log.debug("ExternalBrokerPublisherService: Sent periodic report");
+		} catch (Exception e) {
+			log.warn("ExternalBrokerPublisherService: Exception while sending periodic report: ", e);
+		}
 	}
 
 	protected void sendEmsBootReadyEvent() {
