@@ -9,11 +9,16 @@
 #
 
 BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )
-JAVA_HOME=$( cd ${BASEDIR}/jre* && pwd )
 EMS_CONFIG_DIR=.
 
 #JAVA_OPTS=-Djavax.net.ssl.trustStore=./broker-truststore.p12\ -Djavax.net.ssl.trustStorePassword=melodic\ -Djavax.net.ssl.trustStoreType=pkcs12
 # -Djavax.net.debug=all
 # -Djavax.net.debug=ssl,handshake,record
 
-${JAVA_HOME}/bin/java $JAVA_OPTS -jar ${BASEDIR}/jars/broker-client/broker-client-jar-with-dependencies.jar $*
+JAVACMD=java
+if [ -f ${BASEDIR}/jre/bin/java ]; then
+  JAVA_HOME=$( cd ${BASEDIR}/jre* && pwd )
+  JAVACMD=${JAVA_HOME}/bin/java
+fi
+
+${JAVACMD} $JAVA_OPTS -jar ${BASEDIR}/jars/broker-client/broker-client-jar-with-dependencies.jar $*

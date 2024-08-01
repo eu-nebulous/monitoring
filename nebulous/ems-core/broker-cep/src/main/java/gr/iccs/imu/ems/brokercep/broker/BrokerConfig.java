@@ -24,11 +24,15 @@ import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.SslBrokerService;
 import org.apache.activemq.broker.inteceptor.MessageInterceptorRegistry;
 import org.apache.activemq.broker.jmx.ManagementContext;
+import org.apache.activemq.broker.region.policy.PolicyEntry;
+import org.apache.activemq.broker.region.policy.PolicyMap;
 import org.apache.activemq.pool.PooledConnectionFactory;
 import org.apache.activemq.security.AuthenticationUser;
 import org.apache.activemq.security.SimpleAuthenticationPlugin;
 import org.apache.activemq.usage.MemoryUsage;
+import org.apache.activemq.usage.StoreUsage;
 import org.apache.activemq.usage.SystemUsage;
+import org.apache.activemq.usage.TempUsage;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.InitializingBean;
@@ -348,6 +352,9 @@ public class BrokerConfig implements InitializingBean {
             log.error("    MC: EXCEPTION: ", ex);
         }
 
+        // Set system usage limits
+        final SystemUsage systemUsage = new SystemUsage();
+
         // Set memory limit in order not to use too much memory
         int memHeapPercent = properties.getUsage().getMemory().getJvmHeapPercentage();
         long memSize = properties.getUsage().getMemory().getSize();
@@ -360,9 +367,52 @@ public class BrokerConfig implements InitializingBean {
                 memoryUsage.setUsage(memSize);
                 log.debug("BrokerConfig: Limiting Broker Service instance memory usage to {} bytes", memSize);
             }
-            final SystemUsage systemUsage = new SystemUsage();
             systemUsage.setMemoryUsage(memoryUsage);
-            brokerService.setSystemUsage(systemUsage);
+        }
+
+        // Set disk storage limit in order not to use too much disk space
+        int percentLimit = properties.getUsage().getStorage().getPercentLimit();
+        long storeSize = properties.getUsage().getStorage().getSize();
+        if (percentLimit > 0 ||  storeSize > 0) {
+            final StoreUsage storeUsage = new StoreUsage();
+            if (percentLimit > 0) {
+                storeUsage.setPercentLimit(percentLimit);
+                log.debug("BrokerConfig: Limiting Broker Service instance store usage to {}% of disk size", percentLimit);
+            } else {
+                storeUsage.setLimit(storeSize);
+                log.debug("BrokerConfig: Limiting Broker Service instance store usage to {} bytes", storeSize);
+            }
+            systemUsage.setStoreUsage(storeUsage);
+        }
+
+        // Set temp storage limit in order not to use too much temp disk space
+        int tempPercentLimit = properties.getUsage().getTemp().getPercentLimit();
+        long tempSize = properties.getUsage().getTemp().getSize();
+        if (tempPercentLimit > 0 ||  tempSize > 0) {
+            final TempUsage tempUsage = new TempUsage();
+            if (tempPercentLimit > 0) {
+                tempUsage.setPercentLimit(tempPercentLimit);
+                log.debug("BrokerConfig: Limiting Broker Service instance temp usage to {}% of disk size", tempPercentLimit);
+            } else {
+                tempUsage.setLimit(tempSize);
+                log.debug("BrokerConfig: Limiting Broker Service instance temp usage to {} bytes", tempSize);
+            }
+            systemUsage.setTempUsage(tempUsage);
+        }
+
+        // Set system usage
+        brokerService.setSystemUsage(systemUsage);
+
+        // Configure flow control via destination policy
+        if (properties.isDestinationPolicyEnabled()) {
+            PolicyMap policyMap = new PolicyMap();
+            PolicyEntry policyEntry = new PolicyEntry();
+            policyEntry.setQueue(">");  // Apply to all queues
+            policyEntry.setTopic(">");  // Apply to all topics
+            policyEntry.setProducerFlowControl(true);
+            policyEntry.setMemoryLimit( properties.getDestinationPolicyMemLimit() );
+            policyMap.setDefaultEntry(policyEntry);
+            brokerService.setDestinationPolicy(policyMap);
         }
 
         // start broker service instance
