@@ -83,6 +83,9 @@ public class BrokerCepProperties implements InitializingBean {
 
     private Usage usage = new Usage();
 
+    private boolean destinationPolicyEnabled = true;
+    private long destinationPolicyMemLimit = 50 * 1024 * 1024;  // 50MB per destination
+
     private boolean logBrokerMessages = true;
     private boolean logBrokerMessagesFull = false;
 
@@ -100,10 +103,17 @@ public class BrokerCepProperties implements InitializingBean {
     @Data
     public static class Usage {
         private Memory memory = new Memory();
+        private Storage storage = new Storage();
+        private Storage temp = new Storage();
     }
     @Data
     public static class Memory {
         private int jvmHeapPercentage = -1;
+        private long size = -1;
+    }
+    @Data
+    public static class Storage {
+        private int percentLimit = -1;
         private long size = -1;
     }
     @Data
