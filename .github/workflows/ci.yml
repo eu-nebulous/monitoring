@@ -16,7 +16,7 @@ jobs:
       context: nebulous
       image-name: monitoring
       #target: ems-server-nebulous
-      tags: quay.io/nebulous/ems-server:latest
+      #tags: quay.io/nebulous/ems-server:latest
     secrets: inherit
 
 #  build-and-push-ems-client:
