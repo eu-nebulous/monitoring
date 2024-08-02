@@ -19,7 +19,9 @@ WORKDIR ${BASEDIR}
 COPY ems-core       ${BASEDIR}/ems-core
 COPY ems-nebulous   ${BASEDIR}/ems-nebulous
 COPY pom.xml        ${BASEDIR}/pom.xml
-RUN --mount=type=cache,target=/root/.m2  mvn -B -f ${BASEDIR}/pom.xml -DskipTests clean install -P '!build-docker-image'
+RUN --mount=type=cache,target=/root/.m2  \
+    mvn -B -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn \
+    -f ${BASEDIR}/pom.xml -DskipTests clean install -P '!build-docker-image'
 RUN cp ems-core/control-service/target/control-service.jar . && \
     java -Djarmode=layertools -jar control-service.jar extract
 
