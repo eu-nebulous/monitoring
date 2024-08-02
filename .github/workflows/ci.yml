@@ -9,10 +9,27 @@ on:
       - main
       - r[1-9]
 jobs:
-  build-and-push-monitoring:
-    name: Build and push monitoring
+  build-and-push-ems-server:
+    name: Build and push EMS server
     uses: eu-nebulous/github-actions/.github/workflows/build-and-push-container-image.yml@main
     with:
       context: nebulous
       image-name: monitoring
+      target: ems-server-nebulous
+      tags: |
+        quay.io/nebulous/ems-server:latest
+        quay.io/nebulous/${{ inputs.image-name }}:latest
+        quay.io/nebulous/${{ inputs.image-name }}:${{ steps.tagfriendly-ref.outputs.ref_name }}
+        quay.io/nebulous/${{ inputs.image-name }}:${{ github.sha }}
+        quay.io/nebulous/${{ inputs.image-name }}:${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}
+        quay.io/nebulous/${{ inputs.image-name }}:${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}-${{ steps.timestamp.outputs.timestamp }}
     secrets: inherit
+#
+#  build-and-push-ems-client:
+#    name: Build and push EMS client
+#    uses: eu-nebulous/github-actions/.github/workflows/build-and-push-container-image.yml@main
+#    with:
+#      context: nebulous
+#      image-name: monitoring
+#      target: ems-client
+#    secrets: inherit
