@@ -25,7 +25,8 @@ RUN cp ems-core/control-service/target/control-service.jar . && \
 
 
 # -----------------   EMS-Core Run image   -----------------
-FROM $RUN_IMAGE:$RUN_IMAGE_TAG AS ems-server-core
+#FROM $RUN_IMAGE:$RUN_IMAGE_TAG AS ems-server-core
+FROM $RUN_IMAGE:$RUN_IMAGE_TAG AS ems-server-nebulous
 
 # Install required and optional packages
 RUN wget --progress=dot:giga -O /usr/local/bin/dumb-init \
@@ -90,7 +91,7 @@ ENTRYPOINT ["dumb-init", "./bin/run.sh"]
 
 
 # -----------------   EMS-Nebulous Runtime image   -----------------
-FROM ems-server-core AS ems-server-nebulous
+#FROM ems-server-core AS ems-server-nebulous
 
 RUN date > /tmp/BUILD-TIME
 
