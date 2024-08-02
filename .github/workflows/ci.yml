@@ -16,13 +16,7 @@ jobs:
       context: nebulous
       image-name: monitoring
       target: ems-server-nebulous
-      tags: |
-        quay.io/nebulous/ems-server:latest
-        quay.io/nebulous/${{ inputs.image-name }}:latest
-        quay.io/nebulous/${{ inputs.image-name }}:${{ steps.tagfriendly-ref.outputs.ref_name }}
-        quay.io/nebulous/${{ inputs.image-name }}:${{ github.sha }}
-        quay.io/nebulous/${{ inputs.image-name }}:${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}
-        quay.io/nebulous/${{ inputs.image-name }}:${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}-${{ steps.timestamp.outputs.timestamp }}
+      tags: quay.io/nebulous/ems-server:latest
     secrets: inherit
 #
 #  build-and-push-ems-client:
