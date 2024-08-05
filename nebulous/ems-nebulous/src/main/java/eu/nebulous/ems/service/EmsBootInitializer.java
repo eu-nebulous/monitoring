@@ -102,7 +102,7 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 		};
 		consumer = new Consumer(properties.getEmsBootResponseTopic(), properties.getEmsBootResponseTopic(), messageHandler, applicationId, true, true);
 		publisher = new Publisher(properties.getEmsBootTopic(), properties.getEmsBootTopic(), true, true);
-		if (StringUtils.isNoneBlank(properties.getEmsReportTopic()))
+		if (StringUtils.isNotBlank(properties.getEmsReportTopic()))
 			reportPublisher = new Publisher(properties.getEmsReportTopic(), properties.getEmsReportTopic(), true, true);
 		connectToBroker(List.of(publisher, reportPublisher), List.of(consumer));
 	}
