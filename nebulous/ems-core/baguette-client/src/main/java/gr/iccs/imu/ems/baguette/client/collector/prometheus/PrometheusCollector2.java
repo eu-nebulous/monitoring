@@ -171,8 +171,8 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
             String type = configMap.getOrDefault("type", "").toString();
             if (! getName().equalsIgnoreCase(type)) errors.add(String.format("Type mismatch. Expected '%s' but found '%s'", getName(), type));
 
-            int port = Integer.parseInt( configMap.getOrDefault("port", "0").toString() );
-            if (port<=0) errors.add("No or invalid port provided: "+port);
+            int port = Integer.parseInt( configMap.getOrDefault("port", DEFAULT_PROMETHEUS_PORT).toString() );
+            if (port<=0 || port>=65536) errors.add("Invalid port provided: "+port);
 
             String prometheusMetric = configMap.getOrDefault("metric", "").toString();
             if (StringUtils.isBlank(prometheusMetric)) errors.add("No prometheus metric provided");
@@ -257,7 +257,7 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
         // Scrape nodes and process responses
         nodes.forEach(node -> {
             String url = urlPattern.formatted(node);
-            log.trace("Collectors::{}: scrapeEndpoint: Scraping node: {} -- Endpoint: {}", collectorId, node, url);
+            log.info("Collectors::{}: scrapeEndpoint: Scraping node: {} -- Endpoint: {}", collectorId, node, url);
 
             // Scrape endpoint
             try {

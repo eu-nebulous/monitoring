@@ -786,6 +786,7 @@ public class CommandExecutor {
 
             // Update collectors' configurations
             Map<String, List<Map<String, Serializable>>> collectorConfigs = clientConfiguration.getCollectorConfigurations();
+            log.debug("collectorConfigs={}", collectorConfigs);
             applicationContext.getBean(BaguetteClient.class).getCollectorsList().forEach(collector -> {
                 List<Map<String, Serializable>> cc = collectorConfigs.get(collector.getName());
                 if (cc!=null)
