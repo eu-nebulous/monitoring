@@ -46,7 +46,7 @@ public class K8sPodWatcher implements InitializingBean {
             Instant initDelay = Instant.now().plus(properties.getInitDelay());
             Duration period = properties.getPeriod();
             taskScheduler.scheduleAtFixedRate(this::doWatch, initDelay, period);
-            log.info("K8sPodWatcher: Enabled  (running every {}sec, init-delay={})", period, properties.getInitDelay());
+            log.info("K8sPodWatcher: Enabled  (running every {}, init-delay={})", period, properties.getInitDelay());
         } else {
             log.info("K8sPodWatcher: Disabled  (to enable set 'k8s-watcher.enable' property or K8S_WATCHER_ENABLED env. var. to true)");
         }
@@ -121,7 +121,7 @@ public class K8sPodWatcher implements InitializingBean {
 
                 Set<Serializable> oldPodSet = csc.getClientConfiguration().getNodesWithoutClient();
                 Set<Serializable> newPodSet = otherPods.stream().map(K8sClient.PodEntry::podIP).collect(Collectors.toSet());
-                log.trace("K8sPodWatcher: EMS client: {} @{} -- Old pod set: {} -- New pod set: {}", clientId, hostIp, oldPodSet, newPodSet);
+                log.info("K8sPodWatcher: EMS client: {} @{} -- Old pod set: {} -- New pod set: {}", clientId, hostIp, oldPodSet, newPodSet);
                 csc.getClientConfiguration().setNodesWithoutClient(newPodSet);
                 log.trace("K8sPodWatcher: EMS client: {} @{} -- Sending configuration to EMS client", clientId, hostIp);
                 csc.sendClientConfiguration();
