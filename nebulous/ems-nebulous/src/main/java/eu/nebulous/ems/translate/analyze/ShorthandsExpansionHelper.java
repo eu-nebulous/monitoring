@@ -387,6 +387,12 @@ public class ShorthandsExpansionHelper implements InitializingBean {
         String constraintStr = JsonPath.read(spec, "$.constraint").toString().trim();
         log.debug("ShorthandsExpansionHelper.expandConstraintExpression: constraint-expression: {}", constraintStr);
 
+        // Check if constraint string is empty or "()"
+        if (StringUtils.isBlank(constraintStr) || "()".equals(constraintStr.replaceAll("[ \t\r\n]", ""))) {
+            log.warn("ShorthandsExpansionHelper.expandConstraintExpression: Empty constraint-expression: {}", spec);
+            return;
+        }
+
         // Create a CharStream that reads from standard input
         CodePointCharStream input = CharStreams.fromString(constraintStr);
 
