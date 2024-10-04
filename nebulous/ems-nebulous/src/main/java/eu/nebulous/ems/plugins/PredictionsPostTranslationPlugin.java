@@ -220,12 +220,12 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
         }
 
         // Get intersection with optimiser metrics
-        if (optimiserMetrics!=null && ! optimiserMetrics.isEmpty()) {
+        /*if (optimiserMetrics!=null && ! optimiserMetrics.isEmpty()) {
             metricsOfTopLevelNodes = metricsOfTopLevelNodes.stream()
                     .filter(mc -> optimiserMetrics.contains(nameNormalization.apply( mc.getName() )))
                     .collect(Collectors.toSet());
         }
-        log.debug("getMetricsForPredictionPayload: Intersection of metricsOfTopLevelNodes with optimiser metrics: {}", metricsOfTopLevelNodes);
+        log.debug("getMetricsForPredictionPayload: Intersection of metricsOfTopLevelNodes with optimiser metrics: {}", metricsOfTopLevelNodes);*/
 
         // Convert to Translator-to-Forecasting Methods event format
         /*final long currVersion = topicBeacon.getModelVersion();

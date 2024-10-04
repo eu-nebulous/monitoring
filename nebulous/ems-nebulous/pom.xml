@@ -28,19 +28,25 @@
         <ems.version>7.0.0-SNAPSHOT</ems.version>
 
         <!-- Spring Boot versions -->
-        <spring.version>6.1.6</spring.version>
-        <spring-boot.version>3.2.5</spring-boot.version>
+        <spring.version>6.1.13</spring.version>
+        <spring-boot.version>3.2.10</spring-boot.version>
         <snakeyaml.version>2.2</snakeyaml.version>
-        <lombok.version>1.18.30</lombok.version>
+        <lombok.version>1.18.34</lombok.version>
 
         <!-- Nebulous-EMS extension dependency versions -->
-        <jackson.version>2.16.2</jackson.version>
+        <jackson.version>2.17.2</jackson.version>
         <json-path.version>2.9.0</json-path.version>
         <thymeleaf.version>3.1.2.RELEASE</thymeleaf.version>
-        <schematron.version>8.0.0</schematron.version>
+        <schematron.version>8.0.1</schematron.version>
+
+        <exn-connector.version>1.0-SNAPSHOT</exn-connector.version>
 
         <!-- io.fabricat8 docker-maven-plugin properties -->
-        <docker-maven-plugin.version>0.43.2</docker-maven-plugin.version>
+        <docker-maven-plugin.version>0.44.0</docker-maven-plugin.version>
+        <buildnumber-maven-plugin.version>3.2.0</buildnumber-maven-plugin.version>
+        <git-commit-id-maven-plugin.version>7.0.0</git-commit-id-maven-plugin.version>
+        <properties-maven-plugin.version>1.2.1</properties-maven-plugin.version>
+        <maven-antrun-plugin.version>3.1.0</maven-antrun-plugin.version>
 
         <!-- EMS Nebulous Docker image properties -->
         <docker-image-properties-file>docker-image.properties</docker-image-properties-file>
@@ -124,7 +130,7 @@
         <dependency>
             <groupId>eu.nebulouscloud</groupId>
             <artifactId>exn-connector-java</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>${exn-connector.version}</version>
         </dependency>
 
         <!-- ===================================================================== -->
@@ -221,7 +227,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>buildnumber-maven-plugin</artifactId>
-                <version>3.2.0</version>
+                <version>${buildnumber-maven-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>buildnumber-create</id>
@@ -254,7 +260,7 @@
             <plugin>
                 <groupId>io.github.git-commit-id</groupId>
                 <artifactId>git-commit-id-maven-plugin</artifactId>
-                <version>7.0.0</version>
+                <version>${git-commit-id-maven-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>get-git-info</id>
@@ -311,7 +317,7 @@
 
             <plugin>
                 <artifactId>maven-antrun-plugin</artifactId>
-                <version>3.1.0</version>
+                <version>${maven-antrun-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>remove-slf4j-files-from-jar-with-dependencies</id>
@@ -339,72 +345,29 @@
                 </executions>
             </plugin>
 
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>get-ems-core-docker-image-properties</id>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>copy</goal>
-                        </goals>
-                        <configuration>
-                            <artifactItems>
-                                <artifactItem>
-                                    <groupId>gr.iccs.imu.ems</groupId>
-                                    <artifactId>control-service</artifactId>
-                                    <version>${ems.version}</version>
-                                    <classifier>docker-image</classifier>
-                                    <type>properties</type>
-                                    <outputDirectory>${project.build.directory}</outputDirectory>
-                                    <destFileName>${docker-image-properties-file}</destFileName>
-                                </artifactItem>
-                            </artifactItems>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <!-- Read docker image properties from file -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>properties-maven-plugin</artifactId>
-                <version>1.2.0</version>
-                <executions>
-                    <execution>
-                        <id>read-docker-image-properties</id>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>read-project-properties</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <!--<keyPrefix>dev-</keyPrefix>-->
-                    <files>
-                        <file>${project.build.directory}/${docker-image-properties-file}</file>
-                    </files>
-                    <outputFile/>
-                    <properties/>
-                </configuration>
-            </plugin>
-
             <!--<plugin>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <version>3.1.0</version>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
                 <executions>
+                    &lt;!&ndash; Copy empty.yml model &ndash;&gt;
                     <execution>
-                        <id>delete-old-docker-context</id>
-                        <phase>install</phase>
+                        <id>copy-empty-model</id>
+                        &lt;!&ndash; here the phase you need &ndash;&gt;
+                        <phase>generate-resources</phase>
                         <goals>
-                            <goal>run</goal>
+                            <goal>copy-resources</goal>
                         </goals>
                         <configuration>
-                            <target>
-                                <echo>Print Docker image dev properties</echo>
-                                <echo>Image name: "${docker.image.name}"</echo>
-                                <echo> Image Tag: "${docker.image.tag}"</echo>
-                            </target>
+                            <outputDirectory>${project.basedir}/models</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${project.basedir}/src/main/resources</directory>
+                                    <filtering>false</filtering>
+                                    <includes>
+                                        <include>empty.yml</include>
+                                    </includes>
+                                </resource>
+                            </resources>
                         </configuration>
                     </execution>
                 </executions>
@@ -412,6 +375,192 @@
 
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>build-docker-image</id>
+            <activation>
+                <file><exists>.</exists></file>
+            </activation>
+            <build>
+                <plugins>
+                    
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>get-ems-core-docker-image-properties</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>copy</goal>
+                                </goals>
+                                <configuration>
+                                    <artifactItems>
+                                        <artifactItem>
+                                            <groupId>gr.iccs.imu.ems</groupId>
+                                            <artifactId>control-service</artifactId>
+                                            <version>${ems.version}</version>
+                                            <classifier>docker-image</classifier>
+                                            <type>properties</type>
+                                            <outputDirectory>${project.build.directory}</outputDirectory>
+                                            <destFileName>${docker-image-properties-file}</destFileName>
+                                        </artifactItem>
+                                    </artifactItems>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!-- Read docker image properties from file -->
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>properties-maven-plugin</artifactId>
+                        <version>${properties-maven-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>read-docker-image-properties</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>read-project-properties</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <!--<keyPrefix>dev-</keyPrefix>-->
+                            <files>
+                                <file>${project.build.directory}/${docker-image-properties-file}</file>
+                            </files>
+                            <outputFile/>
+                            <properties/>
+                        </configuration>
+                    </plugin>
+
+                    <!--<plugin>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>delete-old-docker-context</id>
+                                <phase>install</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <echo>Print Docker image dev properties</echo>
+                                        <echo>Image name: "${docker.image.name}"</echo>
+                                        <echo> Image Tag: "${docker.image.tag}"</echo>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>-->
+
+                    <!-- Build docker image using docker-context folder -->
+                    <plugin>
+                        <groupId>io.fabric8</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <version>${docker-maven-plugin.version}</version>
+                        <configuration>
+                            <!--<dockerHost>https://localhost:2376</dockerHost>-->
+                            <verbose>true</verbose>
+                            <useColor>true</useColor>
+                            <images>
+                                <image>
+                                    <name>${docker.image.name}:${docker.image.tag-nebulous}</name>
+                                    <build>
+                                        <from>${docker.image.name}:${docker.image.tag}</from>
+                                        <labels>
+                                            <artifactId>${project.artifactId}</artifactId>
+                                            <artifactId>${project.groupId}</artifactId>
+                                            <version>${project.version}</version>
+                                        </labels>
+                                        <env>
+                                            <EXTRA_LOADER_PATHS>/plugins/*</EXTRA_LOADER_PATHS>
+                                            <SCAN_PACKAGES>eu.nebulous.ems</SCAN_PACKAGES>
+                                            <IP_SETTING>DEFAULT_IP</IP_SETTING>
+                                            <SELF_HEALING_ENABLED>false</SELF_HEALING_ENABLED>
+                                            <!--<LOGGING_LEVEL_EU_NEBULOUSCLOUD_EXN>TRACE</LOGGING_LEVEL_EU_NEBULOUSCLOUD_EXN>-->
+                                        </env>
+                                        <assembly>
+                                            <targetDir>/</targetDir>
+                                            <user>${docker.user}</user>
+                                            <inline>
+                                                <files>
+                                                    <file>
+                                                        <!-- Path to the file you want to copy -->
+                                                        <source>${project.build.directory}/${project.artifactId}-${project.version}-jar-with-dependencies.jar</source>
+                                                        <!-- Destination path within the container -->
+                                                        <outputDirectory>plugins</outputDirectory>
+                                                    </file>
+                                                    <file>
+                                                        <source>${project.build.directory}/banner.txt</source>
+                                                        <outputDirectory>tmp</outputDirectory>
+                                                    </file>
+                                                    <file>
+                                                        <source>${project.build.directory}/classes/rule-templates.yml</source>
+                                                        <outputDirectory>${docker.user.home}/BOOT-INF/classes</outputDirectory>
+                                                    </file>
+                                                    <file>
+                                                        <source>${project.build.directory}/classes/metric-model-schematron.xml</source>
+                                                        <outputDirectory>${docker.user.home}/BOOT-INF/classes</outputDirectory>
+                                                    </file>
+
+                                                    <file>
+                                                        <source>${project.build.directory}/classes/empty.yml</source>
+                                                        <outputDirectory>${docker.user.home}/models</outputDirectory>
+                                                    </file>
+                                                    <file>
+                                                        <source>${project.build.directory}/classes/extension.yml</source>
+                                                        <outputDirectory>${docker.user.home}/models</outputDirectory>
+                                                    </file>
+
+                                                    <file>
+                                                        <source>${project.basedir}/src/main/resources/helm/app-detection.yml</source>
+                                                        <outputDirectory>${docker.user.home}/config/baguette-client-install/helm</outputDirectory>
+                                                    </file>
+                                                    <file>
+                                                        <source>${project.basedir}/src/main/resources/helm/epm-deploy.yml</source>
+                                                        <outputDirectory>${docker.user.home}/config/baguette-client-install/helm</outputDirectory>
+                                                    </file>
+                                                    <file>
+                                                        <source>${project.basedir}/src/main/resources/helm/netdata-deploy.yml</source>
+                                                        <outputDirectory>${docker.user.home}/config/baguette-client-install/helm</outputDirectory>
+                                                    </file>
+                                                    <file>
+                                                        <source>${project.basedir}/src/main/resources/app-ems-server/values.yaml</source>
+                                                        <outputDirectory>${docker.user.home}/config/app-ems-server</outputDirectory>
+                                                    </file>
+                                                </files>
+                                            </inline>
+                                        </assembly>
+                                        <runCmds>
+                                            <run>
+                                                cat /tmp/banner.txt >> /opt/ems-server/BOOT-INF/classes/banner.txt \
+                                                &amp;&amp; rm /tmp/banner.txt \
+                                                &amp;&amp; date -Iseconds > /tmp/build.timestamp
+                                            </run>
+                                        </runCmds>
+                                    </build>
+                                </image>
+                            </images>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>docker-image-build</id>
+                                <phase>install</phase>
+                                <goals>
+                                    <goal>build</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
 
     <scm>
         <connection>scm:git:http://127.0.0.1/dummy</connection>
