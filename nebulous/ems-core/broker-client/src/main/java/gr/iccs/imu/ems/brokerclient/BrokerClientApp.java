@@ -166,11 +166,13 @@ public class BrokerClientApp {
         if ("generator".equalsIgnoreCase(command)) {
             String url = processUrlArg( args[aa++] );
             String topic = args[aa++];
+            String type = args[aa].startsWith("-T") ? args[aa++].substring(2) : "text";
             long interval = Long.parseLong(args[aa++]);
             long howmany = Long.parseLong(args[aa++]);
             double lowerValue = Double.parseDouble(args[aa++]);
             double upperValue = Double.parseDouble(args[aa++]);
             int level = Integer.parseInt(args[aa++]);
+            Map<String, String> props = collectProperties(args, aa);
 
             BrokerClient client = BrokerClient.newClient();
             client.openConnection(url, username, password, true);
@@ -178,11 +180,13 @@ public class BrokerClientApp {
             //generator.setClient(client);
             generator.setBrokerUrl(url);
             generator.setDestinationName(topic);
+            generator.setEventType(type);
             generator.setInterval(interval);
             generator.setHowMany(howmany);
             generator.setLowerValue(lowerValue);
             generator.setUpperValue(upperValue);
             generator.setLevel(level);
+            generator.setEventProperties(props);
             generator.run();
             client.closeConnection();
         } else
@@ -802,7 +806,7 @@ public class BrokerClientApp {
         log.info("BrokerClientApp: client subscribe [-Q] [-NJP] [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> ");
         log.info("BrokerClientApp: client record    [-Q] [-NJP] [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-Mcsv|-Mjson] <REC-FILE> ");
         log.info("BrokerClientApp: client playback  [-U<USERNAME> [-P<PASSWORD]] <URL> [-Innn|-Dnnn|-Sd[.d]] [-Mcsv|-Mjson] <REC-FILE> ");
-        log.info("BrokerClientApp: client generator [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> <INTERVAL> <HOWMANY> <LOWER-VALUE> <UPPER-VALUE> <LEVEL> ");
+        log.info("BrokerClientApp: client generator [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] <INTERVAL> <HOWMANY> <LOWER-VALUE> <UPPER-VALUE> <LEVEL>  [<PROPERTY>]*");
         log.info("BrokerClientApp: client js [-E<engine-name>] <JS-file> ");
         log.info("BrokerClientApp:     <URL>: (tcp:|ssl|amqp:)//<ADDRESS>:<PORT>[?[%KAP%][&...additional properties]*]   KAP: Keep-Alive Properties ");
     }
