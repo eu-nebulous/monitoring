@@ -18,6 +18,7 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
 
@@ -33,6 +34,8 @@ public class EventGenerator implements Runnable {
     private String brokerUsername;
     private String brokerPassword;
     private String destinationName;
+    private String eventType;
+    private Map<String, String> eventProperties = Map.of();
     private long interval;
     private long howMany = -1;
     private double lowerValue;
@@ -81,7 +84,7 @@ public class EventGenerator implements Runnable {
                 if (eventPublisher!=null)
                     eventPublisher.apply(destinationName, event);
                 else
-                    client.publishEventWithCredentials(brokerUrl, brokerUsername, brokerPassword, destinationName, event);
+                    client.publishEventWithCredentials(brokerUrl, brokerUsername, brokerPassword, destinationName, eventType, event, eventProperties);
                 countSent++;
                 if (countSent == howMany) keepRunning = false;
                 log.info("EventGenerator.run(): Event sent #{}: {}", countSent, event);
