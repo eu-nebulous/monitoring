@@ -153,6 +153,7 @@ CLIENT_AUTH_REQUIRED = false
 brokercep.broker-url[0] = ${brokercep.broker-protocol}://0.0.0.0:${brokercep.broker-port}?${BROKER_URL_PROPERTIES}
 brokercep.broker-url[1] = tcp://${BROKER_URL_ADDRESS_INSECURE:127.0.0.1}:61616?${BROKER_URL_PROPERTIES}
 brokercep.broker-url[2] = stomp://${BROKER_URL_ADDRESS_INSECURE:127.0.0.1}:61610?${BROKER_URL_PROPERTIES}
+brokercep.broker-url[3] = amqp://${BROKER_URL_ADDRESS_INSECURE:127.0.0.1}:5672?${BROKER_URL_PROPERTIES}
 
 CLIENT_URL_PROPERTIES=daemon=true&trace=false&useInactivityMonitor=false&connectionTimeout=0&keepAlive=true
 brokercep.broker-url-for-consumer = tcp://127.0.0.1:61616?${CLIENT_URL_PROPERTIES}

@@ -317,7 +317,8 @@ brokercep.broker-protocol = ssl
 # Broker connectors
 brokercep.broker-url[0] = ${brokercep.broker-protocol}://0.0.0.0:${brokercep.broker-port}?${BROKER_URL_PROPERTIES}
 brokercep.broker-url[1] = tcp://0.0.0.0:61616?${BROKER_URL_PROPERTIES}
-brokercep.broker-url[2] = stomp://0.0.0.0:61610
+brokercep.broker-url[2] = stomp://0.0.0.0:61610?${BROKER_URL_PROPERTIES}
+brokercep.broker-url[3] = amqp://0.0.0.0:5672?${BROKER_URL_PROPERTIES}
 
 # Broker URLs for (EMS) consumer and clients
 brokercep.broker-url-for-consumer = tcp://127.0.0.1:61616?${CLIENT_URL_PROPERTIES}

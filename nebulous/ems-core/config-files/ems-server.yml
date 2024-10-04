@@ -327,7 +327,8 @@ brokercep:
   broker-url:
     - ${brokercep.broker-protocol}://0.0.0.0:${brokercep.broker-port}?${BROKER_URL_PROPERTIES}
     - tcp://0.0.0.0:61616?${BROKER_URL_PROPERTIES}
-    - stomp://0.0.0.0:61610
+    - stomp://0.0.0.0:61610?${BROKER_URL_PROPERTIES}
+    - amqp://0.0.0.0:5672?${BROKER_URL_PROPERTIES}
 
   # Broker URLs for (EMS) consumer and clients
   broker-url-for-consumer: tcp://127.0.0.1:61616?${CLIENT_URL_PROPERTIES}
