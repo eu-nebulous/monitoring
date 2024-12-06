@@ -319,9 +319,9 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
             log.trace("K8sNetdataCollector: doStart(): Sensor-{}: duration={}", sensorNum.get(), duration);
 
             scheduledFuturesList.add( taskScheduler.scheduleAtFixedRate(() -> {
-                log.info("K8sNetdataCollector: Sensor-{}: Starting collection...\n{}", sensorNum.get(), cfgCtx);
+                log.debug("K8sNetdataCollector: Sensor-{}: Starting collection...\n{}", sensorNum.get(), cfgCtx);
                 collectData(cfgCtx);
-                log.info("K8sNetdataCollector: Sensor-{}: Starting collection...Done", sensorNum.get());
+                log.debug("K8sNetdataCollector: Sensor-{}: Starting collection...Done", sensorNum.get());
             }, duration) );
             log.debug("K8sNetdataCollector: doStart(): Sensor-{}: destination={}, components={}, interval={}, urlSuffix={}",
                     sensorNum.get(), cfgCtx.destination, cfgCtx.components, duration, cfgCtx.urlSuffix);
