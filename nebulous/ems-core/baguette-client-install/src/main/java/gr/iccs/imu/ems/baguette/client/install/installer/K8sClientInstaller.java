@@ -234,18 +234,18 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
         // Get ems client daemonset replacement values
         String daemonSetName = getConfig("EMS_CLIENT_DAEMONSET_NAME", EMS_CLIENT_DAEMONSET_NAME_DEFAULT);
         String resourceName = getConfig("EMS_CLIENT_DAEMONSET_SPECIFICATION_FILE", EMS_CLIENT_DAEMONSET_SPECIFICATION_FILE_DEFAULT);
-        Map<String,String> values = Map.of(
-                "EMS_CLIENT_DAEMONSET_NAME", daemonSetName,
-                "EMS_CLIENT_DAEMONSET_IMAGE_REPOSITORY", getConfig("EMS_CLIENT_DAEMONSET_IMAGE_REPOSITORY", EMS_CLIENT_DAEMONSET_IMAGE_REPOSITORY_DEFAULT),
-                "EMS_CLIENT_DAEMONSET_IMAGE_TAG", getConfig("EMS_CLIENT_DAEMONSET_IMAGE_TAG", EMS_CLIENT_DAEMONSET_IMAGE_TAG_DEFAULT),
-                "EMS_CLIENT_DAEMONSET_IMAGE_PULL_POLICY", getConfig("EMS_CLIENT_DAEMONSET_IMAGE_PULL_POLICY", EMS_CLIENT_DAEMONSET_IMAGE_PULL_POLICY_DEFAULT),
-                "EMS_CLIENT_CONFIG_MAP_NAME", getConfig("EMS_CLIENT_CONFIG_MAP_NAME", EMS_CLIENT_CONFIG_MAP_NAME_DEFAULT),
-                "EMS_CLIENT_ADDITIONAL_BROKER_CREDENTIALS", additionalCredentials,
-                "EMS_CLIENT_KEYSTORE_SECRET", getConfig("EMS_CLIENT_KEYSTORE_SECRET", ""),
-                "EMS_CLIENT_TRUSTSTORE_SECRET", getConfig("EMS_CLIENT_TRUSTSTORE_SECRET", ""),
-                "EMS_CLIENT_TOLERATIONS", tolerations,
-                "EMS_CLIENT_EXTRA_ENV_VARS", extraEnvVars
-        );
+        Map<String,String> values = new LinkedHashMap<>();
+        values.put("EMS_CLIENT_DAEMONSET_NAME", daemonSetName);
+        values.put("EMS_CLIENT_DAEMONSET_IMAGE_REPOSITORY", getConfig("EMS_CLIENT_DAEMONSET_IMAGE_REPOSITORY", EMS_CLIENT_DAEMONSET_IMAGE_REPOSITORY_DEFAULT));
+        values.put("EMS_CLIENT_DAEMONSET_IMAGE_TAG", getConfig("EMS_CLIENT_DAEMONSET_IMAGE_TAG", EMS_CLIENT_DAEMONSET_IMAGE_TAG_DEFAULT));
+        values.put("EMS_CLIENT_DAEMONSET_IMAGE_PULL_POLICY", getConfig("EMS_CLIENT_DAEMONSET_IMAGE_PULL_POLICY", EMS_CLIENT_DAEMONSET_IMAGE_PULL_POLICY_DEFAULT));
+        values.put("EMS_CLIENT_CONFIG_MAP_NAME", getConfig("EMS_CLIENT_CONFIG_MAP_NAME", EMS_CLIENT_CONFIG_MAP_NAME_DEFAULT));
+        values.put("EMS_CLIENT_ADDITIONAL_BROKER_CREDENTIALS", additionalCredentials);
+        values.put("EMS_CLIENT_KEYSTORE_SECRET", getConfig("EMS_CLIENT_KEYSTORE_SECRET", ""));
+        values.put("EMS_CLIENT_TRUSTSTORE_SECRET", getConfig("EMS_CLIENT_TRUSTSTORE_SECRET", ""));
+        values.put("EMS_CLIENT_TOLERATIONS", tolerations);
+        values.put("EMS_CLIENT_LOG_LEVEL", getConfig("EMS_CLIENT_LOG_LEVEL", "INFO"));
+        values.put("EMS_CLIENT_EXTRA_ENV_VARS", extraEnvVars);
         log.debug("K8sClientInstaller:       values: {}", values);
 
         client.createDaemonSet(null, resourceName, values);

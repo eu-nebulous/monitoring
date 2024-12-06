@@ -319,7 +319,9 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
             log.trace("K8sNetdataCollector: doStart(): Sensor-{}: duration={}", sensorNum.get(), duration);
 
             scheduledFuturesList.add( taskScheduler.scheduleAtFixedRate(() -> {
+                log.info("K8sNetdataCollector: Sensor-{}: Starting collection...\n{}", sensorNum.get(), cfgCtx);
                 collectData(cfgCtx);
+                log.info("K8sNetdataCollector: Sensor-{}: Starting collection...Done", sensorNum.get());
             }, duration) );
             log.debug("K8sNetdataCollector: doStart(): Sensor-{}: destination={}, components={}, interval={}, urlSuffix={}",
                     sensorNum.get(), cfgCtx.destination, cfgCtx.components, duration, cfgCtx.urlSuffix);
@@ -357,13 +359,13 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
         if (StringUtils.isBlank(address)) {
             long endTm = System.currentTimeMillis();
             log.debug("K8sNetdataCollector: collectData(): END: No Netdata node to scrape: duration={}ms", endTm - startTm);
+            log.warn("K8sNetdataCollector: collectData(): No Netdata node to scrape");
             return;
         }
 
         // Scrape Netdata node
         String url = String.format("http://%s:%d%s", address, cfgCtx.port, cfgCtx.urlSuffix);
-        log.debug("K8sNetdataCollector: collectData(): Scraping Netdata node: {}", url);
-        address = address!=null ? address.toString() : null;
+        log.info("K8sNetdataCollector: collectData(): Scraping Netdata node: {}", url);
         collectDataFromNode(cfgCtx, url, address);
 
         long endTm = System.currentTimeMillis();

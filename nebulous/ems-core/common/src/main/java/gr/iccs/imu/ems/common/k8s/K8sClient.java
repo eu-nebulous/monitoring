@@ -88,6 +88,7 @@ public class K8sClient implements Closeable {
     }
 
     public static String getConfig(@NonNull String key, String defaultValue) {
+        //XXX:TODO: Extend to also read from a SB configuration passed
         String value = System.getenv(key);
         return value==null ? defaultValue : value;
     }

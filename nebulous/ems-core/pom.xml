@@ -79,7 +79,7 @@
         <!-- Apache SSHD version -->
         <apache-sshd.version>2.13.1</apache-sshd.version>
         <!-- Bouncy Castle version -->
-        <bouncy-castle.version>2.73.6</bouncy-castle.version>
+        <bouncy-castle.version>1.79</bouncy-castle.version>
         <!-- Guava version -->
         <guava.version>33.2.1-jre</guava.version>
         <!-- Apache Commons-CSV -->
@@ -157,17 +157,17 @@
 
             <dependency>
                 <groupId>org.bouncycastle</groupId>
-                <artifactId>bcpg-lts8on</artifactId>
+                <artifactId>bcpg-jdk18on</artifactId>
                 <version>${bouncy-castle.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.bouncycastle</groupId>
-                <artifactId>bcpkix-lts8on</artifactId>
+                <artifactId>bcpkix-jdk18on</artifactId>
                 <version>${bouncy-castle.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.bouncycastle</groupId>
-                <artifactId>bcprov-lts8on</artifactId>
+                <artifactId>bcprov-jdk18on</artifactId>
                 <version>${bouncy-castle.version}</version>
             </dependency>
         </dependencies>
@@ -257,6 +257,13 @@
                             <!--<arg>-Xlint:unchecked,-Xlint:deprecation</arg>-->
                             <arg>-parameters</arg>  <!-- Used to suppress warning "Using deprecated '-debug' fallback for parameter name resolution. Compile the affected code with '-parameters' instead or avoid its introspection"-->
                         </compilerArgs>
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${lombok.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -271,7 +278,7 @@
                             </goals>
                             <phase>package</phase>
                             <configuration>
-                                <additionalparam>-Xdoclint:none</additionalparam>
+                                <doclint>none</doclint>
                             </configuration>
                         </execution>
                         <execution>
@@ -280,7 +287,7 @@
                                 <goal>jar</goal>
                             </goals>
                             <configuration>
-                                <additionalparam>-Xdoclint:none</additionalparam>
+                                <doclint>none</doclint>
                             </configuration>
                         </execution>
                     </executions>

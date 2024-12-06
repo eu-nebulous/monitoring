@@ -179,7 +179,8 @@ public class DAGExporter {
 
             // Configure Graphviz rendering engine to V8. It's faster
             // See also: https://github.com/nidi3/graphviz-java
-            Graphviz.useEngine(new GraphvizV8Engine());
+            Graphviz.useDefaultEngines();
+            //Graphviz.useEngine(new GraphvizV8Engine());
 
             // Export DOT into specified formats and save to file(s)
             List<String> exportFilesList = new LinkedList<>();

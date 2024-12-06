@@ -61,17 +61,17 @@
         <!-- Bouncy Castle cryptography used in Baguette Server and Client -->
         <dependency>
             <groupId>org.bouncycastle</groupId>
-            <artifactId>bcpg-lts8on</artifactId>
+            <artifactId>bcpg-jdk18on</artifactId>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
-            <artifactId>bcpkix-lts8on</artifactId>
+            <artifactId>bcpkix-jdk18on</artifactId>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-lts8on</artifactId>
+            <artifactId>bcprov-jdk18on</artifactId>
         </dependency>
     </dependencies>
 
