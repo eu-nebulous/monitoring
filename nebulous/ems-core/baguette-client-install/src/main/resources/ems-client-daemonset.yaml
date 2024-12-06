@@ -65,8 +65,8 @@ spec:
               value: 'DEFAULT_IP'
             - name: BAGUETTE_CLIENT_BASE_DIR
               value: '/opt/baguette-client'
-#            - name: LOGGING_LEVEL_GR_ICCS_IMU_EMS
-#              value: 'DEBUG'
+            - name: LOGGING_LEVEL_GR_ICCS_IMU_EMS
+              value: '${EMS_CLIENT_LOG_LEVEL}'
             - name: BAGUETTE_CLIENT_ID
               valueFrom:
                 fieldRef:
