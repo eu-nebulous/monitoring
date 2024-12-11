@@ -138,6 +138,12 @@ translator.generator:
           /* RAW-CTX-PER_INSTANCE */ /*INSERT INTO [(${outputStream})]*/
           SELECT UPDATETS(*) FROM [(${sensor})] [(${scheduleClause})]
           
+    AS-IS-CTX:
+      __ANY__:
+        - |
+          /* AS-IS-CTX-any */ /*INSERT INTO [(${outputStream})]*/
+          [(${definition})]
+
     # Metric templates
     TL-MET:
       __ANY__:

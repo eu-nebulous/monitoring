@@ -318,6 +318,53 @@ public class RuleGenerator implements InitializingBean {
                 context.setVariable("scheduleClause", schedClause);
                 _generateRule(_TC, "RAW-CTX", grouping, elem, context);
             } else
+            if (elem instanceof AsIsMetricContext aimc) {
+                log.debug("RuleGenerator.generateRules():      Found an As-Is-Metric-Context element: node={}, elem-name={}", node, elemName);
+
+                // Get as-is metric context's metric parameters
+                AsIsMetric metric = (AsIsMetric) aimc.getMetric();
+                String dialect = metric.getDialect();
+                String definition = metric.getDefinition();
+                List<Metric> childMetrics = metric.getComposingMetrics();
+                List<String> childMetricNames = childMetrics.stream().map(this::getElemNameNormalized).collect(Collectors.toList());
+
+                // Get composite metric context's component or data parameters
+                String[] compAndDataName = getComponentAndDataName(aimc);
+                String compName = compAndDataName[0];
+                String dataName = compAndDataName[1];
+
+                // Get as-is metric context's composing metric contexts (just the names)
+                List<MetricContext> composingCtxList = aimc.getComposingMetricContexts();
+                List<String> composingMetricNamesList = composingCtxList.stream()
+                        //XXX:TODO: LOW-PRI: Improve by using formula rewrite in order to include component name too
+                        //XXX:TODO: LOW-PRI: (e.g. 'mean([face-detection.latency_instance])' to 'mean( face_detection_latency__instance )' )
+                        .map(item -> StringUtils.defaultIfBlank(
+                                StringUtils.substringAfterLast(item.getName(), "."),
+                                item.getName()))
+                        //.map(item -> getElemName(item.getMetric()))
+                        .collect(Collectors.toList());
+                List<String> composingCtxNamesList = composingCtxList.stream().map(this::getElemNameNormalized).collect(Collectors.toList());
+
+                // Check that component metrics' names (from as-is metric) and metric names from component contexts match
+                if (checkIfListsAreEqual(childMetricNames, composingCtxNamesList)) {
+                    log.error("RuleGenerator.generateRules():      Composing metrics of as-is metric '{}' do not match to composing contexts of As-Is-Metric-Context '{}': composing-metrics={}, composing-context-metrics={}",
+                            getElemNameNormalized(metric), getElemNameNormalized(aimc), childMetricNames, composingCtxNamesList);
+                    throw new IllegalArgumentException(String.format("Composing metrics of as-is metric '%s' do not match to composing contexts of As-Is-Metric-Context: %s", metric.getName(), aimc.getName()));
+                }
+
+                log.debug("RuleGenerator.generateRules():      As-Is-Metric-Context: node={}, elem-name={}, metric={}, dialect={}, definition={}, child-metrics={}, component={}, data={}, composing-metrics={}, composing-metric-contexts={}",
+                        node, elemName, metric.getName(), dialect, definition, childMetricNames, compName, dataName, composingMetricNamesList, composingCtxNamesList);
+
+                // Require topics in this level
+                _TC.requireGroupingTopicPairs(grouping, composingCtxNamesList);
+
+                // Write rule for AIMC
+                Context context = new Context();
+                context.setVariable("definition", definition);
+                context.setVariable("metric", getElemNameNormalized(metric));
+                _generateRule(_TC, "AS-IS-CTX", grouping, elem, context);
+
+            } else
 
             // Generate rules for Metrics
             /*if ((elem instanceof RawMetric || elem instanceof CompositeMetric) && _TC.getDAG().isTopLevelNode(node)) {

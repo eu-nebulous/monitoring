@@ -79,6 +79,8 @@ class MetricsHelper extends AbstractHelper {
                     decomposeRawMetric(_TC, metricSpec, parent);
             case "composite" ->
                     decomposeCompositeMetric(_TC, metricSpec, parent);
+            case "asis", "as-is" ->
+                    decomposeAsIsMetric(_TC, metricSpec, parent);
             case "ref" ->
                     processRef(_TC, metricSpec, parentNamesKey, parent);
             default ->
@@ -178,25 +180,52 @@ class MetricsHelper extends AbstractHelper {
 
         NamesKey metricNamesKey = getNamesKey(metricSpec, metricName);
 
-        // Check formula and extract metrics
-        if (StringUtils.isBlank(formula))
-            throw createException("Composite metric 'formula' cannot be blank: at '"+metricNamesKey.name()+"': " + metricSpec);
-        @NonNull Set<String> formulaArgs = MathUtil.getFormulaArguments(formula);
-        log.trace("decomposeCompositeMetric: {}: formula={}, args={}", metricNamesKey.name(), formula, formulaArgs);
+        // Check if formula provides EPL SELECT and FROM components
+        Set<String> childMetricsSet;
+        if (formula.startsWith(RuleGenerator.EPL_FORMULA_TAG)) {
 
-        // Remove constants and custom function names from 'formulaArgs'
-        String containerName = getContainerName(metricSpec);
-        log.trace("decomposeCompositeMetric: {}: container-name={}", metricNamesKey.name(), containerName);
-        log.trace("decomposeCompositeMetric: {}: constants={}", metricNamesKey.name(), $$(_TC).constants);
-        log.trace("decomposeCompositeMetric: {}: constants-keys={}", metricNamesKey.name(), $$(_TC).constants.keySet());
-        formulaArgs.removeAll( $$(_TC).constants.keySet().stream()
-                //.peek(nk -> log.trace("decomposeCompositeMetric: {}:       NK: {}, parent: {}", metricNamesKey.name(), nk, nk != null ? nk.parent : null))
-                .filter(Objects::nonNull)
-                .filter(nk ->  properties.isUseCompositeNames() ? nk.parent.equals(containerName) : true)           // Check that all formula args are metrics under the same parent
-                .map(nk->nk.child)
-                .collect(Collectors.toSet()));
-        formulaArgs.removeAll( $$(_TC).functionNames );
-        log.trace("decomposeCompositeMetric: {}: After removing constants: formula={}, args={}", metricNamesKey.name(), formula, formulaArgs);
+            // When formula provides EPL parts...
+            String fm1 = formula.substring(RuleGenerator.EPL_FORMULA_TAG.length());
+            int i = fm1.indexOf("|");
+            if (i<=0)
+                throw createException("Invalid EPL TAG formula: No select/from part separator: '"+metricName+"': " + metricSpec);
+            String fromStr = fm1.substring(0, i).trim();
+            String selectStr = fm1.substring(i+1).trim();
+            if (StringUtils.isAnyBlank(fromStr, selectStr))
+                throw createException("Invalid EPL TAG formula: Either select or from part is blank: '"+metricName+"': " + metricSpec);
+            formula = RuleGenerator.EPL_FORMULA_TAG +" " + selectStr;
+            childMetricsSet = Arrays.stream(fromStr.split("[ \t,;]+"))
+                    .filter(StringUtils::isNotBlank)
+                    .map(String::trim)
+                    .collect(Collectors.toSet());
+
+        } else {
+
+            // When formula DOES NOT provide EPL parts...
+
+            // Check formula and extract metrics
+            if (StringUtils.isBlank(formula))
+                throw createException("Composite metric 'formula' cannot be blank: at '" + metricNamesKey.name() + "': " + metricSpec);
+            @NonNull Set<String> formulaArgs = MathUtil.getFormulaArguments(formula);
+            log.trace("decomposeCompositeMetric: {}: formula={}, args={}", metricNamesKey.name(), formula, formulaArgs);
+
+            // Remove constants and custom function names from 'formulaArgs'
+            String containerName = getContainerName(metricSpec);
+            log.trace("decomposeCompositeMetric: {}: container-name={}", metricNamesKey.name(), containerName);
+            log.trace("decomposeCompositeMetric: {}: constants={}", metricNamesKey.name(), $$(_TC).constants);
+            log.trace("decomposeCompositeMetric: {}: constants-keys={}", metricNamesKey.name(), $$(_TC).constants.keySet());
+            formulaArgs.removeAll($$(_TC).constants.keySet().stream()
+                    //.peek(nk -> log.trace("decomposeCompositeMetric: {}:       NK: {}, parent: {}", metricNamesKey.name(), nk, nk != null ? nk.parent : null))
+                    .filter(Objects::nonNull)
+                    .filter(nk -> properties.isUseCompositeNames() ? nk.parent.equals(containerName) : true)           // Check that all formula args are metrics under the same parent
+                    .map(nk -> nk.child)
+                    .collect(Collectors.toSet()));
+            formulaArgs.removeAll($$(_TC).functionNames);
+            log.trace("decomposeCompositeMetric: {}: After removing constants: formula={}, args={}", metricNamesKey.name(), formula, formulaArgs);
+
+            childMetricsSet = formulaArgs;
+
+        }
 
         // Update TC
         CompositeMetricContext compositeMetric = CompositeMetricContext.builder()
@@ -209,7 +238,7 @@ class MetricsHelper extends AbstractHelper {
         // NOTE: child metric decomposition MUST be done before this metric has been altered in any way (or else
         //       hashCode() will return new value, different from that cached in the DAG)
         List<MetricContext> childMetricsList = new ArrayList<>();
-        for (String childMetricName : formulaArgs) {
+        for (String childMetricName : childMetricsSet) {
             NamesKey childMetricNamesKey = getNamesKey(metricSpec, childMetricName);
             Map<String, Object> childMetricSpec = asMap($$(_TC).allMetrics.get(childMetricNamesKey));
             log.trace("decomposeCompositeMetric: {}: Checking formula arg={} -- key: {}, spec: {}", metricNamesKey.name(), childMetricName, childMetricNamesKey, childMetricSpec);
@@ -239,6 +268,58 @@ class MetricsHelper extends AbstractHelper {
                 .build());
 
         return compositeMetric;
+    }
+
+    private AsIsMetricContext decomposeAsIsMetric(TranslationContext _TC, Map<String, Object> metricSpec, NamedElement parent) {
+        log.debug("decomposeAsIsMetric: ARGS: spec: {}, parent: {}", metricSpec, parent);
+
+        // Get needed fields
+        String metricName = getSpecName(metricSpec);
+        String dialect = getSpecField(metricSpec, "dialect");
+        String definition = getMandatorySpecField(metricSpec, "definition", "As-Is Metric '"+metricName+"' without 'definition': ");
+        Set<String> childMetricNamesSet = getSpecFieldAsList(metricSpec, "metrics")
+                .stream().filter(Objects::nonNull).map(Object::toString).collect(Collectors.toSet());
+
+        NamesKey metricNamesKey = getNamesKey(metricSpec, metricName);
+
+        // Check if definition is empty
+        if (StringUtils.isBlank(definition))
+            throw createException("As-Is metric 'definition' cannot be blank: at '" + metricNamesKey.name() + "': " + metricSpec);
+
+        // Update TC
+        AsIsMetricContext asIsMetricContext = AsIsMetricContext.builder()
+                .name(metricNamesKey.name())
+                .object(metricSpec)
+                .build();
+        _TC.getDAG().addNode(parent, asIsMetricContext);
+
+        // Decompose to metrics provided (i.e. composing or child metrics)
+        // NOTE: child metric decomposition MUST be done before this metric has been altered in any way (or else
+        //       hashCode() will return new value, different from that cached in the DAG)
+        List<MetricContext> childMetricsList = new ArrayList<>();
+        for (String childMetricName : childMetricNamesSet) {
+            NamesKey childMetricNamesKey = getNamesKey(metricSpec, childMetricName);
+            Map<String, Object> childMetricSpec = asMap($$(_TC).allMetrics.get(childMetricNamesKey));
+            log.trace("decomposeAsIsMetric: {}: Checking child metric={} -- key: {}, spec: {}", metricNamesKey.name(), childMetricName, childMetricNamesKey, childMetricSpec);
+            if (childMetricSpec==null)
+                throw createException("Child metric in as-is metric '" + metricName + "' not found: "+childMetricName);
+            MetricContext childMetric = decomposeMetric(
+                    _TC, childMetricSpec, metricNamesKey, asIsMetricContext);
+            log.trace("decomposeAsIsMetric: {}: Checking child metric={} -- childMetric: {}", metricNamesKey.name(), childMetricName, childMetric);
+            if (childMetric!=null)
+                childMetricsList.add(childMetric);
+        }
+        asIsMetricContext.setComposingMetricContexts(childMetricsList);
+
+        // Complete TC update
+        asIsMetricContext.setMetric(AsIsMetric.builder()
+                .name(metricName + DEFAULT_METRIC_NAME_SUFFIX)
+                .dialect(dialect)
+                .definition(definition)
+                .composingMetrics(childMetricsList.stream().map(MetricContext::getMetric).toList())
+                .build());
+
+        return asIsMetricContext;
     }
 
     private MetricContext processRef(TranslationContext _TC, Map<String, Object> metricSpec, NamesKey parentNamesKey, NamedElement parent) {
@@ -362,8 +443,9 @@ class MetricsHelper extends AbstractHelper {
         if (value<=0)
             throw createException("Window size value cannot be zero or negative: at metric '" + metricNamesKey + "': " + windowSpec);
 
-        // Check window size (time) unit
-        ChronoUnit unit = StringUtils.isNotBlank(unitStr)
+        // Check window size unit
+        boolean isEventWin = StringUtils.equalsAnyIgnoreCase(unitStr, "EVENT", "EVENTS");
+        ChronoUnit unit = StringUtils.isNotBlank(unitStr) && ! isEventWin
                 ? normalizeTimeUnit(unitStr) : ChronoUnit.SECONDS;
 
         // Get or infer window size type
@@ -371,7 +453,7 @@ class MetricsHelper extends AbstractHelper {
         if (StringUtils.isNotBlank(sizeTypeStr))
             sizeType = WindowSizeType.valueOf(sizeTypeStr.trim().toUpperCase());
         else
-            sizeType = (unit !=null) ? WindowSizeType.TIME_ONLY : WindowSizeType.MEASUREMENTS_ONLY;
+            sizeType = (unit != null && ! isEventWin) ? WindowSizeType.TIME_ONLY : WindowSizeType.MEASUREMENTS_ONLY;
 
         // Initialize size parameters
         long measurementSize = -1;
