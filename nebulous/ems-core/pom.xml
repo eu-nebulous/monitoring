@@ -55,7 +55,6 @@
 
         <git-commit-id-maven-plugin.version>7.0.0</git-commit-id-maven-plugin.version>
         <net.nicoulaj.checksum-maven-plugin.version>1.11</net.nicoulaj.checksum-maven-plugin.version>
-        <copy-rename-maven-plugin.version>1.0.1</copy-rename-maven-plugin.version>
         <write-properties-file-maven-plugin.version>1.0.1</write-properties-file-maven-plugin.version>
 
         <!-- Gson version -->

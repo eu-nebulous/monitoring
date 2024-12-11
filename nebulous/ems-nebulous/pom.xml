@@ -345,14 +345,12 @@
                                     <zipfileset src="${project.build.directory}/${project.artifactId}-${project.version}-jar-with-dependencies.jar"
                                                 excludes="org/slf4j/**" />
                                 </jar>
-                                <move file="${project.build.directory}/temp.jar"
+                                <sleep seconds="2" />
+                                <copy file="${project.build.directory}/temp.jar"
                                       tofile="${project.build.directory}/${project.artifactId}-${project.version}-jar-with-dependencies.jar"
-                                      force="true"/>
-                                <delete file="${project.build.directory}/temp-jar-with-dependencies.jar" />
-                                <!--XXX:TODO: Used during development -->
-                                <!--<copy file="${project.build.directory}/${project.artifactId}-${project.version}-jar-with-dependencies.jar"
-                                      todir="${project.basedir}/../../tests/plugins/"
-                                      force="true"/>-->
+                                      overwrite="true" force="true"/>
+                                <sleep seconds="2" />
+                                <delete file="${project.build.directory}/temp.jar" failonerror="false" />
                             </target>
                         </configuration>
                         <goals>

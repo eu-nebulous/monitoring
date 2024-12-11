@@ -383,70 +383,57 @@
                 </configuration>
             </plugin>
 
-            <!-- Copy-Rename Maven plugin (https://coderplus.github.io/copy-rename-maven-plugin/) -->
+            <!-- Copy files to /public_resources -->
             <plugin>
-                <groupId>com.coderplus.maven.plugins</groupId>
-                <artifactId>copy-rename-maven-plugin</artifactId>
-                <version>${copy-rename-maven-plugin.version}</version>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>${maven-antrun-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>copy-files</id>
                         <phase>package</phase>
                         <goals>
-                            <goal>copy</goal>
+                            <goal>run</goal>
                         </goals>
                         <configuration>
-                            <fileSets>
+                            <target>
                                 <!-- Copy index.html and favicon.ico to /public_resources -->
-                                <fileSet>
-                                    <sourceFile>${project.basedir}/src/main/resources/public/index.html</sourceFile>
-                                    <destinationFile>../public_resources/resources/index.html</destinationFile>
-                                </fileSet>
-                                <fileSet>
-                                    <sourceFile>${project.basedir}/src/main/resources/public/favicon.ico</sourceFile>
-                                    <destinationFile>../public_resources/favicon.ico</destinationFile>
-                                </fileSet>
+                                <copy overwrite="true" failonerror="false"
+                                      file="${project.basedir}/src/main/resources/public/index.html"
+                                      tofile="../public_resources/resources/index.html" />
+                                <copy overwrite="true" failonerror="false"
+                                      file="${project.basedir}/src/main/resources/public/favicon.ico"
+                                      tofile="../public_resources/favicon.ico" />
 
                                 <!-- Copy checksums.csv to /public_resources -->
-                                <fileSet>
-                                    <sourceFile>${project.build.directory}/checksums.csv</sourceFile>
-                                    <destinationFile>../public_resources/resources/checksums.csv</destinationFile>
-                                </fileSet>
+                                <copy overwrite="true" failonerror="false"
+                                      file="${project.build.directory}/checksums.csv"
+                                      tofile="../public_resources/resources/checksums.csv" />
 
                                 <!-- Copy broker-client files to /public_resources -->
-                                <fileSet>
-                                    <sourceFile>../broker-client/target/broker-client-jar-with-dependencies.jar</sourceFile>
-                                    <destinationFile>../public_resources/resources/broker-client.jar</destinationFile>
-                                </fileSet>
-                                <fileSet>
-                                    <sourceFile>${project.basedir}/src/main/resources/public/client.sh</sourceFile>
-                                    <destinationFile>../public_resources/resources/client.sh</destinationFile>
-                                </fileSet>
-                                <fileSet>
-                                    <sourceFile>${project.basedir}/src/main/resources/public/client.bat</sourceFile>
-                                    <destinationFile>../public_resources/resources/client.bat</destinationFile>
-                                </fileSet>
+                                <copy overwrite="true" failonerror="false"
+                                      file="../broker-client/target/broker-client-jar-with-dependencies.jar"
+                                      tofile="../public_resources/resources/broker-client.jar" />
+                                <copy overwrite="true" failonerror="false"
+                                      file="${project.basedir}/src/main/resources/public/client.sh"
+                                      tofile="../public_resources/resources/client.sh" />
+                                <copy overwrite="true" failonerror="false"
+                                      file="${project.basedir}/src/main/resources/public/client.bat"
+                                      tofile="../public_resources/resources/client.bat" />
 
                                 <!-- Copy baguette-client files to /public_resources -->
-                                <fileSet>
-                                    <sourceFile>${project.build.directory}/baguette-client-installation-package.tgz</sourceFile>
-                                    <destinationFile>../public_resources/resources/baguette-client.tgz</destinationFile>
-                                </fileSet>
-                                <fileSet>
-                                    <sourceFile>${project.build.directory}/baguette-client-installation-package.tgz.sha256</sourceFile>
-                                    <destinationFile>../public_resources/resources/baguette-client.tgz.sha256</destinationFile>
-                                </fileSet>
-                                <fileSet>
-                                    <sourceFile>../baguette-client/bin/install.sh</sourceFile>
-                                    <destinationFile>../public_resources/resources/install.sh</destinationFile>
-                                </fileSet>
-                                <fileSet>
-                                    <sourceFile>../baguette-client/bin/jre-install.sh</sourceFile>
-                                    <destinationFile>../public_resources/resources/jre-install.sh</destinationFile>
-                                </fileSet>
-                            </fileSets>
-                            <ignoreFileNotFoundOnIncremental>true</ignoreFileNotFoundOnIncremental>
-                            <overWrite>true</overWrite>
+                                <copy overwrite="true" failonerror="true"
+                                      file="${project.build.directory}/baguette-client-installation-package.tgz"
+                                      tofile="../public_resources/resources/baguette-client.tgz" />
+                                <copy overwrite="true" failonerror="true"
+                                      file="${project.build.directory}/baguette-client-installation-package.tgz.sha256"
+                                      tofile="../public_resources/resources/baguette-client.tgz.sha256" />
+                                <copy overwrite="true" failonerror="false"
+                                      file="../baguette-client/bin/install.sh"
+                                      tofile="../public_resources/resources/install.sh" />
+                                <copy overwrite="true" failonerror="true"
+                                      file="../baguette-client/bin/jre-install.sh"
+                                      tofile="../public_resources/resources/jre-install.sh" />
+                            </target>
                         </configuration>
                     </execution>
                 </executions>
@@ -611,40 +598,30 @@
                                 </configuration>
                             </execution>
                             <execution>
-                                <id>delete-old-docker-context</id>
+                                <id>delete-old-and-copy-new-docker-context</id>
                                 <phase>install</phase>
                                 <goals>
                                     <goal>run</goal>
                                 </goals>
                                 <configuration>
                                     <target>
+                                        <!-- delete-old-docker-context -->
                                         <delete dir="${project.build.directory}/docker-context"/>
+
                                         <!--<echo>Print Docker image dev properties</echo>
                                         <echo>Image Tag: "${docker.image.tag}"</echo>
                                         <echo>Description: "${build.description}"</echo>-->
+
+                                        <!-- rename-docker-context-dir -->
+                                        <sleep seconds="2" />
+                                        <move file="${project.build.directory}/docker/"
+                                              tofile="${project.build.directory}/docker-context/" />
                                     </target>
                                 </configuration>
                             </execution>
                         </executions>
                     </plugin>
-                    <plugin>
-                        <groupId>com.coderplus.maven.plugins</groupId>
-                        <artifactId>copy-rename-maven-plugin</artifactId>
-                        <version>${copy-rename-maven-plugin.version}</version>
-                        <executions>
-                            <execution>
-                                <id>rename-docker-context-dir</id>
-                                <phase>install</phase>
-                                <goals>
-                                    <goal>rename</goal>
-                                </goals>
-                                <configuration>
-                                    <sourceFile>${project.build.directory}/docker</sourceFile>
-                                    <destinationFile>${project.build.directory}/docker-context</destinationFile>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
+
 
                     <!-- Build docker image using docker-context folder -->
                     <!--<plugin>
