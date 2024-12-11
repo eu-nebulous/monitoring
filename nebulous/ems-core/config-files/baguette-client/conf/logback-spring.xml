@@ -29,10 +29,10 @@
     <logger name="gr.iccs.imu.ems" level="INFO" additivity="false">
         <appender-ref ref="STDOUT"/>
     </logger>
-    <logger name="gr.iccs.imu.ems.baguette" level="INFO" additivity="false">
+    <!--<logger name="gr.iccs.imu.ems.baguette" level="INFO" additivity="false">
         <appender-ref ref="STDOUT"/>
     </logger>
     <logger name="gr.iccs.imu.ems.brokercep" level="INFO" additivity="false">
         <appender-ref ref="STDOUT"/>
-    </logger>
+    </logger>-->
 </configuration>

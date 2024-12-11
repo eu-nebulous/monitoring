@@ -168,6 +168,10 @@ public class BrokerCepService {
         _publishEvent(connectionString, username, password, destinationName, new EventMap(eventMap), true);
     }
 
+    public synchronized void publishEvent(String destinationName, Map<String, Object> eventMap) throws JMSException {
+        publishEvent(null, brokerConfig.getBrokerLocalUserUsername(), brokerConfig.getBrokerLocalUserPassword(), destinationName, eventMap);
+    }
+
     public synchronized void publishSerializable(String connectionString, String destinationName, Serializable event, boolean convertToJson) throws JMSException {
         if (properties.isBypassLocalBroker() && _publishLocalEvent(connectionString, destinationName, event))
             return;
@@ -178,6 +182,10 @@ public class BrokerCepService {
         if (properties.isBypassLocalBroker() && _publishLocalEvent(connectionString, destinationName, event))
             return;
         _publishEvent(connectionString, username, password, destinationName, event, convertToJson);
+    }
+
+    public synchronized void publishSerializable(String destinationName, Serializable event, boolean convertToJson) throws JMSException {
+        publishSerializable(null, brokerConfig.getBrokerLocalUserUsername(), brokerConfig.getBrokerLocalUserPassword(), destinationName, event, convertToJson);
     }
 
     // When destination is the local broker then hand event to (local) CEP engine, bypassing local broker
