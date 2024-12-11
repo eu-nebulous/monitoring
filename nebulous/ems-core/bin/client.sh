@@ -14,4 +14,4 @@ BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )
 # -Djavax.net.debug=all
 # -Djavax.net.debug=ssl,handshake,record
 
-java $JAVA_OPTS -jar ${BASEDIR}/public_resources/resources/broker-client.jar $*
+java $JAVA_OPTS -jar ${BASEDIR}/public_resources/resources/broker-client.jar "${@}"

@@ -20,7 +20,7 @@ if exist pom.xml (
     if not exist %BASEDIR%\control-service\target\dependency cmd /C "cd control-service && mvn dependency:copy-dependencies"
 )
 
-java -classpath %BASEDIR%/control-service/target/classes;%BASEDIR%/control-service/target/dependency/* gr.iccs.imu.ems.control.util.CpModelHelper %*
+java -classpath %BASEDIR%/control-service/target/classes;%BASEDIR%/control-service/target/dependency/* gr.iccs.imu.ems.control.util.CpModelHelper "%*"
 rem Usage: cp2cdo <file> <cdo-resource>
 
 cd %PWD%

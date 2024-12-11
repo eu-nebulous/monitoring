@@ -25,7 +25,7 @@ if "%JASYPT_PASSWORD%"=="" (
     set /p JASYPT_PASSWORD="Configuration Password: "
 )
 
-java -Djasypt.encryptor.password=%JASYPT_PASSWORD% -cp %JARS_DIR%\control-service.jar -Dloader.main=jwt.util.gr.iccs.imu.ems.control.JwtTokenUtil -Dlogging.level.ROOT=WARN -Dlogging.level.gr.iccs.imu.ems.util=ERROR "-Dspring.config.location=%EMS_CONFIG_LOCATION%" org.springframework.boot.loader.launch.PropertiesLauncher %*
+java -Djasypt.encryptor.password=%JASYPT_PASSWORD% -cp %JARS_DIR%\control-service.jar -Dloader.main=jwt.util.gr.iccs.imu.ems.control.JwtTokenUtil -Dlogging.level.ROOT=WARN -Dlogging.level.gr.iccs.imu.ems.util=ERROR "-Dspring.config.location=%EMS_CONFIG_LOCATION%" org.springframework.boot.loader.launch.PropertiesLauncher "%*"
 set exitcode=%ERRORLEVEL%
 
 cd %PWD%

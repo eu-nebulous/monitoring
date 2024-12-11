@@ -14,4 +14,4 @@ EMS_CONFIG_DIR=.
 # -Djavax.net.debug=all
 # -Djavax.net.debug=ssl,handshake,record
 
-java $JAVA_OPTS -jar target/broker-client-jar-with-dependencies.jar $*
+java $JAVA_OPTS -jar target/broker-client-jar-with-dependencies.jar "${@}"

@@ -99,7 +99,7 @@ while :; do
       org.springframework.boot.loader.launch.PropertiesLauncher \
       "--spring.config.location=${EMS_CONFIG_LOCATION}" \
       "--logging.config=file:$LOG_CONFIG_FILE" \
-      $* &
+      "${@}" &
   emsPid=$!
   echo "EMS Pid: $emsPid"
   wait $emsPid
