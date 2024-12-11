@@ -17,7 +17,8 @@
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <!--<Pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%-5level] %msg%n</Pattern>-->
-            <pattern>BC> %msg%n</pattern>
+            <!--<pattern>BC> %msg%n</pattern>-->
+            <pattern>%msg%n</pattern>
         </encoder>
     </appender>
 
@@ -28,6 +29,9 @@
         <appender-ref ref="CONSOLE"/>
     </logger>
     <logger name="gr.iccs.imu.ems" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+    <logger name="gr.iccs.imu.ems.util.PasswordUtil" level="WARN" additivity="false">
         <appender-ref ref="CONSOLE"/>
     </logger>
 </configuration>

@@ -164,6 +164,58 @@ public class AnalysisUtils implements InitializingBean {
         return val;
     }
 
+    static List<Object> getSpecFieldAsList(Object o, String field) {
+        return getSpecFieldAsList(o, field, "Block '%s' is not List: ");
+    }
+
+    static List<Object> getSpecFieldAsList(Object o, String field, String exceptionMessage) {
+        try {
+            Map<String, Object> spec = asMap(o);
+            Object oValue = spec.get(field);
+            if (oValue == null)
+                return null;
+            if (oValue instanceof String)
+                return List.of(oValue);
+            if (oValue instanceof List list)
+                return list;
+            throw createException(exceptionMessage.formatted(field) + spec);
+        } catch (Exception e) {
+            throw createException(exceptionMessage.formatted(field) + o, e);
+        }
+    }
+
+    static List<Object> getMandatorySpecFieldAsList(Object o, String field, String exceptionMessage) {
+        List<Object>  val = getSpecFieldAsList(o, field, exceptionMessage);
+        if (val==null)
+            throw createException(exceptionMessage.formatted(field) + o);
+        return val;
+    }
+
+    static Map<String,Object>  getSpecFieldAsMap(Object o, String field) {
+        return getSpecFieldAsMap(o, field, "Block '%s' is not Map: ");
+    }
+
+    static Map<String,Object> getSpecFieldAsMap(Object o, String field, String exceptionMessage) {
+        try {
+            Map<String, Object> spec = asMap(o);
+            Object oValue = spec.get(field);
+            if (oValue == null)
+                return null;
+            if (oValue instanceof Map map)
+                return map;
+            throw createException(exceptionMessage.formatted(field) + spec);
+        } catch (Exception e) {
+            throw createException(exceptionMessage.formatted(field) + o, e);
+        }
+    }
+
+    static Map<String,Object> getMandatorySpecFieldAsMap(Object o, String field, String exceptionMessage) {
+        Map<String,Object> val = getSpecFieldAsMap(o, field, exceptionMessage);
+        if (val==null)
+            throw createException(exceptionMessage.formatted(field) + o);
+        return val;
+    }
+
     static String getSpecName(Object o) {
         return getSpecField(o, "name");
     }

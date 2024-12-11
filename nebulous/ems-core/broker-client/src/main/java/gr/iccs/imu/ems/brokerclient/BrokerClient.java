@@ -78,7 +78,7 @@ public class BrokerClient {
     // ------------------------------------------------------------------------
 
     public static BrokerClient newClient() throws java.io.IOException, JMSException {
-        log.info("BrokerClient: Initializing...");
+        log.debug("BrokerClient: Initializing...");
 
         // get properties file
         String configDir = System.getenv("EMS_CONFIG_DIR");
@@ -101,12 +101,12 @@ public class BrokerClient {
             log.info("BrokerClient: Configuration loaded from file: {}", configPropFile);
         } else {
             log.debug("BrokerClient: Config file not found or is not a file: {}", configPropFile);
-            log.info("BrokerClient: No configuration file found");
+            log.debug("BrokerClient: No configuration file found");
         }
 
         // initialize broker client
         BrokerClient client = new BrokerClient(p, PasswordUtil.getInstance());
-        log.info("BrokerClient: Default Configuration:\n{}", client.properties);
+        log.debug("BrokerClient: Default Configuration:\n{}", client.properties);
 
         return client;
     }
@@ -146,14 +146,14 @@ public class BrokerClient {
         }
 
         // Get destinations from Broker
-        log.info("BrokerClient.getDestinationNames(): Getting destinations: connection={}, username={}", connectionString, properties.getBrokerUsername());
+        log.debug("BrokerClient.getDestinationNames(): Getting destinations: connection={}, username={}", connectionString, properties.getBrokerUsername());
         ActiveMQConnection conn = (ActiveMQConnection)connection;
         DestinationSource ds = conn.getDestinationSource();
         Set<ActiveMQQueue> queues = ds.getQueues();
         Set<ActiveMQTopic> topics = ds.getTopics();
         Set<ActiveMQTempQueue> tempQueues = ds.getTemporaryQueues();
         Set<ActiveMQTempTopic> tempTopics = ds.getTemporaryTopics();
-        log.info("BrokerClient.getDestinationNames(): Getting destinations: done");
+        log.debug("BrokerClient.getDestinationNames(): Getting destinations: done");
 
         // Get destination names
         HashSet<String> destinationNames = new HashSet<>();

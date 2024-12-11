@@ -17,6 +17,7 @@ import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.google.gson.Gson;
 import gr.iccs.imu.ems.brokerclient.event.EventGenerator;
 import gr.iccs.imu.ems.brokerclient.event.EventMap;
+import gr.iccs.imu.ems.util.LogsUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.activemq.command.*;
 import org.apache.commons.csv.CSVFormat;
@@ -64,6 +65,11 @@ public class BrokerClientApp {
 
         int aa=0;
         String command = args[aa++];
+
+        String logLevel = (args.length>aa && args[aa].startsWith("-LL"))
+                ? args[aa++].substring(3).trim() : null;
+        if (StringUtils.isNotBlank(logLevel))
+            LogsUtil.setLogLevel(BrokerClientApp.class.getPackage().getName(), logLevel);
 
         filterAMQMessages = args.length>aa && args[aa].startsWith("-Q") ? false : true;
         if (!filterAMQMessages) aa++;
@@ -132,9 +138,14 @@ public class BrokerClientApp {
             if (isRecording)
                 initRecording(args, aa);
 
-            log.info("BrokerClientApp: Subscribing to topic: {}", topic);
+            BrokerClient.ON_EXCEPTION onException = (args.length>aa && args[aa].startsWith("-OE"))
+                    ? BrokerClient.ON_EXCEPTION.valueOf(args[aa++].substring(3))
+                    : BrokerClient.ON_EXCEPTION.LOG_AND_IGNORE;
+
+            log.debug("BrokerClientApp: Subscribing to topic: {}", topic);
+            log.debug("BrokerClientApp: on-exception setting: {}", onException);
             BrokerClient client = BrokerClient.newClient(username, password);
-            client.receiveEvents(url, topic, getMessageListener());
+            client.receiveEvents(url, topic, getMessageListener(), onException);
         } else
         // playback events
         if ("playback".equalsIgnoreCase(command)) {
@@ -146,7 +157,13 @@ public class BrokerClientApp {
         if ("subscribe".equalsIgnoreCase(command)) {
             String url = processUrlArg( args[aa++] );
             String topic = args[aa++];
-            log.info("BrokerClientApp: Subscribing to topic: {}", topic);
+
+            BrokerClient.ON_EXCEPTION onException = (args.length>aa && args[aa].startsWith("-OE"))
+                    ? BrokerClient.ON_EXCEPTION.valueOf(args[aa++].substring(3))
+                    : BrokerClient.ON_EXCEPTION.LOG_AND_IGNORE;
+
+            log.debug("BrokerClientApp: Subscribing to topic: {}", topic);
+            log.debug("BrokerClientApp: on-exception setting: {}", onException);
             BrokerClient client = BrokerClient.newClient(username, password);
             MessageListener listener = null;
             client.subscribe(url, topic, listener = getMessageListener());
@@ -154,12 +171,12 @@ public class BrokerClientApp {
             log.info("BrokerClientApp: Hit ENTER to exit");
             try {
                 System.in.read();
-            } catch (Exception e) {}
-            log.info("BrokerClientApp: Closing connection...");
+            } catch (Exception ignored) {}
+            log.debug("BrokerClientApp: Closing connection...");
 
             client.unsubscribe(listener);
             client.closeConnection();
-            log.info("BrokerClientApp: Exiting...");
+            log.debug("BrokerClientApp: Exiting...");
 
         } else
         // start event generator
@@ -271,7 +288,7 @@ public class BrokerClientApp {
         log.info("BrokerClientApp: Publishing event: {}", payload);
         BrokerClient client = BrokerClient.newClient(username, password);
         client.publishEvent(url, topic, type, payload, properties);
-        log.info("BrokerClientApp: Event payload: {}", payload);
+        log.debug("BrokerClientApp: Event payload: {}", payload);
     }
 
     private static MessageListener getMessageListener() {
@@ -760,10 +777,10 @@ public class BrokerClientApp {
         // send event
         long counter = countSuccess.get()+countFail.get()+1;
         try {
-            log.info("BrokerClientApp: Replay event #{}", counter);
+            log.info("BrokerClientApp: Replay event #{}: Payload: {}", counter, payload);
             log.trace("BrokerClientApp: Publishing {} event: {}", type, payload);
             client.publishEvent(url, destinationName, type, payload, propertiesMap);
-            log.info("BrokerClientApp: Event payload: {}", payload);
+            log.debug("BrokerClientApp: Event payload: {}", payload);
             countSuccess.getAndIncrement();
         } catch (Exception e) {
             log.error("BrokerClientApp: EXCEPTION while playing back event #{}: ", counter, e);
@@ -802,8 +819,8 @@ public class BrokerClientApp {
         log.info("BrokerClientApp:            -PP: Process placeholders (default 'true')");
         log.info("BrokerClientApp:  '-' | '@file': Read payload from STDIN | Read payload from file 'file' ");
         log.info("BrokerClientApp:     <PROPERTY>: <Property name>=<Property value>  (use quotes if needed)");
-        log.info("BrokerClientApp: client receive   [-Q] [-NJP] [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> ");
-        log.info("BrokerClientApp: client subscribe [-Q] [-NJP] [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> ");
+        log.info("BrokerClientApp: client receive   [-Q] [-NJP] [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-OE<ON-EXCEPTION-ACTION>]");
+        log.info("BrokerClientApp: client subscribe [-Q] [-NJP] [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-OE<ON-EXCEPTION-ACTION>]");
         log.info("BrokerClientApp: client record    [-Q] [-NJP] [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-Mcsv|-Mjson] <REC-FILE> ");
         log.info("BrokerClientApp: client playback  [-U<USERNAME> [-P<PASSWORD]] <URL> [-Innn|-Dnnn|-Sd[.d]] [-Mcsv|-Mjson] <REC-FILE> ");
         log.info("BrokerClientApp: client generator [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] <INTERVAL> <HOWMANY> <LOWER-VALUE> <UPPER-VALUE> <LEVEL>  [<PROPERTY>]*");

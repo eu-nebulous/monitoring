@@ -57,6 +57,9 @@ public class ShorthandsExpansionHelper implements InitializingBean {
     private final static Pattern METRIC_SENSOR_PATTERN =
             Pattern.compile("^\\s*(\\w+)\\s+(\\w[\\w\\.]+\\w)\\s*");
 
+    public final static String AS_IS_HACK_TAG = "AS-IS-HACK:";
+    public final static String AS_IS_HACK_PART_SEPARATOR = "|";
+
     private final ServerCollectorContext serverCollectorContext;
 
     @Override
@@ -144,7 +147,49 @@ public class ShorthandsExpansionHelper implements InitializingBean {
                 .read("$.spec.*.*.requirements.*[?(@.name)]", List.class)).stream()
                 .peek(this::fixSloName)
                 .toList();
-        log.debug("ShorthandsExpansionHelper: Sensors expanded: {}", expandedSensors);
+        log.debug("ShorthandsExpansionHelper: SLO names fixed: {}", fixedSloNames);
+
+        // ----- Replace Composite Metric with Hack override with As-Is Metric -----
+        List<Object> metricsWithAsIsHacks = asList(ctx
+                .read("$.spec.*.*.metrics.*[?(@.formula)]", List.class)).stream()
+                .filter(item -> JsonPath.read(item, "$.formula") instanceof String)
+                .filter(item -> StringUtils.startsWithIgnoreCase(
+                        JsonPath.read(item, "$.formula").toString(), AS_IS_HACK_TAG))
+                .peek(this::prepareReplacementMetric)
+                .toList();
+        log.debug("ShorthandsExpansionHelper: As-Is Hacks: {}", metricsWithAsIsHacks);
+    }
+
+    private void prepareReplacementMetric(Object spec) {
+        log.debug("ShorthandsExpansionHelper.prepareReplacementMetric: BEGIN: {}", spec);
+        String name = JsonPath.read(spec, "$.name").toString().trim();
+        String formula = JsonPath.read(spec, "$.formula").toString().trim().substring(AS_IS_HACK_TAG.length());
+        log.debug("ShorthandsExpansionHelper.prepareReplacementMetric: Metric name: {}, formula: {}", name, formula);
+
+        String definition = formula;
+        List<String> composingMetrics = List.of();
+
+        int i = formula.indexOf(AS_IS_HACK_PART_SEPARATOR);
+        if (i>0) {
+            definition = formula.substring(i+1).trim();
+            composingMetrics = Arrays.stream(formula.substring(0, i).trim().split("[ \t\r\n,;]+"))
+                    .filter(StringUtils::isNotBlank).toList();
+        }
+        log.debug("ShorthandsExpansionHelper.prepareReplacementMetric: Definition: {}", definition);
+        log.debug("ShorthandsExpansionHelper.prepareReplacementMetric: Composing Metrics: {}", composingMetrics);
+        if (StringUtils.isBlank(definition))
+            throw createException("Invalid AS-IS hack: Definition is empty: metric: " + name);
+
+        // Replace metric specification with a new AS-IS metric
+        Map<String, Object> map = asMap(spec);
+        map.put("type", "as-is");
+        map.put("definition", definition);
+        map.put("metrics", composingMetrics);
+        map.remove("formula");
+        map.remove("window");
+        map.remove("output");
+
+        log.debug("ShorthandsExpansionHelper.prepareReplacementMetric: END: spec: {}", spec);
     }
 
     private void fixSloName(Object spec) {

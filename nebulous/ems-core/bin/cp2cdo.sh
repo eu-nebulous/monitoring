@@ -23,7 +23,7 @@ if [[ -f ${BASEDIR}/control-service/pom.xml ]]; then
     fi
 fi
 
-java -classpath "control-service/target/classes;control-service/target/dependency/*" gr.iccs.imu.ems.control.util.CpModelHelper $*
+java -classpath "control-service/target/classes;control-service/target/dependency/*" gr.iccs.imu.ems.control.util.CpModelHelper "${@}"
 # Usage: cp2cdo <file> <cdo-resource>
 
 cd ${PREVWORKDIR}

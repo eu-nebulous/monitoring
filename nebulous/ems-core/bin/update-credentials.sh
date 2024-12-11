@@ -19,7 +19,7 @@ echo "-New password: $NEWPASSWORD"
 echo "-BCEP credentials: $NEWCREDENTIALS"
 
 # Update all files passed as arguments
-for file in "$@"
+for file in "${@}"
 do
     printf " * Updating file %s..." $file
     # Updating the brokerclient style properties...

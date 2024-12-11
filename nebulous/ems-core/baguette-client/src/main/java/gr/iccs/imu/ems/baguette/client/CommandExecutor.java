@@ -220,6 +220,28 @@ public class CommandExecutor {
                 log.warn(mesg);
                 out.println(mesg);
             }
+        } else if ("SET-LOG-LEVEL".equals(cmd)) {
+            if (args.length < 3) return false;
+            String loggerName = args[1].trim();
+            String newLevel = args[2].trim();
+            if (StringUtils.equalsAnyIgnoreCase(newLevel, "-", "null", "inherit")) newLevel = null;
+            log.info("SET LOG LEVEL TO: {}, for logger: {}", newLevel, loggerName);
+            LogsUtil.setLogLevel(loggerName, newLevel);
+        } else if ("GET-LOG-LEVEL".equals(cmd)) {
+            if (args.length < 2) return false;
+            String loggerName = args[1].trim();
+            if (loggerName.endsWith("*")) {
+                log.info("LISTING LOG LEVELS FOR: {}", loggerName);
+                final String prefix = StringUtils.stripEnd(loggerName, "*");
+                Objects.<Map<String,String>>requireNonNullElse(LogsUtil.getLoggers(prefix), Map.of())
+                        .entrySet().stream()
+                        .sorted(Map.Entry.comparingByKey())
+                        .forEach(entry -> log.info("  {} {}", String.format("%-5s", entry.getValue()), entry.getKey()));
+
+            } else {
+                log.info("LOG LEVEL FOR LOGGER: {} --> {}", loggerName, LogsUtil.getLogLevel(loggerName));
+            }
+
         } else if ("CONNECT".equals(cmd)) {
             if (serverWatcherThread!=null) {
                 log.warn("Already connected");
