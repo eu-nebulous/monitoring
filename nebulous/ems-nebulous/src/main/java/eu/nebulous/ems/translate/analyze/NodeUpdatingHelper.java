@@ -74,6 +74,10 @@ class NodeUpdatingHelper extends AbstractHelper {
     }
 
     Map<String, Set<String>> createComponentsToScopesMap(DocumentContext ctx, Set<String> componentNames) {
+        Map specs = ctx.read("$.spec", Map.class);
+        if (isNullOrEmpty(specs.get("scopes")))
+            return Collections.emptyMap();
+
         Map<String, Set<String>> componentToScopeMap = new LinkedHashMap<>();
         ctx.read("$.spec.scopes.*", List.class).stream().filter(Objects::nonNull).forEach(scope -> {
             // Get scope name and scope components
@@ -107,6 +111,10 @@ class NodeUpdatingHelper extends AbstractHelper {
     }
 
     Map<String, Set<String>> createScopesToComponentsMap(DocumentContext ctx, Set<String> componentNames) {
+        Map specs = ctx.read("$.spec", Map.class);
+        if (isNullOrEmpty(specs.get("scopes")))
+            return Collections.emptyMap();
+
         Map<String, Set<String>> scopeToComponentMap = new LinkedHashMap<>();
         ctx.read("$.spec.scopes.*", List.class).stream().filter(Objects::nonNull).forEach(scope -> {
             // Get scope name and scope components

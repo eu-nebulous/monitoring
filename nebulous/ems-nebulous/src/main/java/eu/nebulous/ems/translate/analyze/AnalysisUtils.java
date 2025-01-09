@@ -18,6 +18,7 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Service;
 
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -69,6 +70,30 @@ public class AnalysisUtils implements InitializingBean {
         if (o instanceof Map m) return m;
         log.error("AnalysisUtils.asMap: input: {}", o);
         throw createException("Object is not a Map: "+o);
+    }
+
+    static boolean isList(Object o) {
+        return (o instanceof List);
+    }
+
+    static boolean isMap(Object o) {
+        return (o instanceof Map);
+    }
+
+    static boolean isNullOrEmpty(Object o) {
+        if (o instanceof Collection c)
+            return isNullOrEmpty(c);
+        if (o instanceof Map m)
+            return isNullOrEmpty(m);
+        return (o==null);
+    }
+
+    static boolean isNullOrEmpty(Collection c) {
+        return (c==null || c.isEmpty());
+    }
+
+    static boolean isNullOrEmpty(Map m) {
+        return (m==null || m.isEmpty());
     }
 
     // ------------------------------------------------------------------------
