@@ -82,10 +82,27 @@ public class MetricModelAnalyzer {
             });
         }
 
+        // ----- Check if component and scope specifications exist -----
+        log.debug("MetricModelAnalyzer.analyzeModel(): Checking for component and scope specs");
+        Map specs = ctx.read("$.spec", Map.class);
+        if (log.isDebugEnabled()) {
+            log.debug("MetricModelAnalyzer.analyzeModel():  spec.components: {}", specs.get("components"));
+            log.debug("MetricModelAnalyzer.analyzeModel():  spec.scopes: {}", specs.get("scopes"));
+        }
+        boolean hasComponents = ! isNullOrEmpty(specs.get("components"));
+        boolean hasScopes = ! isNullOrEmpty(specs.get("scopes"));
+        log.debug("Has component specs: {}", hasComponents);
+        log.debug("Has scope specs    : {}", hasScopes);
+        if (! hasComponents && ! hasScopes)
+            throw createException("Metric model contains no component and no scope specifications");
+        if (hasScopes && !hasComponents)
+            throw createException("Metric model contains no components but has scope specifications");
+
         // ----- Get component and scope names -----
         log.debug("MetricModelAnalyzer.analyzeModel(): Check name uniqueness");
         List<String> componentNamesList = ctx.read("$.spec.components.*.name", List.class);
-        List<String> scopeNamesList = ctx.read("$.spec.scopes.*.name", List.class);
+        List<String> scopeNamesList = hasScopes
+                ? ctx.read("$.spec.scopes.*.name", List.class) : Collections.emptyList();
         log.debug("Component names: {}", componentNamesList);
         log.debug("    Scope names: {}", scopeNamesList);
 
@@ -116,7 +133,8 @@ public class MetricModelAnalyzer {
         log.debug("       All SLOs: {}", $$(_TC).allSLOs);
 
         // ----- Build scope-to-components map -----
-        $$(_TC).scopesComponents = nodeUpdatingHelper.createScopesToComponentsMap(ctx, componentNames);
+        $$(_TC).scopesComponents = hasScopes
+                ? nodeUpdatingHelper.createScopesToComponentsMap(ctx, componentNames) : Collections.emptyMap();
 
         // ----- Build of constants lists -----
         log.debug("MetricModelAnalyzer.analyzeModel(): Build constants list");
@@ -298,7 +316,14 @@ public class MetricModelAnalyzer {
                 log.debug("buildElementLists: SLO (requirements): {}", sloSpec);
                 String sloName = getSpecName(sloSpec);
                 if (StringUtils.isBlank(sloName)) throw createException("SLO spec with no name: " + sloSpec);
-                $$(_TC).allSLOs.put(createNamesKey(parentName, sloName), sloSpec);
+                Object constraintObject = asMap(sloSpec).get("constraint");
+                /*if (!isMap(constraintObject) || asMap(constraintObject).isEmpty())
+                    throw createException("SLO spec with no constraint: " + sloSpec);*/
+                if (isMap(constraintObject) && ! asMap(constraintObject).isEmpty()) {
+                    $$(_TC).allSLOs.put(createNamesKey(parentName, sloName), sloSpec);
+                } else {
+                    log.warn("Ignoring SLO with no or empty constraint: {}", sloSpec);
+                }
             });
 
             // Constraints flat list building
@@ -308,9 +333,14 @@ public class MetricModelAnalyzer {
                 if (StringUtils.isBlank(sloName)) throw createException("SLO spec with no name: " + sloSpec);
 
                 NamesKey sloNamesKey = createNamesKey(parentName, sloName);
-                Map<String, Object> constraintSpec = asMap(asMap(sloSpec).get("constraint"));
-                NamesKey constraintNamesKey = createNamesKey(sloNamesKey, sloName);
-                $$(_TC).allConstraints.put(constraintNamesKey, constraintSpec);
+                Object constraintObject = asMap(sloSpec).get("constraint");
+                if (isMap(constraintObject)) {
+                    Map<String, Object> constraintSpec = asMap(constraintObject);
+                    NamesKey constraintNamesKey = createNamesKey(sloNamesKey, sloName);
+                    $$(_TC).allConstraints.put(constraintNamesKey, constraintSpec);
+                } else {
+                    log.warn("Ignored SLO with no or empty constraint: {}", sloName);
+                }
             });
 
             // Metrics flat list building

@@ -196,11 +196,12 @@ public class NebulousEmsTranslator implements Translator, InitializingBean {
 		}
 
 		// -- Schematron Validation -------------------------------------------
-		log.debug("NebulousEmsTranslator.translate(): Validating metric model: {}", modelName);
+		//XXX:TODO: Replace with a JsonSchema validator
+		/*log.debug("NebulousEmsTranslator.translate(): Validating metric model: {}", modelName);
 		if (!properties.isSkipModelValidation()) {
 			validator.validateModel(modelObj, modelName);
 			log.debug("MetricModelAnalyzer.analyzeModel(): Metric model is valid: {}", modelName);
-		}
+		}*/
 
 		// -- Analyze metric model --------------------------------------------
 		log.debug("NebulousEmsTranslator.translate():  Analyzing model...");
