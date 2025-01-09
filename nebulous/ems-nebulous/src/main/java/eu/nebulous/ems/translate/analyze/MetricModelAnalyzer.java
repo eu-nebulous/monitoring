@@ -94,7 +94,8 @@ public class MetricModelAnalyzer {
         log.debug("Has component specs: {}", hasComponents);
         log.debug("Has scope specs    : {}", hasScopes);
         if (! hasComponents && ! hasScopes)
-            throw createException("Metric model contains no component and no scope specifications");
+            //throw createException("Metric model contains no component and no scope specifications");
+            log.warn("MetricModelAnalyzer.analyzeModel(): Metric model has no components: {}", modelName);
         if (hasScopes && !hasComponents)
             throw createException("Metric model contains no components but has scope specifications");
 
