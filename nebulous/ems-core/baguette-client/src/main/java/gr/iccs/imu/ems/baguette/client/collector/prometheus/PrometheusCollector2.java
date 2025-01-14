@@ -135,12 +135,13 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
                 String destination = config.getOrDefault("name", "").toString();
                 String prometheusMetric = getPrometheusMetric(config);
                 String url = getUrlPattern(config);
+                Map<String,Set<String>> allowedTags = getAllowedTags(config);
                 Duration delay = getDelay(config);
                 Duration period = getInterval(config);
                 Instant startsAt = startInstant.plus(delay);
 
                 scrapingTasks.add(taskScheduler.scheduleAtFixedRate(
-                        () -> scrapeEndpoint(url, prometheusMetric, destination), startsAt, period));
+                        () -> scrapeEndpoint(url, prometheusMetric, allowedTags, destination), startsAt, period));
                 log.info("Collectors::{}: Added monitoring task: prometheus-metric={}, destination={}, url={}, starts-at={}, period={}",
                         collectorId, prometheusMetric, destination, url, startsAt, period);
             } else
@@ -207,6 +208,44 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
         return null;
     }
 
+    // Expected 'allowed-tags' format:
+    //   allowed-rags ==> <TAG-1>=<VALUE-1>,...,<VALUE-N>;<TAG-2>=;<TAG-3>
+    // Meaning:
+    //   <TAG-1>=<VALUE-1>,...,<VALUE-N>    measurements with 'TAG-1' and value is any of 'VALUE-1' to 'VALUE-N' are accepted
+    //   <TAG-1>=<VALUE-1>                  measurements with 'TAG-1' and value equals to 'VALUE-1' is accepted
+    //   <TAG-2>=                           measurements with 'TAG-2' and empty value '' is accepted (special case of above)
+    //   <TAG-3>                            measurements with 'TAG-3' and any value is accepted
+    private Map<String, Set<String>> getAllowedTags(Map<String, Serializable> config) {
+        if (config.get("configuration") instanceof Map configMap) {
+            String tagsStr = configMap.getOrDefault("allowed-tags", "").toString();
+            if (StringUtils.isNotBlank(tagsStr)) {
+                Map<String, Set<String>> allowedTags = null;
+                String[] pairs = tagsStr.split(";");
+                for (String pair : pairs) {
+                    if (StringUtils.isNotBlank(pair)) {
+                        pair = pair.trim();
+                        String[] part = pair.split("=", 2);
+                        String tag = part[0].trim();
+                        String tagValStr = part.length>1 ? part[1].trim() : null;
+                        if (StringUtils.isNotBlank(tag)) {
+                            String[] vals = tagValStr!=null ? tagValStr.split(",") : null;
+                            HashSet<String> valSet = null;
+                            if (vals!=null) {
+                                for (int i = 0; i < vals.length; i++) vals[i] = vals[i].trim();
+                                valSet = new LinkedHashSet<>(Arrays.asList(vals));
+                            }
+                            if (allowedTags==null)
+                                allowedTags = new LinkedHashMap<>();
+                            allowedTags.put(tag, valSet);
+                        }
+                    }
+                }
+                return allowedTags;
+            }
+        }
+        return null;
+    }
+
     private Duration getDelay(Map<String, Serializable> config) {
         if (config.get("configuration") instanceof Map configMap) {
             long delay = Long.parseLong(configMap.getOrDefault("delay", DEFAULT_DELAY).toString());
@@ -241,7 +280,7 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
         this.openMetricsParser = new OpenMetricsParser();
     }
 
-    private void scrapeEndpoint(String urlPattern, String prometheusMetric, String destination) {
+    private void scrapeEndpoint(String urlPattern, String prometheusMetric, Map<String, Set<String>> allowedTags, String destination) {
         log.debug("Collectors::{}: scrapeEndpoint: BEGIN: Scraping Prometheus endpoints for sensor: url-pattern={}, prometheusMetric={}, destination={}",
                 collectorId, urlPattern, prometheusMetric, destination);
 
@@ -274,16 +313,16 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
                     log.trace("Collectors::{}: scrapeEndpoint: Parsed payload: {} -- Metrics:\n{}", collectorId, node, results);
                 }
 
-                // Get values for the requested metric
+                // Get values for the requested metric (and tags if provided)
                 if (results != null) {
                     List<OpenMetricsParser.MetricInstance> matches = results.stream()
-                            .filter(m -> m.getMetricName().equalsIgnoreCase(prometheusMetric)).toList();
+                            .filter(m -> m.getMetricName().equalsIgnoreCase(prometheusMetric))
+                            .filter(m -> matchAnyAllowedTag(m.getTags(), allowedTags))
+                            .toList();
                     log.trace("Collectors::{}: scrapeEndpoint: Found metric: {} -- Metric(s):\n{}", collectorId, node, matches);
-                    List<Double> values = matches.stream().map(OpenMetricsParser.MetricInstance::getMetricValue).toList();
-                    log.trace("Collectors::{}: scrapeEndpoint: Metric value(s): {} -- Value(s):\n{}", collectorId, node, values);
 
                     // Publish extracted values
-                    queueForPublish(prometheusMetric, destination, values, node, url);
+                    queueForPublish(prometheusMetric, destination, matches, node, url);
                 }
 
                 log.trace("Collectors::{}: scrapeEndpoint: Done scraping node: {} -- Endpoint: {}", collectorId, node, url);
@@ -299,15 +338,33 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
         log.debug("Collectors::{}: scrapeEndpoint: END", collectorId);
     }
 
-    private void queueForPublish(String prometheusMetric, String destination, List<Double> values, Serializable node, String endpoint) {
-        log.debug("Collectors::{}: queueForPublish: metric={}, destination={}, values={}, node={}, endpoint={}",
-                collectorId, node, prometheusMetric, destination, values, endpoint);
-        values.forEach(v -> {
-            EventMap event = new EventMap(v, 1);
+    private boolean matchAnyAllowedTag(Map<String, String> tags, Map<String, Set<String>> allowedTags) {
+        log.trace("Collectors::{}: matchAnyAllowedTag: BEGIN: tags={}, allowed-tags={}", collectorId, tags, allowedTags);
+        if (allowedTags==null || allowedTags.isEmpty()) return true;
+        for (Map.Entry<String,String> e : tags.entrySet()) {
+            String k = e.getKey()!=null ? e.getKey().trim() : null;
+            if (StringUtils.isBlank(k)) continue;
+            if (allowedTags.containsKey(k)) {
+                Set<String> allowedTagValues = allowedTags.get(k);
+                if (allowedTagValues==null) return true;
+                String v = e.getValue()!=null ? e.getValue().trim() : "";
+                if (allowedTagValues.contains(v)) return true;
+            }
+        }
+        return false;
+    }
+
+    private void queueForPublish(String prometheusMetric, String destination, List<OpenMetricsParser.MetricInstance> metricInstances, Serializable node, String endpoint) {
+        log.debug("Collectors::{}: queueForPublish: metric={}, destination={}, metricInstances={}, node={}, endpoint={}",
+                collectorId, node, prometheusMetric, destination, metricInstances, endpoint);
+        metricInstances.forEach(v -> {
+            EventMap event = new EventMap(v.getMetricValue(), 1);
             event.setEventProperty("metric", prometheusMetric);
             event.setEventProperty("source-node", node);
             event.setEventProperty("source-endpoint", endpoint);
             event.setEventProperty("destination-topic", destination);
+            if (v.getTags()!=null)
+                v.getTags().forEach((tag,tagValue) -> event.setEventProperty("tag-"+tag, tagValue));
             eventsQueue.add(event);
         });
     }
