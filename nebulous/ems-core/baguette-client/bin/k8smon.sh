@@ -12,7 +12,7 @@
 DELAY=5
 PROCNAMES=( "${@:2}" )
 if [ ${#PROCNAMES[@]} -eq 0 ]; then PROCNAMES=('kubelet' 'etcd'); fi
-WHATTOKILL=('baguette')
+WHATTOKILL=('baguette' 'netdata')
 EXIT_GRACE=5
 
 PROPERTIES_FILE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd ../conf && pwd )/k8smon.properties"
@@ -80,6 +80,14 @@ while true; do
     done
     #echo FOUND_ANY=$found
     if [ $found -eq 1 ]; then
+        # Stop and disable netdata
+        if [ `ps -ef |grep -i netdata |grep -v grep |grep -v systemd |wc -l` -gt 0 ]; then
+          echo "Stopping and disabling netdata" >&2
+          command -v sudo &>/dev/null && command -v systemctl &>/dev/null && \
+              sudo systemctl disable netdata && sudo systemctl stop netdata && \
+              command -v pkill &>/dev/null && pkill netdata && sleep $EXIT_GRACE && pkill -9 netdata
+        fi
+
         # Kill processes mentioned in 'WHATTOKILL' array
         for proctokill in "${WHATTOKILL[@]}"
         do
