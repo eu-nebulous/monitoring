@@ -62,7 +62,7 @@ public class NetdataCollector extends gr.iccs.imu.ems.common.collector.netdata.N
                 topics.addAll(grp.getEventTypeNames());
         }
         log.info("Collectors::Netdata: activeGroupingChanged: New Allowed Topics for active grouping: {} -- {}", newGrouping, topics);
-        processAllowedTopics(topics);
+        processAllowedTopics();
     }
 
 }

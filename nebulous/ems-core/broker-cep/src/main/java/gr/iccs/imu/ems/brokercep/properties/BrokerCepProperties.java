@@ -63,6 +63,7 @@ public class BrokerCepProperties implements InitializingBean {
     private boolean authorizationEnabled;
 
     private boolean brokerPersistenceEnabled;
+    private String brokerPersistenceDirectory;
     private boolean brokerUsingJmx;
     private boolean brokerAdvisorySupportEnabled;
     private boolean brokerUsingShutdownHook;
@@ -84,7 +85,10 @@ public class BrokerCepProperties implements InitializingBean {
     private Usage usage = new Usage();
 
     private boolean destinationPolicyEnabled = true;
-    private long destinationPolicyMemLimit = 50 * 1024 * 1024;  // 50MB per destination
+    private String destinationPolicyDestination = ">";
+    private long destinationPolicyMemLimit = -1;  // 50 * 1024 * 1024;  // 50MB per destination
+    private int pendingMessageLimitStrategyLimit = -1;
+    private boolean producerFlowControlEnabled = true;
 
     private boolean logBrokerMessages = true;
     private boolean logBrokerMessagesFull = false;

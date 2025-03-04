@@ -52,4 +52,5 @@ public class BaguetteClientProperties extends SshClientProperties {
 	private String debugFakeIpAddress;
 
 	private long sendStatisticsDelay = 10000L;
+	private String sendStatisticsDestination;
 }

@@ -14,12 +14,10 @@ import gr.iccs.imu.ems.common.collector.CollectorContext;
 import gr.iccs.imu.ems.util.EventBus;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.TaskScheduler;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -37,7 +35,7 @@ public class NetdataCollector extends AbstractEndpointCollector<HashMap> impleme
     public final static String NETDATA_NODE_FAILED = "NETDATA_NODE_FAILED";
 
     protected NetdataCollectorProperties properties;
-    protected RestTemplate restTemplate = new RestTemplate();
+    protected RestClient restClient;
 
     @SuppressWarnings("unchecked")
     public NetdataCollector(String id, NetdataCollectorProperties properties, CollectorContext collectorContext, TaskScheduler taskScheduler, EventBus<String,Object,Object> eventBus) {
@@ -56,17 +54,15 @@ public class NetdataCollector extends AbstractEndpointCollector<HashMap> impleme
             properties.setUrl(url);
         }
 
-        this.restTemplate = new RestTemplateBuilder()
-                .setConnectTimeout(Duration.ofSeconds(5))
-                .setReadTimeout(Duration.ofSeconds(5))
-                .build();
+        // Initialize REST client
+        this.restClient = createRestClient();
 
         registerInternalEvents(NETDATA_COLLECTION_START, NETDATA_COLLECTION_OK, NETDATA_COLLECTION_ERROR,
                 NETDATA_CONN_OK, NETDATA_CONN_ERROR, NETDATA_NODE_OK, NETDATA_NODE_FAILED);
     }
 
     protected ResponseEntity<HashMap> getData(String url) {
-        return restTemplate.getForEntity(url, HashMap.class);
+        return restClient.get().uri(url).retrieve().toEntity(HashMap.class);
     }
 
     protected void processData(HashMap data, String nodeAddress, ProcessingStats stats) {

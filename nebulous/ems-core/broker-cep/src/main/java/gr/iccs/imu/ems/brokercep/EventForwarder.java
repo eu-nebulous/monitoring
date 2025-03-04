@@ -15,6 +15,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Service;
@@ -230,6 +231,7 @@ public class EventForwarder implements InitializingBean, Runnable {
 
     @Getter
     @RequiredArgsConstructor
+    @ToString
     protected static class EventForwardTask {
         @NonNull private final BrokerCepStatementSubscriber sender;
         private final boolean localPublish;

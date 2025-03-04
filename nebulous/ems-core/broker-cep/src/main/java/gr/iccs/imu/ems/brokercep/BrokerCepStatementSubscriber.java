@@ -17,6 +17,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
@@ -25,6 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 @Getter
+@ToString
 @AllArgsConstructor
 @RequiredArgsConstructor
 public class BrokerCepStatementSubscriber implements StatementSubscriber {
@@ -37,6 +39,7 @@ public class BrokerCepStatementSubscriber implements StatementSubscriber {
     private final String topic;
     private final String statement;
     private final BrokerCepService brokerCep;
+    @ToString.Exclude
     private final PasswordUtil passwordUtil;
     @Setter
     private Set<GroupingConfiguration.BrokerConnectionConfig> forwardToGroupings;
