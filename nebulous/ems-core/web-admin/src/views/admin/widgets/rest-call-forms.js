@@ -15,11 +15,12 @@ export const FORM_TYPE_OPTIONS = [
             'options': [
                 { 'id': 'new-app-model', 'text': 'Send App. model request', 'url': '/appModel', 'method': 'POST', 'form': 'app-model-form', 'priority': 1 },
                 { 'id': 'new-app-exec-model', 'text': 'Send App. Execution model request', 'url': '/appExecModel', 'method': 'POST', 'form': 'app-exec-model-form', 'priority': 2 },
-                { 'id': 'constants-update', 'text': 'Set constants (add name-value pairs in Payload)', 'url': '/appConstants', 'method': 'POST', 'form': '', 'priority': 3 },
-                { 'id': 'translate-app-model', 'text': 'Translate App. model', 'url': '/translator/translate', 'method': 'POST', 'form': 'app-model-form', 'priority': 4 },
-                { 'id': 'get-app-model', 'text': 'Current App. model', 'url': '/translator/currentAppModel', 'method': 'GET', 'form': '', 'priority': 5 },
-                { 'id': 'get-app-exec-model', 'text': 'Current App. Execution model', 'url': '/translator/currentAppExecModel', 'method': 'GET', 'form': '', 'priority': 6 },
-                { 'id': 'get-curr-tc', 'text': 'Current Translation Context', 'url': '/translator/currentTranslationContext', 'method': 'GET', 'form': '', 'priority': 7 },
+                { 'id': 'get-constants', 'text': 'Get constants', 'url': '/appConstants', 'method': 'GET', 'form': '', 'priority': 3 },
+                { 'id': 'constants-update', 'text': 'Set constants (add name-value pairs in Payload)', 'url': '/appConstants', 'method': 'POST', 'form': '', 'priority': 4 },
+                { 'id': 'translate-app-model', 'text': 'Translate App. model', 'url': '/translator/translate', 'method': 'POST', 'form': 'app-model-form', 'priority': 5 },
+                { 'id': 'get-app-model', 'text': 'Current App. model', 'url': '/translator/currentAppModel', 'method': 'GET', 'form': '', 'priority': 6 },
+                { 'id': 'get-app-exec-model', 'text': 'Current App. Execution model', 'url': '/translator/currentAppExecModel', 'method': 'GET', 'form': '', 'priority': 7 },
+                { 'id': 'get-curr-tc', 'text': 'Current Translation Context', 'url': '/translator/currentTranslationContext', 'method': 'GET', 'form': '', 'priority': 8 },
             ]
         },
 

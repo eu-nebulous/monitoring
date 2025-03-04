@@ -18,6 +18,7 @@ import gr.iccs.imu.ems.common.collector.netdata.INetdataCollector;
 import gr.iccs.imu.ems.common.collector.netdata.NetdataCollectorProperties;
 import gr.iccs.imu.ems.util.EmsConstant;
 import gr.iccs.imu.ems.util.EventBus;
+import gr.iccs.imu.ems.util.StrUtil;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.io.Serializable;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ScheduledFuture;
@@ -41,6 +43,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Component
 @RequiredArgsConstructor
 public class K8sNetdataCollector implements IClientCollector, INetdataCollector, InitializingBean {
+
+    public static final String K8S_NODE_ADDRESS_ENV_VAR = "NODE_ADDRESS";
+
     public enum RESULTS_AGGREGATION { NONE, SUM, AVERAGE, COUNT, MIN, MAX }
 
     @Data
@@ -58,6 +63,14 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
 //        String[] podPatternsInclude;
 //        String[] podPatternsExclude;
 //        boolean podPatternsIgnoreCase = true;
+
+        // Kubernetes behaviour (i.e. when in a pod)
+        String k8sNodeAddressEnvVar;
+
+        // Non-kubernetes behaviour (i.e. when not in a pod)
+        boolean enabledWhenNotInPod = true;
+        boolean useAddressesFromCollectorContext = true;
+        String whenNotInPodAddress = "localhost";
 
         // Post-processing settings
         String destination;
@@ -242,7 +255,7 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
                     // Else check sensor config for 'context' key
                     cfgCtx.context = get(sensorConfig, "context", null);
 
-                    addEntryIfMissingOrBlank(sensorConfig, "dimension", "*");
+                    addEntryIfMissingOrBlank(sensorConfig, "dimensions", "*");
                     addEntryIfMissingOrBlank(sensorConfig, "after", "-1");
                     addEntryIfMissingOrBlank(sensorConfig, "group", "average");
                     addEntryIfMissingOrBlank(sensorConfig, "format", "json2");
@@ -265,7 +278,7 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
                         addEntryIfMissingOrBlank(sensorConfig, "group_by", "label");
                         addEntryIfMissingOrBlank(sensorConfig, "group_by_label", "k8s_namespace,k8s_pod_name");
                     }
-                    addEntryIfMissingOrBlank(sensorConfig, "dimension", "*");
+                    addEntryIfMissingOrBlank(sensorConfig, "dimensions", "*");
                     addEntryIfMissingOrBlank(sensorConfig, "after", "-1");
                     addEntryIfMissingOrBlank(sensorConfig, "time_group", "average");
                     addEntryIfMissingOrBlank(sensorConfig, "format", "ssv");
@@ -273,7 +286,7 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
                     log.warn("K8sNetdataCollector: doStart(): Sensor-{}: Invalid Netdata endpoint found in sensor config: {}", sensorNum.get(), map);
                     return;
                 }
-                cfgCtx.dimensions = get(sensorConfig, "dimension", cfgCtx.dimensions);
+                cfgCtx.dimensions = get(sensorConfig, "dimensions", cfgCtx.dimensions);
 
                 StringBuilder sb = new StringBuilder(endpoint);
                 final AtomicBoolean first = new AtomicBoolean(true);
@@ -318,6 +331,22 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
             }
             log.trace("K8sNetdataCollector: doStart(): Sensor-{}: duration={}", sensorNum.get(), duration);
 
+            // Get settings for kubernetes behavior
+            cfgCtx.k8sNodeAddressEnvVar =
+                    get(cfgMap, "k8sNodeAddressEnvVar", cfgCtx.k8sNodeAddressEnvVar);
+
+            // Get settings for non-kubernetes behavior
+            cfgCtx.enabledWhenNotInPod = "true".equalsIgnoreCase(
+                    get(cfgMap, "enabledWhenNotInPod", Boolean.toString(cfgCtx.enabledWhenNotInPod)) );
+            cfgCtx.useAddressesFromCollectorContext = "true".equalsIgnoreCase(
+                    get(cfgMap, "useAddressesFromCollectorContext", Boolean.toString(cfgCtx.useAddressesFromCollectorContext)) );
+            cfgCtx.whenNotInPodAddress =
+                    get(cfgMap, "whenNotInPodAddress", cfgCtx.whenNotInPodAddress);
+
+            // Print context
+            log.debug("K8sNetdataCollector: doStart(): cfgCtx: {}", cfgCtx);
+
+            // Schedule data collection task
             scheduledFuturesList.add( taskScheduler.scheduleAtFixedRate(() -> {
                 log.debug("K8sNetdataCollector: Sensor-{}: Starting collection...\n{}", sensorNum.get(), cfgCtx);
                 collectData(cfgCtx);
@@ -353,20 +382,59 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
                 cfgCtx.apiVer, cfgCtx.urlSuffix, cfgCtx.port, cfgCtx.aggregation, cfgCtx.destination, cfgCtx.components);
 
         // Get nodes to scrape
-        //Set nodesToScrape = collectorContext.getNodesWithoutClient();
-        String address = System.getenv("NODE_ADDRESS");
-        log.debug("K8sNetdataCollector: collectData(): Netdata node-to-scrape={}", address);
-        if (StringUtils.isBlank(address)) {
+        // (a) First check for the K8S node address
+        Set<Serializable> nodesToScrape = Set.of();
+        String address = System.getenv( StringUtils.firstNonBlank(
+                cfgCtx.k8sNodeAddressEnvVar, properties.getK8sNodeAddressEnvVar(), K8S_NODE_ADDRESS_ENV_VAR) );
+        if (StringUtils.isNotBlank(address)) {
+            log.debug("K8sNetdataCollector: collectData(): In-Pod: Netdata node-to-scrape={}", address);
+            nodesToScrape = Set.of(address);
+        } else
+        if (cfgCtx.isEnabledWhenNotInPod()) {
+            // (b) Next check for the 'whenNotInPodAddress' (localhost by default)
+            address = cfgCtx.getWhenNotInPodAddress();
+            log.debug("K8sNetdataCollector: collectData(): Not-In-Pod: Netdata node-to-scrape={}", address);
+            if (StringUtils.isNotBlank(address)) {
+                nodesToScrape = Set.of(address);
+            }
+        }
+        log.debug("K8sNetdataCollector: collectData(): Netdata node-to-scrape={}", nodesToScrape);
+
+        // (c) If an Aggregator, collect data from nodes without client
+        if (cfgCtx.useAddressesFromCollectorContext) {
+            log.trace("K8sNetdataCollector: collectData(): Nodes without clients in Zone: {}", collectorContext.getNodesWithoutClient());
+            log.trace("K8sNetdataCollector: collectData(): Is Aggregator: {}", collectorContext.isAggregator());
+            if (collectorContext.isAggregator()) {
+                if (collectorContext.getNodesWithoutClient()!=null && ! collectorContext.getNodesWithoutClient().isEmpty()) {
+                    log.debug("K8sNetdataCollector: collectData(): Collecting metrics from remote nodes (without EMS client): {}",
+                            collectorContext.getNodesWithoutClient());
+                    nodesToScrape = new LinkedHashSet<>(nodesToScrape);
+                    nodesToScrape.addAll(collectorContext.getNodesWithoutClient());
+                } else
+                    log.debug("K8sNetdataCollector: collectData(): No remote nodes (without EMS client)");
+            }
+            log.debug("K8sNetdataCollector: collectData(): Netdata updated nodes-to-scrape={}", nodesToScrape);
+        }
+
+        if (nodesToScrape.isEmpty()) {
             long endTm = System.currentTimeMillis();
             log.debug("K8sNetdataCollector: collectData(): END: No Netdata node to scrape: duration={}ms", endTm - startTm);
-            log.warn("K8sNetdataCollector: collectData(): No Netdata node to scrape");
+            log.warn("K8sNetdataCollector: collectData(): No Netdata nodes to scrape  (enabledWhenNotInPod={}, useAddressesFromCollectorContext={}, isAggregator={})",
+                    cfgCtx.enabledWhenNotInPod, cfgCtx.useAddressesFromCollectorContext, collectorContext.isAggregator());
             return;
         }
 
-        // Scrape Netdata node
-        String url = String.format("http://%s:%d%s", address, cfgCtx.port, cfgCtx.urlSuffix);
-        log.info("K8sNetdataCollector: collectData(): Scraping Netdata node: {}", url);
-        collectDataFromNode(cfgCtx, url, address);
+        // Scrape Netdata node(s)
+        nodesToScrape.forEach(nodeAddress -> {
+            String url = String.format("http://%s:%d%s", nodeAddress, cfgCtx.port, cfgCtx.urlSuffix);
+            try {
+                log.info("K8sNetdataCollector: collectData(): Scraping Netdata node: {}", url);
+                collectDataFromNode(cfgCtx, url, nodeAddress.toString());
+            } catch (Exception e) {
+                log.warn("K8sNetdataCollector: collectData(): EXCEPTION while Scraping Netdata node: {} -- Exception: {}", url, StrUtil.exceptionToDetailsString(e, true));
+                log.debug("K8sNetdataCollector: collectData(): EXCEPTION while Scraping Netdata node: {}\n", url, e);
+            }
+        });
 
         long endTm = System.currentTimeMillis();
         log.debug("K8sNetdataCollector: collectData(): END: duration={}ms", endTm-startTm);
@@ -418,7 +486,7 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
 
                 // Check and (debug) print few values
                 try {
-                    double result = Double.parseDouble(response.get("result").toString());
+                    String result = Objects.requireNonNullElse(response.get("result"), "").toString();
                     //resultsMap.put("result", result);
                     if (view!=null) {
                         long after = Long.parseLong(view.get("after").toString());
@@ -428,8 +496,12 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
                     }
                 } catch (Exception e) {
                     Map v = (Map) response.get("view");
-                    log.warn("K8sNetdataCollector: collectDataFromNode(): result={}, view={}, after={}, before={} :: Exception: ",
-                            response.get("result"), v, v!=null ? v.get("after") : null, v!=null ? v.get("before") : null, e);
+                    if (log.isDebugEnabled())
+                        log.debug("K8sNetdataCollector: collectDataFromNode(): Problem with acquired values: result={}, view={}, after={}, before={} :: Exception: ",
+                                response.get("result"), v, v!=null ? v.get("after") : null, v!=null ? v.get("before") : null, e);
+                    else
+                        log.warn("K8sNetdataCollector: collectDataFromNode(): Problem with acquired values: result={}, view={}, after={}, before={}",
+                                response.get("result"), v, v!=null ? v.get("after") : null, v!=null ? v.get("before") : null);
                 }
 
                 // Extract measurements
@@ -515,8 +587,7 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
                 log.debug("K8sNetdataCollector: includeResult(): END: pods=ALL, ns=ALL: result={}", true);
                 return true;
             } else {
-                String prefix = cfgCtx.namespace + ",";
-                boolean result = StringUtils.startsWith(id, prefix);
+                boolean result = StringUtils.startsWith(id, nsPrefix);
                 log.debug("K8sNetdataCollector: includeResult(): END: pods=ALL, ns={}: result={}", cfgCtx.namespace, result);
                 return result;
             }

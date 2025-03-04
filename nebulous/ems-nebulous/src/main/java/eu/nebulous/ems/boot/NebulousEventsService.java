@@ -65,7 +65,7 @@ public class NebulousEventsService implements InitializingBean {
 			@Override
 			public void onMessage(String key, String address, Map body, Message message, Context context) {
 				try {
-					log.debug("MessageHandler: Got new message: key={}, address={}, body={}, message={}",
+					log.info("MessageHandler: Got new message: key={}, address={}, body={}, message={}",
 							key, address, body, message);
 					super.onMessage(key, address, body, message, context);
 					commandQueue.add(new Command(key, address, body, message, context));
@@ -81,6 +81,7 @@ public class NebulousEventsService implements InitializingBean {
         List<Consumer> consumers = List.of(
 				new Consumer(properties.getDslTopic(), properties.getDslTopic(), messageHandler, null, true, true),
 				new Consumer(properties.getOptimiserMetricsTopic(), properties.getOptimiserMetricsTopic(), messageHandler, null, true, true),
+				new Consumer(properties.getSolutionsTopic(), properties.getSolutionsTopic(), messageHandler, null, true, true),
 				new Consumer(properties.getModelsTopic(), properties.getModelsTopic(), messageHandler, null, true, true),
                 new Consumer(properties.getEmsBootTopic(), properties.getEmsBootTopic(), messageHandler, null, true, true)
         );
@@ -151,6 +152,11 @@ public class NebulousEventsService implements InitializingBean {
 		} else
 		if (properties.getOptimiserMetricsTopic().equals(command.address())) {
 			String result = modelsService.extractOptimiserMetrics(command, appId);
+			if (!"OK".equalsIgnoreCase(result))
+				sendResponse(modelsResponsePublisher, appId, result);
+		} else
+		if (properties.getSolutionsTopic().equals(command.address())) {
+			String result = modelsService.extractSolution(command, appId);
 			if (!"OK".equalsIgnoreCase(result))
 				sendResponse(modelsResponsePublisher, appId, result);
 		} else

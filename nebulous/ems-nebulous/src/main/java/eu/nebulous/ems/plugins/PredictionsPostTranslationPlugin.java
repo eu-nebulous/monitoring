@@ -306,9 +306,8 @@ public class PredictionsPostTranslationPlugin implements PostTranslationPlugin {
 
         while (!q.isEmpty()) {
             DAGNode node = q.pop();
-            if (node.getElement() instanceof MetricContext) {
-                MetricContext metricContext = (node.getElement() instanceof MetricContext mc) ? mc : null;
-                tcMetricsOfTopLevelNodes.add(metricContext);
+            if (node.getElement() instanceof MetricContext mc) {
+                tcMetricsOfTopLevelNodes.add(mc);
             } else {
                 Set<DAGNode> children = _TC.getDAG().getNodeChildren(node);
                 if (children!=null) q.addAll(children);

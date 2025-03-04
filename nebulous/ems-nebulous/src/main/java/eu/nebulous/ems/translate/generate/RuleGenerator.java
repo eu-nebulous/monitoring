@@ -706,7 +706,7 @@ public class RuleGenerator implements InitializingBean {
 
     private void _processSizeOrTimeView(StringBuilder sb, Window win) {
         // WindowType: FIXED (Batch) or SLIDING
-        boolean isBatchWin = (WindowType.FIXED==win.getWindowType());
+        boolean isBatchWin = (WindowType.FIXED==win.getWindowType() || WindowType.BATCH==win.getWindowType());
         boolean isSlidingWin = ! isBatchWin;
 
         // WindowSizeType: MEASUREMENTS_ONLY, TIME_ONLY, FIRST_MATCH, BOTH_MATCH

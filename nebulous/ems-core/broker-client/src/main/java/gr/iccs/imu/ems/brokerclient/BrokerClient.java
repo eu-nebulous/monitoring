@@ -14,6 +14,7 @@ import com.google.gson.GsonBuilder;
 import gr.iccs.imu.ems.brokerclient.event.EventMap;
 import gr.iccs.imu.ems.brokerclient.properties.BrokerClientProperties;
 import gr.iccs.imu.ems.util.PasswordUtil;
+import jakarta.jms.*;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.activemq.ActiveMQConnection;
@@ -27,15 +28,23 @@ import org.apache.activemq.command.ActiveMQTopic;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.qpid.jms.JmsConnectionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.SimpleAsyncTaskScheduler;
 import org.springframework.stereotype.Component;
 
-import jakarta.jms.*;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 
 @Slf4j
 @Component
@@ -45,10 +54,16 @@ public class BrokerClient {
     private BrokerClientProperties properties;
     @Autowired
     private PasswordUtil passwordUtil;
+    @Autowired
+    private TaskScheduler taskScheduler;
     private Connection connection;
     private Session session;
-    private HashMap<MessageListener,MessageConsumer> listeners = new HashMap<>();
+    private HashMap<MessageListener,Set<MessageConsumer>> listeners = new HashMap<>();
     private Gson gson = new GsonBuilder().create();
+    private boolean keepRunning;
+    private Future<?> receiveEventsWithAutoReconnectFuture;
+
+    private static TaskScheduler defaultTaskScheduler;
 
     public BrokerClient() {
     }
@@ -65,14 +80,23 @@ public class BrokerClient {
         passwordUtil = pu;
     }
 
-    public BrokerClient(BrokerClientProperties bcp, PasswordUtil pu) {
+    public BrokerClient(BrokerClientProperties bcp, PasswordUtil pu, TaskScheduler ts) {
         properties = bcp;
         passwordUtil = pu;
+        taskScheduler = ts;
     }
 
     public BrokerClient(Properties p, PasswordUtil pu) {
         properties = new BrokerClientProperties(p);
         passwordUtil = pu;
+        taskScheduler = getOrCreateTaskScheduler();
+    }
+
+    private static synchronized TaskScheduler getOrCreateTaskScheduler() {
+        if (defaultTaskScheduler==null) {
+            defaultTaskScheduler = new SimpleAsyncTaskScheduler();
+        }
+        return defaultTaskScheduler;
     }
 
     // ------------------------------------------------------------------------
@@ -317,42 +341,60 @@ public class BrokerClient {
 
     // ------------------------------------------------------------------------
 
-    public void subscribe(String connectionString, String destinationName, MessageListener listener) throws JMSException {
+    public enum ON_EXCEPTION { IGNORE, LOG_AND_IGNORE, THROW, LOG_AND_THROW }
+
+    public void subscribe(String connectionString, String destinationNames, MessageListener listener) throws JMSException {
+        subscribe(connectionString, destinationNames, listener, ON_EXCEPTION.LOG_AND_IGNORE);
+    }
+
+    public void subscribe(String connectionString, String destinationNames, MessageListener listener, ON_EXCEPTION onException) throws JMSException {
         // Create or open connection
         checkProperties();
         if (session==null) {
             openConnection(connectionString);
         }
 
-        // Create the destination (Topic or Queue)
-        log.info("BrokerClient: Subscribing to destination: {}...", destinationName);
-        //Destination destination = session.createQueue( destinationName );
-        Destination destination = session.createTopic(destinationName);
+        // Create the destinations (Topics or Queues)
+        subscribeToTopics(destinationNames, listener, onException);
+    }
 
-        // Create a MessageConsumer from the Session to the Topic or Queue
-        MessageConsumer consumer = session.createConsumer(destination);
-        consumer.setMessageListener(listener);
-        listeners.put(listener, consumer);
+    public void subscribeWithAutoReconnect(String connectionString, String destinationNames, MessageListener listener, ON_EXCEPTION onException, Consumer<Integer> exitCallback) {
+        receiveEventsWithAutoReconnectFuture = taskScheduler.schedule(() -> {
+            int returnCode = 0;
+            try {
+                receiveEventsWithAutoReconnect(connectionString, destinationNames, listener, onException);
+                log.debug("BrokerClient: receiveEventsWithAutoReconnect returned normally");
+            } catch (JMSException e) {
+                returnCode = 1;
+                log.debug("BrokerClient: receiveEventsWithAutoReconnect threw an exception");
+                log.error("BrokerClient: Exception:\n", e);
+            }
+            if (exitCallback!=null)
+                exitCallback.accept(returnCode);
+        }, Instant.now());
     }
 
     public void unsubscribe(MessageListener listener) throws JMSException {
-        MessageConsumer consumer = listeners.get(listener);
-        if (consumer!=null) {
-            consumer.close();
+        if (listeners!=null && listener!=null) {
+            Set<MessageConsumer> set = listeners.get(listener);
+            if (set!=null) {
+                for (MessageConsumer consumer : set) {
+                    if (consumer != null) {
+                        consumer.close();
+                    }
+                }
+            }
         }
     }
 
     // ------------------------------------------------------------------------
 
-    public enum ON_EXCEPTION { IGNORE, LOG_AND_IGNORE, THROW, LOG_AND_THROW }
-
-    public void receiveEvents(String connectionString, String destinationName, MessageListener listener) throws JMSException {
-        receiveEvents(connectionString, destinationName, listener, ON_EXCEPTION.LOG_AND_IGNORE);
+    public void receiveEvents(String connectionString, String destinationNames, MessageListener listener) throws JMSException {
+        receiveEvents(connectionString, destinationNames, listener, ON_EXCEPTION.LOG_AND_IGNORE);
     }
 
-    public void receiveEvents(String connectionString, String destinationName, MessageListener listener, ON_EXCEPTION onException) throws JMSException {
+    public void receiveEvents(String connectionString, String destinationNames, MessageListener listener, ON_EXCEPTION onException) throws JMSException {
         checkProperties();
-        MessageConsumer consumer = null;
         boolean _closeConn = false;
         try {
             // Create or open connection
@@ -360,45 +402,139 @@ public class BrokerClient {
                 openConnection(connectionString);
                 _closeConn = ! properties.isPreserveConnection();
             }
+        } catch (Exception e) {
+            // Clean up
+            log.error("BrokerClient: Connection failed...\n", e);
+            closeConnection();
+            return;
+        }
 
-            // Create the destination (Topic or Queue)
-            log.info("BrokerClient: Subscribing to destination: {}...", destinationName);
-            //Destination destination = session.createQueue( destinationName );
-            Destination destination = session.createTopic(destinationName);
-
-            // Create a MessageConsumer from the Session to the Topic or Queue
-            consumer = session.createConsumer(destination);
+        try {
+            // Subscribe to destinations (Topics or Queues)
+            subscribeToTopics(destinationNames, listener, onException);
 
             // Wait for messages
-            boolean logException = onException==ON_EXCEPTION.LOG_AND_IGNORE || onException==ON_EXCEPTION.LOG_AND_THROW;
-            boolean throwException = onException==ON_EXCEPTION.THROW || onException==ON_EXCEPTION.LOG_AND_THROW;
             log.info("BrokerClient: Waiting for messages...");
-            while (true) {
-                Message message = consumer.receive();
-                try {
-                    listener.onMessage(message);
-                } catch (Exception e) {
-                    if (logException) {
-                        if (log.isDebugEnabled())
-                            log.debug("BrokerClient: Exception in callback listener: {}: {}\nevent: {}\nException: ",
-                                    e.getClass().getName(), e.getMessage(), message, e);
-                        else
-                            log.warn("BrokerClient: Exception in callback listener: {}: {}\nevent: {}",
-                                    e.getClass().getName(), e.getMessage(), message);
-                    }
-                    if (throwException)
-                        throw e;
-                }
+            keepRunning = true;
+            while (keepRunning) {
+                try { Thread.sleep(Duration.ofDays(1)); } catch (InterruptedException e) { break; }
             }
+            log.debug("BrokerClient: Message wait loop exited...");
 
         } finally {
             // Clean up
             log.info("BrokerClient: Closing connection...");
-            if (consumer != null) consumer.close();
             if (_closeConn) {
                 closeConnection();
             }
         }
+    }
+
+    public void receiveEventsWithAutoReconnect(String connectionString, String destinationNames, MessageListener listener, ON_EXCEPTION onException) throws JMSException {
+        long retryResetThreshold = properties.getRetryResetThreshold();
+        long initDelay = properties.getRetryInitDelay();
+        long maxDelay = properties.getRetryMaxDelay();
+        double backoffFactor = properties.getRetryBackoffFactor();
+        long lastRestart = 0;
+        long retries = 0;
+        long delay = initDelay;
+        keepRunning = true;
+        while (keepRunning) {
+            try {
+                receiveEvents(connectionString, destinationNames, listener, onException);
+            } catch (JMSException e) {
+                if (log.isDebugEnabled())
+                    log.error("BrokerClient: Error while receiving events: ", e);
+                else
+                    log.error("BrokerClient: Error while receiving events: {}", e.getMessage());
+
+                if (properties.getRetryMaxRetries()>=0 && retries>=properties.getRetryMaxRetries()) {
+                    log.error("BrokerClient: Reached max retries limit");
+                    throw e;
+                }
+
+                if (System.currentTimeMillis() - lastRestart > retryResetThreshold) {
+                    retries = 1;
+                    delay = initDelay;
+                } else {
+                    retries++;
+                    delay = (long)(backoffFactor * delay);
+                    if (delay>maxDelay) delay = maxDelay;
+                }
+
+                log.debug("BrokerClient: Wait for {}ms before retrying", delay);
+                try { Thread.sleep(delay); } catch (InterruptedException ignored) { }
+                if (keepRunning)
+                    log.info("BrokerClient: Reconnecting...: Retry #{}", retries);
+                lastRestart = System.currentTimeMillis();
+            }
+        }
+    }
+
+    public void stopRunning(boolean waitToStop) {
+        stopRunning(waitToStop, properties.getStopWaitTimeout());
+    }
+
+    public void stopRunning(boolean waitToStop, long waitTimeoutMillis) {
+        keepRunning = false;
+        if (waitToStop && receiveEventsWithAutoReconnectFuture!=null) {
+            try {
+                receiveEventsWithAutoReconnectFuture.cancel(true);
+                if (waitTimeoutMillis>0)
+                    receiveEventsWithAutoReconnectFuture.get(waitTimeoutMillis, TimeUnit.MILLISECONDS);
+                else
+                    receiveEventsWithAutoReconnectFuture.get();
+            } catch (InterruptedException e) {
+                log.warn("BrokerClient: Interrupted waiting receive-events-task to exit: ", e);
+            } catch (ExecutionException e) {
+                log.error("BrokerClient: Task execution failed: ", e);
+            } catch (TimeoutException e) {
+                log.warn("BrokerClient: Timeout waiting receive-events-task to exit: ", e);
+            }
+        }
+    }
+
+    private void subscribeToTopics(String destinationNames, MessageListener listener, ON_EXCEPTION onException) throws JMSException {
+        // Prepare message listener
+        MessageListener wrapperListener = getWrapperMessageListener(listener, onException);
+
+        // Create the destinations (Topics or Queues)
+        List<String> destinationNamesList = Arrays.stream(destinationNames.split("[,;]"))
+                .filter(StringUtils::isNotBlank).map(String::trim)
+                .toList();
+        for (String destinationName : destinationNamesList) {
+            destinationName = destinationName.trim();
+
+            log.info("BrokerClient: Subscribing to destination: {}...", destinationName);
+            //Destination destination = session.createQueue( destinationName );
+            Destination destination = this.session.createTopic(destinationName);
+
+            // Create a MessageConsumers from the Session to the Topics or Queues
+            MessageConsumer consumer = this.session.createConsumer(destination);
+            consumer.setMessageListener(wrapperListener);
+            listeners.computeIfAbsent(listener, ml -> new HashSet<>()).add(consumer);
+        }
+    }
+
+    private static MessageListener getWrapperMessageListener(MessageListener listener, ON_EXCEPTION onException) {
+        boolean logException = onException==ON_EXCEPTION.LOG_AND_IGNORE || onException==ON_EXCEPTION.LOG_AND_THROW;
+        boolean throwException = onException==ON_EXCEPTION.THROW || onException==ON_EXCEPTION.LOG_AND_THROW;
+        return (message) -> {
+            try {
+                listener.onMessage(message);
+            } catch (Exception e) {
+                if (logException) {
+                    if (log.isDebugEnabled())
+                        log.debug("BrokerClient: Exception in callback listener: {}: {}\nevent: {}\nException: ",
+                                e.getClass().getName(), e.getMessage(), message, e);
+                    else
+                        log.warn("BrokerClient: Exception in callback listener: {}: {}\nevent: {}",
+                                e.getClass().getName(), e.getMessage(), message);
+                }
+                if (throwException)
+                    throw e;
+            }
+        };
     }
 
     // ------------------------------------------------------------------------
@@ -495,8 +631,10 @@ public class BrokerClient {
 
     public synchronized void closeConnection() throws JMSException {
         // Clean up
-        session.close();
-        connection.close();
+        if (session!=null)
+            session.close();
+        if (connection!=null)
+            connection.close();
         session = null;
         connection = null;
     }

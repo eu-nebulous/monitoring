@@ -12,6 +12,7 @@ package eu.nebulous.ems.k8s;
 import eu.nebulous.ems.EmsNebulousProperties;
 import gr.iccs.imu.ems.baguette.server.ClientShellCommand;
 import gr.iccs.imu.ems.common.k8s.K8sClient;
+import io.fabric8.kubernetes.api.model.Pod;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -63,7 +64,15 @@ public class K8sPodWatcher implements InitializingBean {
             HashMap<String, K8sClient.PodEntry> uuidToPodsMap = new HashMap<>();
             HashMap<String, Set<K8sClient.PodEntry>> podsPerHost = new HashMap<>();
             try (K8sClient client = K8sClient.create()) {
-                client.getRunningPodsInfo().forEach(pod -> {
+                List<Pod> podsList = client.getRunningPodsInfo();
+                log.trace("K8sPodWatcher: Got pods list: {}", podsList);
+                if (podsList==null) {
+                    log.warn("K8sPodWatcher: PROBLEM with Kubernetes? No pods retrieved from K8S API server");
+                    log.debug("K8sPodWatcher: END");
+                    return;
+                }
+
+                podsList.forEach(pod -> {
                     String ns = pod.getMetadata().getNamespace();
                     String appLabelValue = pod.getMetadata().getLabels().get(APP_POD_LABEL);
                     log.trace("K8sPodWatcher: Got pod: uid={}, name={}, address={}, namespace={}, app-label={}",

@@ -50,10 +50,20 @@ public class MathUtil {
 
     // ------------------------------------------------------------------------
 
+    public static Double getConstant(String constantName) {
+        return constants.get(constantName).getConstantValue();
+    }
+
     public static void setConstant(String constantName, double constantValue) {
         log.debug("MathUtil: Set constant: name={}, value={}", constantName, constantValue);
         Constant con = new Constant(constantName, constantValue);
         constants.put(constantName, con);
+    }
+
+    public static Map<String, Double> getConstants() {
+        Map<String, Double> map = new HashMap<>();
+        constants.forEach((name,constant) -> map.put(name, constant.getConstantValue()));
+        return map;
     }
 
     public static void setConstants(Map<String, Double> constantsMap) {
@@ -137,6 +147,51 @@ public class MathUtil {
         }
 
         return initTokens;
+    }
+
+    public static @NonNull String renameFormulaArguments(String formula, Map<String,String> argRenames) {
+        log.debug("MathUtil: renameFormulaArguments: formula={}, renames={}", formula, argRenames);
+        if (StringUtils.isBlank(formula)) {
+            log.debug("MathUtil: renameFormulaArguments: Formula is null or empty");
+            return formula;
+        }
+        if (argRenames==null || argRenames.isEmpty()) {
+            log.debug("MathUtil: renameFormulaArguments: Formula arg. renames map is null or empty");
+            return formula;
+        }
+
+        // Create MathParser expression
+        Expression e = new Expression(formula);
+        //e.setVerboseMode();
+        log.trace("MathUtil: renameFormulaArguments: expression={}", e.getExpressionString());
+
+        // Tokenize expression
+        @NonNull List<Token> initTokens = extractFormulaTokens(e);
+
+        // Search for variables and rename them
+        String newFormula = initTokens.stream()
+                .map(t -> {
+                    String s = t.tokenStr;
+                    if (t.tokenTypeId == Token.NOT_MATCHED) {
+                        if ("argument".equals(t.looksLike)) {
+                            s = argRenames.getOrDefault(s.trim(), s);
+                        }
+                    }
+                    return s;
+                })
+                .collect(Collectors.joining());
+        log.trace("MathUtil: renameFormulaArguments: New expression={}", e.getExpressionString());
+
+        // Check new formula validity
+        e = new Expression(newFormula);
+        boolean lexSyntax = e.checkLexSyntax();
+        boolean genSyntax = e.checkSyntax();
+        if (log.isTraceEnabled()) {
+            log.trace("MathUtil: renameFormulaArguments: New expression: lexSyntax={}, genSyntax: {}", lexSyntax, genSyntax);
+            log.trace("MathUtil: renameFormulaArguments: New expression: syntax-status={}, error={}", e.getSyntaxStatus(), e.getErrorMessage());
+        }
+
+        return newFormula;
     }
 
     // ------------------------------------------------------------------------

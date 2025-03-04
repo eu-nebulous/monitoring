@@ -23,6 +23,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties(prefix = EmsConstant.EMS_PROPERTIES_PREFIX + "collector.netdata")
 public class NetdataCollectorProperties extends AbstractEndpointCollectorProperties {
+    private String k8sNodeAddressEnvVar = "K8S_NODE_ADDRESS_ENV_VAR";
+
     @Override
     public void afterPropertiesSet() throws Exception {
         log.debug("NetdataCollectorProperties: {}", this);

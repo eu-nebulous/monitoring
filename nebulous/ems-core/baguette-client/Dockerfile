@@ -44,4 +44,5 @@ EXPOSE 61610
 EXPOSE 61616
 EXPOSE 61617
 
-ENTRYPOINT ["/bin/sh", "-c", "/opt/baguette-client/bin/run.sh  &&  tail -f /opt/baguette-client/logs/output.txt"]
+#ENTRYPOINT ["/bin/sh", "-c", "/opt/baguette-client/bin/run.sh  &&  tail -f /opt/baguette-client/logs/output.txt"]
+ENTRYPOINT ["/opt/baguette-client/bin/run.sh"]

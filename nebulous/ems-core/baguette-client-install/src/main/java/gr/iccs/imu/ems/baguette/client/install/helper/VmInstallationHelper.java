@@ -247,6 +247,7 @@ public class VmInstallationHelper extends AbstractInstallationHelper {
         nodeMap.put("IP_SETTING", ipSetting);
 
         // EMS client config. read from environment variables
+        nodeMap.put("EMS_CLIENT_JASYPT_PASSWORD", System.getenv("EMS_CLIENT_JASYPT_PASSWORD"));
         nodeMap.put("EMS_CLIENT_ADDITIONAL_BROKER_CREDENTIALS", System.getenv("EMS_CLIENT_ADDITIONAL_BROKER_CREDENTIALS"));
         nodeMap.put("EMS_CLIENT_BROKER_USERNAME", System.getenv("EMS_CLIENT_BROKER_USERNAME"));
         nodeMap.put("EMS_CLIENT_BROKER_PASSWORD", System.getenv("EMS_CLIENT_BROKER_PASSWORD"));

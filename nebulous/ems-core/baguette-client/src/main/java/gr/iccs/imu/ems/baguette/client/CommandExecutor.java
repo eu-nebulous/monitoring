@@ -1141,13 +1141,15 @@ public class CommandExecutor {
     }
 
     public void sendLocalEvent(String destination, double metricValue) {
-        if (activeGrouping != null) {
-            String brokerUrl = brokerCepService.getBrokerCepProperties().getBrokerUrlForConsumer();
-            log.debug("sendLocalEvent(): local-broker-url={}", brokerUrl);
-            sendEvent(brokerUrl, destination, metricValue);
-        } else {
-            log.warn("sendLocalEvent(): No active grouping");
-        }
+        String brokerUrl = brokerCepService.getBrokerCepProperties().getBrokerUrlForConsumer();
+        log.debug("sendLocalEvent(): local-broker-url={}, metricValue={}", brokerUrl, metricValue);
+        sendEvent(brokerUrl, destination, metricValue);
+    }
+
+    public void sendLocalEvent(String destination, Map<String,Object> event) {
+        String brokerUrl = brokerCepService.getBrokerCepProperties().getBrokerUrlForConsumer();
+        log.debug("sendLocalEvent(): local-broker-url={}, event={}", brokerUrl, event);
+        sendEvent(brokerUrl, destination, event);
     }
 
     public void sendEvent(String connectionStr, String destination, double metricValue) {
@@ -1345,6 +1347,9 @@ public class CommandExecutor {
 
     @SneakyThrows
     private void sendStatisticsStart() {
+        String destination = baguetteClient.getBaguetteClientProperties().getSendStatisticsDestination();
+        if (StringUtils.isNotBlank(destination))
+            brokerCepService.getEventCache().excludeDestination(destination);
         statsSendTask = taskScheduler.scheduleWithFixedDelay(() -> {
             try {
                 _collectAndSendStatistics(true);
@@ -1367,6 +1372,19 @@ public class CommandExecutor {
         if (statsMap!=null) clientStats.putAll(statsMap);
         if (sysMap!=null) clientStats.putAll(sysMap);
         if (sendStats && out!=null) out.println("-STATS:" + SerializationUtil.serializeToString(statsMap));
+
+        // Send stats event to local broker
+        String destination = baguetteClient.getBaguetteClientProperties().getSendStatisticsDestination();
+        if (StringUtils.isNotBlank(destination)) {
+            EventMap event = new EventMap(1);
+            event.put("client-stats", clientStats);
+            event.put("ip-addr-1", NetUtil.getDefaultIpAddress());
+            event.put("ip-addr-2", NetUtil.getPublicIpAddress());
+            Object tmp = clientStats.remove("latest-events");
+            sendLocalEvent(destination, event);
+            clientStats.put("latest-events", tmp);
+        }
+
         return clientStats;
     }
 

@@ -36,6 +36,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -43,6 +44,7 @@ public class BrokerClientApp {
 
     private static boolean filterAMQMessages = true;
     private static boolean isRecording = false;
+    private static boolean autoReconnect = false;
     private static File recordFile;
     private static Writer recordWriter;
     private static RECORD_FORMAT recordFormat;
@@ -58,8 +60,8 @@ public class BrokerClientApp {
 
     public static void main(String args[]) throws java.io.IOException, JMSException, ScriptException {
         log.info("Broker Client for EMS, v.{}", BrokerClientApp.class.getPackage().getImplementationVersion());
-        if (args.length==0) {
-            usage();
+        if (args.length==0 || "help".equalsIgnoreCase(args[0])) {
+            usage(args);
             return;
         }
 
@@ -74,8 +76,16 @@ public class BrokerClientApp {
         filterAMQMessages = args.length>aa && args[aa].startsWith("-Q") ? false : true;
         if (!filterAMQMessages) aa++;
 
+        String destinationFilters = (args.length>aa && args[aa].startsWith("-FD"))
+                ? args[aa++].substring(3).trim() : null;
+        String propertyFilters = (args.length>aa && args[aa].startsWith("-FP"))
+                ? args[aa++].substring(3).trim() : null;
+
         printAsJson = args.length>aa && args[aa].equals("-NPJ") ? false : true;
         if (!printAsJson) aa++;
+
+        autoReconnect = args.length>aa && args[aa].equals("-AR");
+        if (autoReconnect) aa++;
 
         String username = args.length>aa && args[aa].startsWith("-U") ? args[aa++].substring(2) : null;
         String password = username!=null && args.length>aa && args[aa].startsWith("-P") ? args[aa++].substring(2) : null;
@@ -83,9 +93,14 @@ public class BrokerClientApp {
             password = new String(System.console().readPassword("Enter broker password: "));
         }
 
+        // Pre-process Record commands
         if ("record".equalsIgnoreCase(command)) {
             isRecording = true;
             command = "receive";
+        }
+        if ("s_record".equalsIgnoreCase(command)) {
+            isRecording = true;
+            command = "subscribe";
         }
 
         // list destinations
@@ -93,7 +108,7 @@ public class BrokerClientApp {
             String url = processUrlArg( args[aa++] );
             log.info("BrokerClientApp: Listing destinations:");
             BrokerClient client = BrokerClient.newClient(username, password);
-            client.getDestinationNames(url).stream().forEach(d -> log.info("    {}", d));
+            client.getDestinationNames(url).forEach(d -> log.info("    {}", d));
         } else
         // send an event
         if ("publish".equalsIgnoreCase(command)) {
@@ -145,7 +160,10 @@ public class BrokerClientApp {
             log.debug("BrokerClientApp: Subscribing to topic: {}", topic);
             log.debug("BrokerClientApp: on-exception setting: {}", onException);
             BrokerClient client = BrokerClient.newClient(username, password);
-            client.receiveEvents(url, topic, getMessageListener(), onException);
+            if (! autoReconnect)
+                client.receiveEvents(url, topic, getMessageListener(destinationFilters, propertyFilters), onException);
+            else
+                client.receiveEventsWithAutoReconnect(url, topic, getMessageListener(destinationFilters, propertyFilters), onException);
         } else
         // playback events
         if ("playback".equalsIgnoreCase(command)) {
@@ -158,15 +176,25 @@ public class BrokerClientApp {
             String url = processUrlArg( args[aa++] );
             String topic = args[aa++];
 
+            if (isRecording)
+                initRecording(args, aa);
+
             BrokerClient.ON_EXCEPTION onException = (args.length>aa && args[aa].startsWith("-OE"))
                     ? BrokerClient.ON_EXCEPTION.valueOf(args[aa++].substring(3))
                     : BrokerClient.ON_EXCEPTION.LOG_AND_IGNORE;
 
-            log.debug("BrokerClientApp: Subscribing to topic: {}", topic);
-            log.debug("BrokerClientApp: on-exception setting: {}", onException);
+            log.debug("BrokerClientApp: Receiving from topic: {}", topic);
+            log.debug("BrokerClientApp: On-exception setting: {}", onException);
             BrokerClient client = BrokerClient.newClient(username, password);
-            MessageListener listener = null;
-            client.subscribe(url, topic, listener = getMessageListener());
+            MessageListener listener;
+            if (!autoReconnect) {
+                client.subscribe(url, topic, listener = getMessageListener(destinationFilters, propertyFilters), onException);
+            } else {
+                client.subscribeWithAutoReconnect(url, topic, listener = getMessageListener(destinationFilters, propertyFilters), onException, (exitCode) -> {
+                    log.debug("BrokerClientApp: Exit with code {}", exitCode);
+                    System.exit(exitCode);
+                });
+            }
 
             log.info("BrokerClientApp: Hit ENTER to exit");
             try {
@@ -174,9 +202,11 @@ public class BrokerClientApp {
             } catch (Exception ignored) {}
             log.debug("BrokerClientApp: Closing connection...");
 
+            client.stopRunning(true, 5000L);
             client.unsubscribe(listener);
             client.closeConnection();
             log.debug("BrokerClientApp: Exiting...");
+            System.exit(0);
 
         } else
         // start event generator
@@ -234,11 +264,12 @@ public class BrokerClientApp {
             for (; aa<args.length; aa++) jsArgs.add(args[aa]);
             bindings.put("args", jsArgs);
 
-            engine.eval(
-                    "var BrokerClient = Java.type('gr.iccs.imu.ems.brokerclient.BrokerClient');\n" +
-                    "var EventMap = Java.type('event.gr.iccs.imu.ems.brokerclient.EventMap');\n" +
-                    "var System = Java.type('java.lang.System');\n" +
-                    "load('"+scriptFile+"')",
+            engine.eval("""
+                            var BrokerClient = Java.type('gr.iccs.imu.ems.brokerclient.BrokerClient');
+                            var EventMap = Java.type('event.gr.iccs.imu.ems.brokerclient.EventMap');
+                            var System = Java.type('java.lang.System');
+                            load('%s')",
+                            """.formatted(scriptFile),
                     bindings
             );
 
@@ -246,8 +277,9 @@ public class BrokerClientApp {
         // error
         {
             log.error("BrokerClientApp: Unknown command: {}", command);
-            usage();
+            usage(args);
         }
+        log.debug("BrokerClientApp: Exit");
     }
 
     private static String getPayload(String payload, boolean processPlaceholders) throws IOException {
@@ -291,7 +323,39 @@ public class BrokerClientApp {
         log.debug("BrokerClientApp: Event payload: {}", payload);
     }
 
-    private static MessageListener getMessageListener() {
+    private static MessageListener getMessageListener(String destinationFiltersStr, String propertyFiltersStr) {
+        final List<Pattern> destinationPatterns;
+        if (StringUtils.isNotBlank(destinationFiltersStr)) {
+            destinationPatterns = Arrays.stream(destinationFiltersStr.split(";"))
+                    .filter(StringUtils::isNotBlank)
+                    .map(String::trim)
+                    .map(Pattern::compile)
+                    .toList();
+        } else {
+            destinationPatterns = null;
+        }
+        log.trace("BrokerClientApp: Destination filters: {}", destinationFiltersStr);
+        log.trace("BrokerClientApp: Destination filter patterns: {}", destinationPatterns);
+
+        final Map<Pattern, Pattern> propertyPatterns;
+        if (StringUtils.isNotBlank(propertyFiltersStr)) {
+            propertyPatterns = Arrays.stream(propertyFiltersStr.split(";"))
+                    .filter(StringUtils::isNotBlank)
+                    .map(String::trim)
+                    .map(s -> s.split("=", 2))
+                    .filter(sp -> StringUtils.isNotBlank(sp[0]))
+                    .collect(Collectors.toMap(
+                            sp -> Pattern.compile(sp[0].trim()),
+                            sp -> sp.length > 1 ? Pattern.compile(sp[1].trim()) : Pattern.compile("."),
+                            (k1, k2) -> k2,
+                            HashMap::new
+                    ));
+        } else {
+            propertyPatterns = null;
+        }
+        log.trace("BrokerClientApp: Property filters: {}", propertyFiltersStr);
+        log.trace("BrokerClientApp: Property filter patterns: {}", propertyPatterns);
+
         return message -> {
             try {
                 // get message destination
@@ -304,32 +368,78 @@ public class BrokerClientApp {
                     return;
                 }
 
+                // filter by destination name
+                if (destinationPatterns!=null) {
+                    boolean matches = false;
+                    for (Pattern p: destinationPatterns) {
+                        log.trace("BrokerClientApp:  - {}: Checking if Destination name against pattern: {}", destinationName, p);
+                        if (p.matcher(destinationName).find()) {
+                            log.trace("BrokerClientApp:  - {}: Destination name MATCHED pattern: {}", destinationName, p);
+                            matches = true;
+                            break;
+                        }
+                    }
+                    if (!matches) {
+                        log.trace("BrokerClientApp:  - {}: Message filtered out because destination name doesn't match any filter: {}", destinationName, message);
+                        return;
+                    }
+                } else
+                    log.trace("BrokerClientApp:  - {}: Destination message accepted: No destination filters specified", destinationName);
+
                 // get properties as string
                 String properties;
+                Map<String, String> propertiesMap;
                 if (message instanceof  ActiveMQMessage amqMessage) {
                     try {
                         properties = amqMessage.getProperties()
                                 .entrySet().stream()
                                 .map(x -> x.getKey() + "=" + x.getValue())
                                 .collect(Collectors.joining(",", "{", "}"));
+                        propertiesMap = amqMessage.getProperties().entrySet().stream().collect(Collectors.toMap(
+                                Map.Entry::getKey, x -> x.getValue()==null ? "" : x.getValue().toString()
+                        ));
                     } catch (Exception e) {
+                        propertiesMap = null;
                         properties = "ERROR "+e.getMessage();
                         log.error("BrokerClientApp:  - {}: ERROR while reading properties: ", destinationName, e);
                     }
                 } else {
                     //properties = "Not an ActiveMQ message";
                     Enumeration en = message.getPropertyNames();
-                    Map<String,String> pMap = new HashMap<>();
+                    propertiesMap = new HashMap<>();
                     while (en.hasMoreElements()) {
                         String pName = en.nextElement().toString();
                         Object pVal = message.getObjectProperty(pName);
                         if (pVal!=null)
-                            pMap.put(pName, pVal.toString());
+                            propertiesMap.put(pName, pVal.toString());
                         else
-                            pMap.put(pName, null);
+                            propertiesMap.put(pName, null);
                     }
-                    properties = pMap.toString();
+                    properties = propertiesMap.toString();
                 }
+
+                // filter by property name/value
+                if (propertyPatterns!=null && propertiesMap!=null) {
+                    boolean matches = false;
+                    for (Map.Entry<Pattern,Pattern> pat : propertyPatterns.entrySet()) {
+                        log.trace("BrokerClientApp:  - {}: Checking Property names against pattern: {}", destinationName, pat.getKey());
+                        for (Map.Entry<String,String> prop : propertiesMap.entrySet()) {
+                            log.trace("BrokerClientApp:  - {}: Checking Property '{}' against pattern: {}", destinationName, prop.getKey(), pat.getKey());
+                            if (pat.getKey().matcher(prop.getKey()).find()) {
+                                log.trace("BrokerClientApp:  - {}: Property '{}' matched pattern: {}", destinationName, prop.getKey(), pat.getKey());
+                                if (pat.getValue().matcher(prop.getValue()).find()) {
+                                    log.trace("BrokerClientApp:  - {}: Property value MATCHED pattern: {}", destinationName, pat.getValue());
+                                    matches = true;
+                                }
+                            }
+                        }
+                    }
+                    if (!matches) {
+                        log.trace("BrokerClientApp:  - {}: Message filtered out because its properties don't match any filter: {}", destinationName, message);
+                        return;
+                    }
+                } else
+                    log.trace("BrokerClientApp:  - {}: Message accepted: No property filters specified", destinationName);
 
                 // print message body and info
                 if (message instanceof ObjectMessage objMessage) {
@@ -391,6 +501,10 @@ public class BrokerClientApp {
         String format = null;
         if (args[aa].startsWith("-M"))
             format = args[aa++].substring(2).toLowerCase();
+        boolean append = "-A".equalsIgnoreCase(args[aa]); if (append) aa++;
+        boolean overwrite = "-O".equalsIgnoreCase(args[aa]);  if (overwrite) aa++;
+        if (append && overwrite)
+            throw new IllegalArgumentException("Options -A (append) and -O (overwrite) cannot be used together");
         String fileName = args[aa++];
         File file = Paths.get(fileName).toFile();
         String ext = StringUtils.substringAfterLast(file.getName(), ".");
@@ -409,15 +523,25 @@ public class BrokerClientApp {
         }
         recordFile = file;
 
+        // Check if record file exists
+        if (!append && !overwrite) {
+            if (file.exists()) {
+                throw new IllegalArgumentException("Record file exists and neither -A (append) or -O (overwrite) flag has been set");
+            }
+        }
+
         // Initialize recording
         log.info("Record format: {}", recordFormat);
         log.info("Record file:   {}", recordFile);
         log.info("Start recording...");
 
-        recordWriter = new BufferedWriter(new FileWriter(file));
+        recordWriter = new BufferedWriter(new FileWriter(file, append));
         if (recordFormat==RECORD_FORMAT.CSV) {
-            csvPrinter = new CSVPrinter(recordWriter, CSVFormat.DEFAULT
-                    .withHeader("Timestamp", "Destination", "Mime", "Type", "Contents", "Properties"));
+            if (recordFile.length()==0)
+                csvPrinter = new CSVPrinter(recordWriter, CSVFormat.DEFAULT
+                        .builder().setHeader("Timestamp", "Destination", "Mime", "Type", "Contents", "Properties").build());
+            else
+                csvPrinter = new CSVPrinter(recordWriter, CSVFormat.DEFAULT);
 
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 try { csvPrinter.close(true); recordWriter.close(); } catch (IOException e) { log.error("BrokerClientApp: EXCEPTION while closing record file: ", e); }
@@ -809,22 +933,119 @@ public class BrokerClientApp {
             throw new IllegalArgumentException("Argument is not a JMS destination: "+d);
     }
 
-    protected static void usage() {
-        log.info("BrokerClientApp: Usage: ");
-        log.info("BrokerClientApp: client list [-U<USERNAME> [-P<PASSWORD]] <URL> ");
-        log.info("BrokerClientApp: client publish  [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] <VALUE> <LEVEL> [<PROPERTY>]*");
-        log.info("BrokerClientApp: client publish2 [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] [-PP<true|false>] <JSON-PAYLOAD|-|@file>  [<PROPERTY>]*");
-        log.info("BrokerClientApp: client publish3 [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] [-PP<true|false>] <TEXT-PAYLOAD|-|@file>  [<PROPERTY>]*");
-        log.info("BrokerClientApp:     <MSG-TYPE>: text, object, bytes, map");
-        log.info("BrokerClientApp:            -PP: Process placeholders (default 'true')");
-        log.info("BrokerClientApp:  '-' | '@file': Read payload from STDIN | Read payload from file 'file' ");
-        log.info("BrokerClientApp:     <PROPERTY>: <Property name>=<Property value>  (use quotes if needed)");
-        log.info("BrokerClientApp: client receive   [-Q] [-NJP] [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-OE<ON-EXCEPTION-ACTION>]");
-        log.info("BrokerClientApp: client subscribe [-Q] [-NJP] [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-OE<ON-EXCEPTION-ACTION>]");
-        log.info("BrokerClientApp: client record    [-Q] [-NJP] [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-Mcsv|-Mjson] <REC-FILE> ");
-        log.info("BrokerClientApp: client playback  [-U<USERNAME> [-P<PASSWORD]] <URL> [-Innn|-Dnnn|-Sd[.d]] [-Mcsv|-Mjson] <REC-FILE> ");
-        log.info("BrokerClientApp: client generator [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] <INTERVAL> <HOWMANY> <LOWER-VALUE> <UPPER-VALUE> <LEVEL>  [<PROPERTY>]*");
-        log.info("BrokerClientApp: client js [-E<engine-name>] <JS-file> ");
-        log.info("BrokerClientApp:     <URL>: (tcp:|ssl|amqp:)//<ADDRESS>:<PORT>[?[%KAP%][&...additional properties]*]   KAP: Keep-Alive Properties ");
+    protected static void usage(String[] args) {
+        if (args.length>1 && "help".equalsIgnoreCase(args[0]) &&
+                StringUtils.equalsAnyIgnoreCase(args[1].trim(), "ALL", "FULL", "EXTENDED"))
+            usageExtended();
+        else
+            usageBrief();
+    }
+
+    protected static void usageBrief() {
+        log.info("Usage: ");
+        log.info("client help [ALL|FULL|EXTENDED]");
+        log.info("client list [-U<USERNAME> [-P<PASSWORD]] <URL>");
+        log.info("client publish  [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] <VALUE> <LEVEL> [<PROPERTY>]*");
+        log.info("client publish2 [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] [-PP<true|false>] <JSON-PAYLOAD|-|@file>  [<PROPERTY>]*");
+        log.info("client publish3 [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] [-PP<true|false>] <TEXT-PAYLOAD|-|@file>  [<PROPERTY>]*");
+        log.info("client receive   [-Q] [-NJP] [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC_LIST> [-OE<ON-EXCEPTION-ACTION>]");
+        log.info("client subscribe [-Q] [-NJP] [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC_LIST> [-OE<ON-EXCEPTION-ACTION>]");
+        log.info("client record    [-Q] [-NJP] [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC_LIST> [-Mcsv|-Mjson] <REC-FILE> ");
+        log.info("client playback  [-U<USERNAME> [-P<PASSWORD]] <URL> [-Innn|-Dnnn|-Sd[.d]] [-Mcsv|-Mjson] <REC-FILE> ");
+        log.info("client generator [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] <INTERVAL> <HOWMANY> <LOWER-VALUE> <UPPER-VALUE> <LEVEL>  [<PROPERTY>]*");
+        log.info("client js [-E<engine-name>] <JS-file> ");
+        log.info("  More Flags: -LL<level> -Q -FD<regex> -FP<regex>=<regex>;... -NPJ");
+        log.info("    <URL>: (tcp:|ssl|amqp:)//<ADDRESS>:<PORT>[?[%KAP%][&...additional properties]*]   KAP: Keep-Alive Properties ");
+        log.info("    <TOPIC_LIST>: <TOPIC>[,<TOPIC>]*");
+        log.info("    <MSG-TYPE>: text, object, bytes, map");
+        log.info("    <PROPERTY>: <Property name>=<Property value>  (use quotes if needed)");
+    }
+
+    protected static void usageExtended() {
+        log.info("""
+            Usage:
+              client help
+              client <COMMAND> <FLAGS> <URL>
+              client <COMMAND> <FLAGS> <URL> <TOPIC> <PARAMETERS>
+              client js <PARAMETERS>
+            
+            Arguments:
+              <COMMAND>: The action to be performed (e.g., publish, subscribe, record).
+              <FLAGS>:   Flags common to all commands.
+              <URL>:     The URL of the broker (e.g., tcp://address:port, ssl://address:port, amqp://address:port).
+                         Format: (tcp:|ssl|amqp:)//<ADDRESS>:<PORT>[?[%KAP%][&...additional properties]*]
+                         KAP: Expands to default Keep-Alive Properties
+              <TOPIC>:   The topic(s) for publishing or subscribing to messages.
+              <PARAMETERS>: Additional parameters depending on the command.
+        
+            Flags:
+              -LL<log_level>       Set the log level. Options: ALL, TRACE, DEBUG, INFO, WARN, ERROR
+              -Q                   Exclude topics starting with 'ActiveMQ.'
+              -FD<D_FILTER>        Include messages whose destination matches <D_FILTER> (regex)
+              -FP<P_FILTERS>       Include messages where at least one property matches any of the <P_FILTERS>
+              -NPJ                 Print messages using `.toString()`. Default: Pretty-print JSON
+              -U<USERNAME>         Broker username
+              -P<PASSWORD>         Broker password
+            
+            Pattern Matching:
+              <D_FILTER>:  Regular expression for matching destination or part of it.
+              <P_FILTERS>: Semicolon-separated list of property filters in the format '<P_NAME> [= <P_VALUE>]'.
+              <P_NAME>:    Regular expression for matching property name or part of it.
+              <P_VALUE>:   Regular expression for matching property value or part of it. If omitted it always matches.
+        
+            Commands:
+              help [ALL|FULL|EXTENDED]
+                Display this help message.
+        
+              list <FLAGS> <URL>
+                List available topics (Not available with AMQP).
+        
+              publish <FLAGS> <URL> <TOPIC> [-T<MSG-TYPE>] <VALUE> <LEVEL> [<PROPERTY>*]...
+                Publish a message to a topic.
+                -T<MSG-TYPE>: Message type (optional). Type of message (text, object, bytes, map).
+                <PROPERTY>: Optional message property in 'name=value' format.
+        
+              publish2 <FLAGS> <URL> <TOPIC> [-T<MSG-TYPE>] [-PP<true|false>] <JSON-PAYLOAD|-|@file> [<PROPERTY>*]...
+                Publish JSON payload to a topic.
+                -PP<true|false>: Process placeholders in payload (default 'true').
+                -: Read payload from stdin.
+                @file: Read payload from file.
+        
+              publish3 <FLAGS> <URL> <TOPIC> [-T<MSG-TYPE>] [-PP<true|false>] <TEXT-PAYLOAD|-|@file> [<PROPERTY>*]...
+                Publish text payload to a topic.
+                Same options as publish2, but for text payload.
+        
+              receive <FLAGS> <URL> <TOPIC_LIST> [-OE<ON-EXCEPTION-ACTION>]
+                Receive messages from one or more topics. Hit Ctrl+C to exit.
+                <TOPIC_LIST>: Comma-separated list of topics.
+                -OE<ON-EXCEPTION-ACTION>: Behaviour if an error occurs. Options: IGNORE, LOG_AND_IGNORE, THROW, LOG_AND_THROW
+        
+              subscribe <FLAGS> <URL> <TOPIC_LIST> [-OE<ON-EXCEPTION-ACTION>]
+                Subscribe to one or more topics. Hit ENTER to exit.
+                Same options as receive.
+        
+              record <FLAGS> <URL> <TOPIC_LIST> [-Mcsv|-Mjson] [-A|-O] <REC-FILE>
+                Record messages from specified topics to a file.
+                -Mcsv or -Mjson: Recording format.
+                -A: Append to the recording file if it exists.
+                -O: Overwrite the recording file if it exists.
+        
+              playback <FLAGS> <URL> [-Innn|-Dnnn|-Sd[.d]] [-Mcsv|-Mjson] <REC-FILE>
+                Playback recorded messages from a file.
+                -Innn: Playback interval between event sends, in millis
+                -Dnnn: Playback delay between event sends, in millis
+                -Sd[.d]: Playback using the recorded intervals between events.
+                         Playback speed can be set using d[.d] factor (e.g. -S2.5 means x2.5 faster playback)
+        
+              generator <FLAGS> <URL> <TOPIC> [-T<MSG-TYPE>] <INTERVAL> <HOWMANY> <LOWER-VALUE> <UPPER-VALUE> <LEVEL> [<PROPERTY>]...
+                Generate and publish messages to a topic at regular intervals.
+                <INTERVAL>:  Millis between message sends.
+                <HOWMANY>:   Number of messages to generate. Use a negative number for infinite messages.
+                <LOWER-VALUE>, <UPPER-VALUE>:  Message metric values are randomly picked from this range.
+                <LEVEL>:     Message metric level.
+        
+              js [-E<engine-name>] <JS-file>
+                Execute a JavaScript file with a specific engine.
+            """);
     }
 }

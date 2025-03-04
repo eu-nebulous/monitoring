@@ -11,17 +11,17 @@ package gr.iccs.imu.ems.brokercep;
 
 import gr.iccs.imu.ems.brokercep.event.EventMap;
 import gr.iccs.imu.ems.brokercep.properties.BrokerCepProperties;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Service;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -36,6 +36,8 @@ public class EventCache implements InitializingBean {
     private final AtomicLong cacheCounter = new AtomicLong(0);
     private ArrayBlockingQueue<CacheEntry> messageCache;
     private boolean enabled;
+    @Getter @Setter
+    private Set<String> excludeDestinations = new HashSet<>();
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -62,12 +64,23 @@ public class EventCache implements InitializingBean {
         cacheCounter.set(0);
     }
 
+    public void excludeDestination(String destination) {
+        if (StringUtils.isBlank(destination)) return;
+        excludeDestinations.add(destination.trim());
+    }
+
+    public void includeDestination(String destination) {
+        if (StringUtils.isBlank(destination)) return;
+        excludeDestinations.remove(destination.trim());
+    }
+
     public void cacheEvent(EventMap eventMap, String destination) {
         cacheEvent(eventMap, eventMap.getEventProperties(), destination);
     }
 
     public void cacheEvent(Object event, Map<String,Object> properties, String destination) {
         if (!enabled) return;
+        if (excludeDestinations.contains(destination)) return;
         CacheEntry entry;
         synchronized (cacheCounter) {
             try {

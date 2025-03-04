@@ -62,7 +62,7 @@ public class PrometheusCollector extends gr.iccs.imu.ems.common.collector.promet
                 topics.addAll(grp.getEventTypeNames());
         }
         log.info("Collectors::Prometheus: activeGroupingChanged: New Allowed Topics for active grouping: {} -- {}", newGrouping, topics);
-        processAllowedTopics(topics);
+        processAllowedTopics();
     }
 
 }

@@ -14,7 +14,7 @@
     {
       "description": "Starting new EMS client process",
       "taskType": "CMD",
-      "command": "${BAGUETTE_CLIENT_BASE_DIR}/bin/run.sh",
+      "command": "${BAGUETTE_CLIENT_BASE_DIR}/bin/run.sh &>/dev/null &",
       "executable": false,
       "exitCode": 0,
       "match": false,
