@@ -123,7 +123,7 @@ public class CepService implements InitializingBean {
      * Handle the incoming event as Map
      */
     public void handleEvent(Map<String, Object> event, String eventType) {
-        log.debug("CepService.handleEvent(): type={}, event={}", eventType, event.toString());
+        log.debug("CepService.handleEvent(): type={}, event={}", eventType, event);
         EventMap.checkEvent(event);
         epService.getEPRuntime().sendEvent(event, eventType);
         eventCounter.incrementAndGet();
@@ -201,11 +201,29 @@ public class CepService implements InitializingBean {
     }
 
     /**
+     * Get constant from MathParser
+     */
+    public Double getConstant(String constName) {
+        Double constValue = MathUtil.getConstant(constName);
+        log.debug("CepService.getConstant(): Get constant: name={}, value={}", constName, constValue);
+        return constValue;
+    }
+
+    /**
      * Add/Set a constant in MathParser
      */
     public void setConstant(String constName, double constValue) {
         log.debug("CepService.setConstant(): Add/Set constant: name={}, value={}", constName, constValue);
         MathUtil.setConstant(constName, constValue);
+    }
+
+    /**
+     * Get constants map, from MathParser
+     */
+    public Map<String, Double> getConstants() {
+        Map<String, Double> constants = MathUtil.getConstants();
+        log.debug("CepService.getConstants(): Get constants in map: {}", constants);
+        return constants;
     }
 
     /**

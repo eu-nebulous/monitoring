@@ -151,6 +151,18 @@ public class ControlServiceController {
         return "OK";
     }
 
+    @GetMapping(value = {"/cpConstants", "/appConstants"})
+    public Map<String,Double> getConstants(@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String jwtToken)
+    {
+        log.debug("ControlServiceController.getConstants(): Received request");
+        log.trace("ControlServiceController.getConstants(): JWT token: {}", jwtToken);
+
+        Map<String,Double> constants = coordinator.getConstants(ControlServiceRequestInfo.create(null, null, jwtToken));
+        log.info("ControlServiceController.getConstants(): Constants from Broker-CEP: {}", constants);
+
+        return constants;
+    }
+
     /*@RequestMapping(value = "/test/**", method = {GET, POST})
     public String testNotification(HttpServletRequest request, @RequestBody(required = false) String body,
                              @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String jwtToken)
