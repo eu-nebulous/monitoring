@@ -10,7 +10,6 @@
 package eu.nebulous.ems.service;
 
 import lombok.Data;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -18,10 +17,12 @@ import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
 
+import static gr.iccs.imu.ems.util.EmsConstant.EMS_PROPERTIES_PREFIX;
+
 @Slf4j
 @Data
 @Configuration
-@ConfigurationProperties(prefix = "boot-initializer")
+@ConfigurationProperties(prefix = EMS_PROPERTIES_PREFIX + "boot-initializer")
 public class EmsBootInitializerProperties implements InitializingBean {
     @Override
     public void afterPropertiesSet() throws Exception {

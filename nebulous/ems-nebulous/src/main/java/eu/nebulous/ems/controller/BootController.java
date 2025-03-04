@@ -71,6 +71,14 @@ public class BootController {
         return indexService.getAppBindings(appId);
     }
 
+    @GetMapping(value = "/get/{appId}/solution", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Map<String, Double> getSolutionByAppId(@PathVariable("appId") String appId, @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String jwtToken) throws IOException {
+        log.debug("BootController.getSolutionByAppId(): Received request: app-id={}", appId);
+        log.trace("BootController.getSolutionByAppId(): JWT token: {}", jwtToken);
+
+        return indexService.getAppSolution(appId);
+    }
+
     @DeleteMapping(value = "/delete/{appId}", produces = MediaType.APPLICATION_JSON_VALUE)
     public boolean deleteByAppId(@PathVariable("appId") String appId, @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String jwtToken) throws IOException {
         log.debug("BootController.deleteByAppId(): Received request: app-id={}", appId);

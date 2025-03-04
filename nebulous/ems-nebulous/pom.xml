@@ -30,13 +30,13 @@
         <ems.version>7.0.0-SNAPSHOT</ems.version>
 
         <!-- Spring Boot versions -->
-        <spring.version>6.1.13</spring.version>
-        <spring-boot.version>3.2.10</spring-boot.version>
-        <snakeyaml.version>2.2</snakeyaml.version>
-        <lombok.version>1.18.34</lombok.version>
+        <spring.version>6.2.2</spring.version>
+        <spring-boot.version>3.4.2</spring-boot.version>
+        <jackson.version>2.18.2</jackson.version>
+        <snakeyaml.version>2.3</snakeyaml.version>
+        <lombok.version>1.18.36</lombok.version>
 
         <!-- Nebulous-EMS extension dependency versions -->
-        <jackson.version>2.17.2</jackson.version>
         <json-path.version>2.9.0</json-path.version>
         <thymeleaf.version>3.1.2.RELEASE</thymeleaf.version>
         <schematron.version>8.0.1</schematron.version>

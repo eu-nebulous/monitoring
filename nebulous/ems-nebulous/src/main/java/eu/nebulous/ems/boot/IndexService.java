@@ -154,6 +154,12 @@ public class IndexService implements InitializingBean {
 		return objectMapper.readValue(bindingsStr, Map.class);
 	}
 
+	public Map<String,Double> getAppSolution(@NonNull String appId) throws IOException {
+		String fileName = getAppData(appId).get(ModelsService.SOLUTIONS_FILE_KEY);
+		String solutionStr = applicationContext.getBean(ModelsService.class).readFromFile(fileName);
+		return objectMapper.readValue(solutionStr, Map.class);
+	}
+
 	public synchronized boolean deleteAppData(@NonNull String appId) throws IOException {
 		@NonNull Map<String, Object> map = loadIndexContents();
 		boolean removed = map.remove(appId) != null;
