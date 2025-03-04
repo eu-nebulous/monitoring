@@ -1,5 +1,5 @@
 
-# -----------------   Runtime image  -----------------
+# -----------------   Runtime image   -----------------
 FROM registry.gitlab.com/nebulous-project/ems-main/ems-server:opendev
 RUN date > /tmp/BUILD-TIMESTAMP
 ENV EXTRA_LOADER_PATHS=/plugins/*
