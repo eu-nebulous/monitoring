@@ -17,6 +17,6 @@ rem  -Djavax.net.ssl.trustStoreType=pkcs12
 rem -Djavax.net.debug=all
 rem -Djavax.net.debug=ssl,handshake,record
 
-java %JAVA_OPTS% -jar target\broker-client-jar-with-dependencies.jar "%*"
+java %JAVA_OPTS% -jar target\broker-client-jar-with-dependencies.jar %*
 
 endlocal

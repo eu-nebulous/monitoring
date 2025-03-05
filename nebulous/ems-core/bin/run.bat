@@ -12,6 +12,7 @@ setlocal
 set PWD=%~dp0
 cd %PWD%..
 set BASEDIR=%cd%
+set EMS_HOME=%BASEDIR%
 IF NOT DEFINED EMS_CONFIG_DIR set EMS_CONFIG_DIR=%BASEDIR%\config-files
 :: IF NOT DEFINED PAASAGE_CONFIG_DIR set PAASAGE_CONFIG_DIR=%BASEDIR%\config-files
 IF NOT DEFINED JARS_DIR set JARS_DIR=%BASEDIR%\control-service\target

@@ -254,7 +254,7 @@ public class K8sClient implements Closeable {
     }
 
     public List<Pod> getRunningPodsInfo(String namespace) throws IOException {
-        log.debug("K8sClient.getRunningPodsInfo: BEGIN");
+        log.debug("K8sClient.getRunningPodsInfo: BEGIN: namespace={}", namespace);
         if (StringUtils.isBlank(namespace))
             namespace = getNamespace();
         List<Pod> podsList = null;
@@ -266,9 +266,10 @@ public class K8sClient implements Closeable {
                     .filter(pod -> "Running".equalsIgnoreCase(pod.getStatus().getPhase()))
                     .toList();
         } catch (Exception e) {
-            log.warn("K8sClient.getRunningPodsInfo: EXCEPTION while retrieving pods: ", e);
+            log.warn("K8sClient.getRunningPodsInfo: EXCEPTION while retrieving pods: {}", e.getMessage());
+            log.debug("K8sClient.getRunningPodsInfo: EXCEPTION while retrieving pods: ", e);
         }
-        log.debug("K8sClient.getRunningPodsInfo: END: {}", podsList);
+        log.debug("K8sClient.getRunningPodsInfo: END: namespace={}, pods={}", namespace, podsList);
         return podsList;
     }
 
@@ -283,7 +284,8 @@ public class K8sClient implements Closeable {
                     .filter(pod -> "Running".equalsIgnoreCase(pod.getStatus().getPhase()))
                     .toList();
         } catch (Exception e) {
-            log.warn("K8sClient.getRunningPodsInfo: EXCEPTION while retrieving pods: ", e);
+            log.warn("K8sClient.getRunningPodsInfo:  EXCEPTION while retrieving pods: {}", e.getMessage());
+            log.debug("K8sClient.getRunningPodsInfo: EXCEPTION while retrieving pods: ", e);
         }
         log.debug("K8sClient.getRunningPodsInfo: END: {}", podsList);
         return podsList;

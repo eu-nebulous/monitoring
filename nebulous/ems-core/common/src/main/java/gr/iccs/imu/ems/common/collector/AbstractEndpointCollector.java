@@ -20,9 +20,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.TaskScheduler;
+import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
 import java.util.*;
@@ -73,21 +76,21 @@ public abstract class AbstractEndpointCollector<T> implements InitializingBean, 
     @Override
     public void afterPropertiesSet() {
         log.debug("Collectors::{}: properties: {}", collectorId, properties);
-        processAllowedTopics(properties.getAllowedTopics());
+        processAllowedTopics();
 
         registerInternalEvents(collectorId);
     }
 
-    public void processAllowedTopics(Collection<String> allowedTopicsSpec) {
-        Set<String> topicsSet = allowedTopicsSpec == null
+    public void processAllowedTopics() {
+        Set<String> topicsSet = properties.getAllowedTopics() == null
                 ? null : properties.getAllowedTopics().stream()
                         .map(s -> s.split(":")[0])
                         .collect(Collectors.toSet());
         Map<String, Set<String>> topicsMap = properties.getAllowedTopics() == null
                 ? null : properties.getAllowedTopics().stream()
-                .map(s -> s.split(":", 2))
-                .collect(Collectors.groupingBy(a -> a[0],
-                        Collectors.mapping(a -> a.length > 1 ? a[1] : "", Collectors.toSet())));
+                        .map(s -> s.split(":", 2))
+                        .collect(Collectors.groupingBy(a -> a[0],
+                                Collectors.mapping(a -> a.length > 1 ? a[1] : "", Collectors.toSet())));
 
         log.info("Collectors::{}: New Allowed Topics: {} -- Topics Map: {}", collectorId, topicsSet, topicsMap);
         synchronized (this) {
@@ -316,6 +319,17 @@ public abstract class AbstractEndpointCollector<T> implements InitializingBean, 
                 message.put(s[0].trim(), s[1]);
         }
         eventBus.send(topic, message, getClass().getName());
+    }
+
+    // Can be used by sub-classes to initialize a REST client for retrieving their data
+    protected RestClient createRestClient() {
+        ClientHttpRequestFactorySettings settings = ClientHttpRequestFactorySettings
+                .defaults()
+                .withConnectTimeout(Duration.ofSeconds(5))
+                .withReadTimeout(Duration.ofSeconds(5));
+        return RestClient.builder()
+                .requestFactory(ClientHttpRequestFactoryBuilder.jdk().build(settings))
+                .build();
     }
 
     protected abstract ResponseEntity<T> getData(String url);

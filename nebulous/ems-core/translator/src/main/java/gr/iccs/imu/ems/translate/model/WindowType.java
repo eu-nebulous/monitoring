@@ -10,5 +10,5 @@
 package gr.iccs.imu.ems.translate.model;
 
 public enum WindowType {
-    FIXED, SLIDING
+    FIXED, BATCH, SLIDING
 }

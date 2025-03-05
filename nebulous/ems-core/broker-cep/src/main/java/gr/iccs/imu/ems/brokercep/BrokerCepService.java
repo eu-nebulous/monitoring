@@ -53,6 +53,7 @@ public class BrokerCepService {
     private BrokerCepConsumer brokerCepBridge;
     @Getter
     private CepService cepService;
+    @Getter
     private EventCache eventCache;
 
     private Gson gson;
@@ -130,9 +131,21 @@ public class BrokerCepService {
         log.debug("BrokerCepService.addEventType(): New event type registered: {}", eventTypeName);
     }
 
+    public Double getConstant(String constName) {
+        Double constValue = cepService.getConstant(constName);
+        log.debug("BrokerCepService.getConstant(): Get constant: name={}, value={}", constName, constValue);
+        return constValue;
+    }
+
     public void setConstant(String constName, double constValue) {
         log.debug("BrokerCepService.setConstant(): Add/Set constant: name={}, value={}", constName, constValue);
         cepService.setConstant(constName, constValue);
+    }
+
+    public Map<String, Double> getConstants() {
+        Map<String, Double> constants = cepService.getConstants();
+        log.info("BrokerCepService.getConstants(): Get constants: {}", constants);
+        return constants;
     }
 
     public void setConstants(Map<String, Double> constants) {

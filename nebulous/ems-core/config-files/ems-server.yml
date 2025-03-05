@@ -402,7 +402,7 @@ brokercep:
   # Memory usage limit
   usage:
     memory:
-      jvm-heap-percentage: 20
+      jvm-heap-percentage: 70
       #size: 134217728
 
   # Event forward settings

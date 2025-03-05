@@ -24,11 +24,13 @@ import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.SslBrokerService;
 import org.apache.activemq.broker.inteceptor.MessageInterceptorRegistry;
 import org.apache.activemq.broker.jmx.ManagementContext;
+import org.apache.activemq.broker.region.policy.ConstantPendingMessageLimitStrategy;
 import org.apache.activemq.broker.region.policy.PolicyEntry;
 import org.apache.activemq.broker.region.policy.PolicyMap;
 import org.apache.activemq.pool.PooledConnectionFactory;
 import org.apache.activemq.security.AuthenticationUser;
 import org.apache.activemq.security.SimpleAuthenticationPlugin;
+import org.apache.activemq.store.kahadb.KahaDBPersistenceAdapter;
 import org.apache.activemq.usage.MemoryUsage;
 import org.apache.activemq.usage.StoreUsage;
 import org.apache.activemq.usage.SystemUsage;
@@ -50,6 +52,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.security.KeyStore;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -319,6 +322,15 @@ public class BrokerConfig implements InitializingBean {
         brokerService.setPopulateJMSXUserID(properties.isBrokerPopulateJmsxUserId());
         brokerService.setEnableStatistics(properties.isBrokerEnableStatistics());
 
+        // Configure persistent storage
+        if (properties.isBrokerPersistenceEnabled()) {
+            String dir = StringUtils.firstNonBlank(properties.getBrokerPersistenceDirectory(), "data/activemq");
+            log.debug("BrokerConfig.createBrokerService(): Setting persistence adapter (Kaha): directory: {}", dir);
+            KahaDBPersistenceAdapter kahaDBPersistenceAdapter = new KahaDBPersistenceAdapter();
+            kahaDBPersistenceAdapter.setDirectory(Paths.get(dir).toFile());
+            brokerService.setPersistenceAdapter(kahaDBPersistenceAdapter);
+        }
+
         // Change the JMX connector port
         if (properties.getManagementConnectorPort() > 0) {
             if (brokerService.getManagementContext() != null) {
@@ -407,11 +419,20 @@ public class BrokerConfig implements InitializingBean {
         if (properties.isDestinationPolicyEnabled()) {
             PolicyMap policyMap = new PolicyMap();
             PolicyEntry policyEntry = new PolicyEntry();
-            policyEntry.setQueue(">");  // Apply to all queues
-            policyEntry.setTopic(">");  // Apply to all topics
-            policyEntry.setProducerFlowControl(true);
-            policyEntry.setMemoryLimit( properties.getDestinationPolicyMemLimit() );
+            String destination = StringUtils.firstNonBlank(properties.getDestinationPolicyDestination(), ">");
+            //policyEntry.setQueue(destination);  // '>': Apply to all queues
+            policyEntry.setTopic(destination);  // '>': Apply to all topics
+            policyEntry.setProducerFlowControl(properties.isProducerFlowControlEnabled());
+            if (properties.getDestinationPolicyMemLimit() > 0) {
+                policyEntry.setMemoryLimit(properties.getDestinationPolicyMemLimit());
+            }
+            if (properties.getPendingMessageLimitStrategyLimit() > 0) {
+                ConstantPendingMessageLimitStrategy strategy = new ConstantPendingMessageLimitStrategy();
+                strategy.setLimit(properties.getPendingMessageLimitStrategyLimit());
+                policyEntry.setPendingMessageLimitStrategy(strategy);
+            }
             policyMap.setDefaultEntry(policyEntry);
+            //policyMap.put(policyEntry.getDestination(), policyEntry);
             brokerService.setDestinationPolicy(policyMap);
         }
 

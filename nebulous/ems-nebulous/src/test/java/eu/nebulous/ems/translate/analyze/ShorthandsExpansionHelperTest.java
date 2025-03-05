@@ -27,6 +27,6 @@ class ShorthandsExpansionHelperTest {
         ));
         ShorthandsExpansionHelper helper = new ShorthandsExpansionHelper(null);
         helper.expandConstraintExpression(spec);
-        log.warn(">>>>  ShorthandsExpansionHelperTest:\n{}", spec);
+        log.info("ShorthandsExpansionHelperTest:\n{}", spec);
     }
 }

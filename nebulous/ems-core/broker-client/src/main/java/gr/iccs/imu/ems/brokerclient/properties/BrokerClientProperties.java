@@ -16,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Duration;
+
 @Data
 @Configuration
 @ConfigurationProperties(prefix = EmsConstant.EMS_PROPERTIES_PREFIX + "brokerclient")
@@ -33,6 +35,13 @@ public class BrokerClientProperties {
     @ToString.Exclude
     private String brokerPassword;
 
+    private long retryResetThreshold = Duration.ofMinutes(5).toMillis();
+    private long retryInitDelay = 100L;
+    private long retryMaxDelay = Duration.ofMinutes(1).toMillis();
+    private double retryBackoffFactor = 2;
+    private long retryMaxRetries = -1L;
+    private long stopWaitTimeout = -1L;
+
     @Data
     public static class Ssl {
         private boolean clientAuthRequired;
@@ -47,16 +56,6 @@ public class BrokerClientProperties {
     }
 
     public BrokerClientProperties() {
-        brokerName = "broker";
-        brokerUrl = "tcp://localhost:61616";
-        brokerUrlProperties = "";
-        managementConnectorPort = -1;
-        preserveConnection = false;
-
-        ssl = new Ssl();
-
-        brokerUsername = "";
-        brokerPassword = "";
     }
 
     public BrokerClientProperties(java.util.Properties p) {
@@ -79,5 +78,20 @@ public class BrokerClientProperties {
         brokerPassword = p.getProperty("brokerclient.broker-password", "");
 
         brokerUrlProperties = brokerUrlProperties.replace("${brokerclient.ssl.client-auth.required}", Boolean.toString(ssl.clientAuthRequired));
+
+        retryResetThreshold = getLongProperty(p, "brokerclient.retry-reset-threshold", this.retryResetThreshold);
+        retryInitDelay = getLongProperty(p, "brokerclient.retry-init-delay", this.retryInitDelay);
+        retryMaxDelay = getLongProperty(p, "brokerclient.retry-max-delay", this.retryMaxDelay);
+        retryBackoffFactor = getDoubleProperty(p, "brokerclient.retry-backoff-factor", this.retryBackoffFactor);
+        retryMaxRetries = getLongProperty(p, "brokerclient.retry-max-retries", this.retryMaxRetries);
+        stopWaitTimeout = getLongProperty(p, "brokerclient.stop-wait-timeout", this.stopWaitTimeout);
+    }
+
+    long getLongProperty(java.util.Properties p, String propName, long defaultValue) {
+        return Long.parseLong(p.getProperty(propName, Long.toString(defaultValue)));
+    }
+
+    double getDoubleProperty(java.util.Properties p, String propName, double defaultValue) {
+        return Double.parseDouble(p.getProperty(propName, Double.toString(defaultValue)));
     }
 }

@@ -258,18 +258,34 @@ public class ControlServiceCoordinator implements InitializingBean {
         });
     }
 
+    public Map<String,Double> getConstants(ControlServiceRequestInfo requestInfo) {
+        if (brokerCep == null) {
+            log.debug("ControlServiceCoordinator.getConstants(): Broker-CEP: Initializing...");
+            brokerCep = applicationContext.getBean(BrokerCepService.class);
+            log.debug("ControlServiceCoordinator.getConstants(): Broker-CEP: Initializing...ok");
+        }
+
+        Map<String,Double> constants = brokerCep.getConstants();
+        log.debug("ControlServiceCoordinator.getConstants(): Constants from Broker-CEP: {}", constants);
+        return constants;
+    }
+
     @Async
     public void setConstants(@NonNull Map<String,Double> constants, ControlServiceRequestInfo requestInfo) {
         _lockAndProcessModel(null, null, requestInfo, "setConstants()", true, () -> {
             // Call '_setConstants()' to do actual processing
             _setConstants(constants, requestInfo);
-            return List.of(getCurrentEmsState(), getCurrentEmsStateMessage(), getCurrentEmsStateChangeTimestamp());
+            //return List.of(getCurrentEmsState(), getCurrentEmsStateMessage(), getCurrentEmsStateChangeTimestamp());
+            return null;
         });
     }
 
     protected void _lockAndProcessModel(String appModelId, String appExecModelId, ControlServiceRequestInfo requestInfo,
                                         String caller, boolean updateEmsState, Supplier<List<Object>> callback)
     {
+        if (requestInfo==null)
+            requestInfo = ControlServiceRequestInfo.EMPTY;
+
         // Acquire lock of this coordinator
         if (!inUse.compareAndSet(false, true)) {
             String mesg = "ControlServiceCoordinator."+caller+": ERROR: Coordinator is in use. Exits immediately";

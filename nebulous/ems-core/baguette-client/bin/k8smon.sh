@@ -101,7 +101,15 @@ while true; do
             fi
         done
     fi
+
+    # Check if owner process is still running
+    PARENT_RUNNING=$(ps -fp $1 |grep -v PID |wc -l)
+    if [ "$PARENT_RUNNING" -qe "0" ]; then
+        echo "Exiting because parent process $1 has also exited"
+        break
+    fi
 done
+echo "Exited"
 
 # Restore original file descriptors (if needed)
 #exec 1>&3 2>&4

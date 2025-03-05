@@ -380,7 +380,7 @@ brokercep.message-interceptors-specs.MessageForwarderInterceptor.className = int
 brokercep.enable-advisory-watcher = true
 
 # Memory usage limit
-brokercep.usage.memory.jvm-heap-percentage = 20
+brokercep.usage.memory.jvm-heap-percentage = 70
 #brokercep.usage.memory.size = 134217728
 
 # Event forward settings

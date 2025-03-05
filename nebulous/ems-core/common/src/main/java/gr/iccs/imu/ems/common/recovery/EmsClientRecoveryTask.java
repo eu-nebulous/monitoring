@@ -35,7 +35,7 @@ public class EmsClientRecoveryTask<P extends SshClientProperties> extends VmNode
             new RECOVERY_COMMAND("Sending baguette client kill command...",
                     "${BAGUETTE_CLIENT_BASE_DIR}/bin/kill.sh", 0, 2000),
             new RECOVERY_COMMAND("Sending baguette client start command...",
-                    "${BAGUETTE_CLIENT_BASE_DIR}/bin/run.sh", 0, 10000)
+                    "${BAGUETTE_CLIENT_BASE_DIR}/bin/run.sh &>/dev/null &", 0, 10000)
     );
 
     public EmsClientRecoveryTask(@NonNull EventBus<String, Object, Object> eventBus, @NonNull PasswordUtil passwordUtil, @NonNull TaskScheduler taskScheduler, @NonNull CollectorContext<P> collectorContext, @NonNull SelfHealingProperties selfHealingProperties) {

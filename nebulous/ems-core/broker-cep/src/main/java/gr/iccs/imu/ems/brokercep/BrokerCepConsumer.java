@@ -256,9 +256,9 @@ public class BrokerCepConsumer implements MessageListener, InitializingBean, App
 
             // Log message data
             if (logBrokerMessagesFull)
-                log.info("\n==========|  RECEIVED A MESSAGE: metricValue={}, dest={}, timestamp={}, id={}\n{}", metricValue, jmsDest, timestamp, jmsMesgId, message);
+                log.info("\n==========|  RECEIVED A MESSAGE: dest={}, metricValue={}, timestamp={}, id={}\n{}", jmsDest, metricValue, timestamp, jmsMesgId, message);
             else
-                log.info("\n==========|  RECEIVED A MESSAGE: metricValue={}, dest={}, timestamp={}, id={}", metricValue, jmsDest, timestamp, jmsMesgId);
+                log.info("\n==========|  RECEIVED A MESSAGE: dest={}, metricValue={}, timestamp={}, id={}", jmsDest, metricValue, timestamp, jmsMesgId);
 
         } catch (Exception e) {
             // Log error

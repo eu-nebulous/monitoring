@@ -47,6 +47,7 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 	private final AtomicBoolean processingResponse = new AtomicBoolean(false);
 	private final AtomicBoolean alreadyInitialized = new AtomicBoolean(false);
 	private ScheduledFuture<?> bootFuture;
+	private ScheduledFuture<?> periodicReportsFuture;
 	private Consumer consumer;
 	private Publisher publisher;
 	private Publisher reportPublisher;
@@ -87,7 +88,7 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 		// Schedule sending EMS Boot message
 		bootFuture = taskScheduler.scheduleAtFixedRate(this::sendEmsBootReadyEvent,
 				Instant.now().plus(bootInitializerProperties.getInitialWait()), bootInitializerProperties.getRetryPeriod());
-		bootFuture = taskScheduler.scheduleAtFixedRate(this::sendPeriodicReport,
+		periodicReportsFuture = taskScheduler.scheduleAtFixedRate(this::sendPeriodicReport,
 				Instant.now().plus(bootInitializerProperties.getInitialWait()), bootInitializerProperties.getRetryPeriod());
 	}
 
@@ -159,15 +160,17 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 			// Process EMS Boot Response message
 			String appId = body.get("application").toString();
 			String modelStr = body.get("metric-model").toString();
-			Map<String,String> bindingsMap = (Map) body.get("bindings");
+			Map<String,Map<String,String>> bindingsMap = (Map) body.get("bindings");
+			Map<String,Object> solutionMap = (Map) body.get("solution");
 			List<String> metricsList = (List) body.get("optimiser-metrics");
 			log.info("""
 					EmsBootInitializer: Received an EMS Boot Response:
 					      App-Id: {}
 					    Bindings: {}
+					    Solution: {}
 					Opt. Metrics: {}
 					       Model: {}
-					""", appId, bindingsMap, metricsList, modelStr);
+					""", appId, bindingsMap, solutionMap, metricsList, modelStr);
 
 			if (! StringUtils.equals(applicationId, appId)) {
 				log.warn("EmsBootInitializer: Ignoring EMS Boot response. Response App-Id does not match the configured App Id: {} != {}", appId, applicationId);
@@ -175,9 +178,10 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 			}
 
 			try {
-				// Process metric model and bindings
+				// Process metric model, bindings, optimiser metrics, and (current) solution
 				processMetricModel(appId, modelStr, metricsList);
 				processBindings(appId, bindingsMap);
+				processSolution(appId, solutionMap);
 				processOptimiserMetrics(appId, metricsList);
 
 				// Stop further EMS Boot requests
@@ -201,9 +205,14 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 		log.info("Set optimiser metrics to: {}", metricsList);
 	}
 
-	public void processBindings(String appId, Map<String, String> bindingsMap) {
+	public void processBindings(String appId, Map<String, Map<String, String>> bindingsMap) {
 		applicationContext.getBean(MvvService.class).setBindings(bindingsMap);
 		log.info("Set MVV bindings to: {}", bindingsMap);
+	}
+
+	private void processSolution(String appId, Map<String, Object> solutionMap) {
+		applicationContext.getBean(MvvService.class).translateAndSetValues(solutionMap);
+		log.info("Set solution to: {}", solutionMap);
 	}
 
 	public void processMetricModel(String appId, String modelStr, List<String> requiredMetricsList) throws IOException {

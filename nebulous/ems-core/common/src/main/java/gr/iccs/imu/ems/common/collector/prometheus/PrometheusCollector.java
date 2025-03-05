@@ -15,12 +15,10 @@ import gr.iccs.imu.ems.common.collector.CollectorContext;
 import gr.iccs.imu.ems.util.EventBus;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.TaskScheduler;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,7 +29,7 @@ import java.util.Set;
 @Slf4j
 public class PrometheusCollector extends AbstractEndpointCollector<String> implements IPrometheusCollector {
     protected PrometheusCollectorProperties properties;
-    protected RestTemplate restTemplate = new RestTemplate();
+    protected RestClient restClient;
 
     private Set<String> allowedTags;
     private boolean allowTagsInDestinationName;
@@ -62,14 +60,12 @@ public class PrometheusCollector extends AbstractEndpointCollector<String> imple
             properties.setUrl(url);
         }
 
-        this.restTemplate = new RestTemplateBuilder()
-                .setConnectTimeout(Duration.ofSeconds(5))
-                .setReadTimeout(Duration.ofSeconds(5))
-                .build();
+        // Initialize REST client
+        this.restClient = createRestClient();
     }
 
     protected ResponseEntity<String> getData(String url) {
-        return restTemplate.getForEntity(url, String.class);
+        return restClient.get().uri(url).retrieve().toEntity(String.class);
     }
 
     protected void processData(String data, String nodeAddress, ProcessingStats stats) {
