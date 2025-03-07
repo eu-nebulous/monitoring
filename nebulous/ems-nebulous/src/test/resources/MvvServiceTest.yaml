@@ -1,0 +1,64 @@
+---
+# The message contents used in MvvServiceTest class
+translateAndSetControlServiceConstants:
+  - title: A properly initialized entry
+    expected_outcome: '{replicas=2.0}'
+    bindings: |
+      {
+        "simple-bindings": { "spec_components_0_traits_0_properties_replicas": "replicas" },
+        "composite-bindings": { }
+      }
+    solution: |
+      { "spec_components_0_traits_0_properties_replicas": 2.0 }
+
+  - title: Extra solution
+    expected_outcome: '{replicas=2.0}'
+    bindings: |
+      {
+        "simple-bindings": { "spec_components_0_traits_0_properties_replicas": "replicas" },
+        "composite-bindings": { }
+      }
+    solution: |
+      { "spec_components_0_traits_0_properties_replicas": 2.0, spec_components_1_traits_0_properties_replicas": 1.0 }
+
+  - title: Empty solution
+    expected_outcome: '{}'
+    bindings: |
+      {
+        "simple-bindings": { "spec_components_0_traits_0_properties_replicas": "replicas" },
+        "composite-bindings": { }
+      }
+    solution: |
+      { }
+
+  - title: Null solution
+    expected_outcome: '{}'
+    bindings: |
+      {
+        "simple-bindings": { "spec_components_0_traits_0_properties_replicas": "replicas" },
+        "composite-bindings": { }
+      }
+    solution: null
+
+  - title: Empty bindings
+    expected_outcome: '{}'
+    bindings: |
+      { }
+    solution: |
+      { "spec_components_0_traits_0_properties_replicas": 2.0, spec_components_1_traits_0_properties_replicas": 1.0 }
+
+  - title: Null bindings
+    expected_outcome: '{}'
+    bindings: null
+    solution: |
+      { "spec_components_0_traits_0_properties_replicas": 2.0, spec_components_1_traits_0_properties_replicas": 1.0 }
+
+  - title: With composite binding
+    expected_outcome: '{replicas=2.0, negative_replicas=-2.0}'
+    bindings: |
+      {
+        "simple-bindings": { "spec_components_0_traits_0_properties_replicas": "replicas" },
+        "composite-bindings": { "-1 * spec_components_0_traits_0_properties_replicas": "negative_replicas" }
+      }
+    solution: |
+      { "spec_components_0_traits_0_properties_replicas": 2.0 }
