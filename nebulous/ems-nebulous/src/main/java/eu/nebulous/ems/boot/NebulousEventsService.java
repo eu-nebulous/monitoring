@@ -166,7 +166,7 @@ public class NebulousEventsService implements InitializingBean {
 				sendResponse(modelsResponsePublisher, appId, result);
 		} else
 		if (properties.getEmsBootTopic().equals(command.address())) {
-			bootService.processEmsBootMessage(command, appId, emsBootResponsePublisher);
+			bootService.processEmsBootMessage(command, appId, (message, app_id) -> emsBootResponsePublisher.send(message, app_id));
 		} else
 			log.error("ERROR: Received message from unexpected topic: {}", command.address());
 	}

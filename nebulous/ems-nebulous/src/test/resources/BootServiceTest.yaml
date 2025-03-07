@@ -1,0 +1,279 @@
+---
+# The EMS Boot cache contents used in BootServiceTest class
+processEmsBootMessage:
+  - title: A properly initialized entry
+    expected_outcome: OK
+    appId: 12345678-abcb-def0-123b-4567890abcde
+    timestamp: null
+    model: |
+      {
+        "apiVersion": "nebulous/v1",
+        "kind": "MetricModel",
+        "metadata": {
+          "name": "12345678-abcb-def0-123b-4567890abcde",
+          "labels": {
+            "app": "anAPP 2025-03-06"
+          }
+        },
+        "templates": [],
+        "spec": {
+          "components": [],
+          "scopes": [
+            {
+              "name": "app-wide-scope",
+              "components": [],
+              "metrics": [
+                {
+                  "name": "messages_per_minute",
+                  "type": "raw",
+                  "sensor": {
+                    "type": "none",
+                    "config": { }
+                  }
+                },
+                {
+                  "name": "load_factor",
+                  "type": "composite",
+                  "formula": "messages_per_minute / replicas"
+                },
+                {
+                  "name": "replicas",
+                  "type": "constant"
+                }
+              ],
+              "requirements": [
+                {
+                  "name": "combined-slo",
+                  "type": "slo",
+                  "constraint": "(load_factor > 1000)"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    bindings: |
+      {
+        "simple-bindings": { "spec_components_0_traits_0_properties_replicas": "replicas" },
+        "composite-bindings": { }
+      }
+    solution: |
+      { "spec_components_0_traits_0_properties_replicas": 2.0 }
+    metrics: |
+      [ "load_factor" ]
+
+  # ---------------------------------------------------------------------------------------
+  - title: A minimal valid entry
+    expected_outcome: OK
+    appId: 12345678-abcb-def0-123b-4567890abcde
+    timestamp: null
+    model: |
+      {
+        "apiVersion": "nebulous/v1",
+        "kind": "MetricModel",
+      }
+    bindings: |
+      {
+        "simple-bindings": { "spec_components_0_traits_0_properties_replicas": "replicas" },
+        "composite-bindings": { }
+      }
+    solution: |
+      { "spec_components_0_traits_0_properties_replicas": 2.0 }
+    metrics: |
+      [ "load_factor" ]
+
+  # ---------------------------------------------------------------------------------------
+  - title: Empty payload
+    expected_outcome: ERROR
+
+  # ---------------------------------------------------------------------------------------
+  - title: No appId
+    expected_outcome: ERROR
+    timestamp: null
+    model: |
+      {
+        "apiVersion": "nebulous/v1",
+        "kind": "MetricModel",
+      }
+    bindings: |
+      {
+        "simple-bindings": { "spec_components_0_traits_0_properties_replicas": "replicas" },
+        "composite-bindings": { }
+      }
+    solution: |
+      { "spec_components_0_traits_0_properties_replicas": 2.0 }
+    metrics: |
+      [ "load_factor" ]
+
+  # ---------------------------------------------------------------------------------------
+  - title: No 'model'
+    expected_outcome: ERROR
+    appId: 12345678-abcb-def0-123b-4567890abcde
+    timestamp: null
+    bindings: |
+      {
+        "simple-bindings": { "spec_components_0_traits_0_properties_replicas": "replicas" },
+        "composite-bindings": { }
+      }
+    solution: |
+      { "spec_components_0_traits_0_properties_replicas": 2.0 }
+    metrics: |
+      [ "load_factor" ]
+
+  # ---------------------------------------------------------------------------------------
+  - title: No 'binding'
+    expected_outcome: ERROR
+    appId: 12345678-abcb-def0-123b-4567890abcde
+    timestamp: null
+    model: |
+      {
+        "apiVersion": "nebulous/v1",
+        "kind": "MetricModel",
+      }
+    solution: |
+      { "spec_components_0_traits_0_properties_replicas": 2.0 }
+    metrics: |
+      [ "load_factor" ]
+
+  # ---------------------------------------------------------------------------------------
+  - title: No 'solution'
+    expected_outcome: OK
+    appId: 12345678-abcb-def0-123b-4567890abcde
+    timestamp: null
+    model: |
+      {
+        "apiVersion": "nebulous/v1",
+        "kind": "MetricModel",
+      }
+    bindings: |
+      {
+        "simple-bindings": { "spec_components_0_traits_0_properties_replicas": "replicas" },
+        "composite-bindings": { }
+      }
+    metrics: |
+      [ "load_factor" ]
+
+  # ---------------------------------------------------------------------------------------
+  - title: No 'metrics'
+    expected_outcome: ERROR
+    appId: 12345678-abcb-def0-123b-4567890abcde
+    timestamp: null
+    model: |
+      {
+        "apiVersion": "nebulous/v1",
+        "kind": "MetricModel",
+      }
+    bindings: |
+      {
+        "simple-bindings": { "spec_components_0_traits_0_properties_replicas": "replicas" },
+        "composite-bindings": { }
+      }
+    solution: |
+      { "spec_components_0_traits_0_properties_replicas": 2.0 }
+
+  # ---------------------------------------------------------------------------------------
+  - title: Null model
+    expected_outcome: ERROR
+    appId: 12345678-abcb-def0-123b-4567890abcde
+    timestamp: null
+    model: null
+    bindings: |
+      {
+        "simple-bindings": { "spec_components_0_traits_0_properties_replicas": "replicas" },
+        "composite-bindings": { }
+      }
+    solution: |
+      { "spec_components_0_traits_0_properties_replicas": 2.0 }
+    metrics: |
+      [ "load_factor" ]
+
+  # ---------------------------------------------------------------------------------------
+  - title: Null bindings
+    expected_outcome: ERROR
+    appId: 12345678-abcb-def0-123b-4567890abcde
+    timestamp: null
+    model: |
+      {
+        "apiVersion": "nebulous/v1",
+        "kind": "MetricModel",
+      }
+    bindings: null
+    solution: |
+      { "spec_components_0_traits_0_properties_replicas": 2.0 }
+    metrics: |
+      [ "load_factor" ]
+
+  # ---------------------------------------------------------------------------------------
+  - title: Null solution
+    expected_outcome: OK
+    appId: 12345678-abcb-def0-123b-4567890abcde
+    timestamp: null
+    model: |
+      {
+        "apiVersion": "nebulous/v1",
+        "kind": "MetricModel",
+      }
+    bindings: |
+      {
+        "simple-bindings": { "spec_components_0_traits_0_properties_replicas": "replicas" },
+        "composite-bindings": { }
+      }
+    solution: null
+    metrics: |
+      [ "load_factor" ]
+
+  # ---------------------------------------------------------------------------------------
+  - title: Null metrics
+    expected_outcome: ERROR
+    appId: 12345678-abcb-def0-123b-4567890abcde
+    timestamp: null
+    model: |
+      {
+        "apiVersion": "nebulous/v1",
+        "kind": "MetricModel",
+      }
+    bindings: |
+      {
+        "simple-bindings": { "spec_components_0_traits_0_properties_replicas": "replicas" },
+        "composite-bindings": { }
+      }
+    solution: |
+      { "spec_components_0_traits_0_properties_replicas": 2.0 }
+    metrics: null
+
+  # ---------------------------------------------------------------------------------------
+  - title: Malformed model
+    expected_outcome: OK
+    appId: 12345678-abcb-def0-123b-4567890abcde
+    timestamp: null
+    model: |
+      "apiVersion": "nebulous/v1",
+    bindings: |
+      {
+        "simple-bindings": { "spec_components_0_traits_0_properties_replicas": "replicas" },
+        "composite-bindings": { }
+      }
+    solution: |
+      { "spec_components_0_traits_0_properties_replicas": 2.0 }
+    metrics: |
+      [ "load_factor" ]
+
+  # ---------------------------------------------------------------------------------------
+  - title: With timestamp
+    expected_outcome: OK
+    appId: 12345678-abcb-def0-123b-4567890abcde
+    timestamp: 999999999
+    model: |
+      {
+        "apiVersion": "nebulous/v1",
+        "kind": "MetricModel",
+      }
+    bindings: |
+      {
+        "simple-bindings": { "spec_components_0_traits_0_properties_replicas": "replicas" },
+        "composite-bindings": { }
+      }
+    solution: |
+      { "spec_components_0_traits_0_properties_replicas": 2.0 }
+    metrics: |
+      [ "load_factor" ]
