@@ -26,7 +26,6 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -35,7 +34,7 @@ import java.util.stream.Collectors;
 public class ModelsService implements InitializingBean {
 	final static String MODEL_FILE_KEY = "model-file";
 	final static String BINDINGS_FILE_KEY = "bindings-file";
-	final static String SOLUTIONS_FILE_KEY = "solutions-file";
+	final static String SOLUTION_FILE_KEY = "solution-file";
 	final static String OPTIMISER_METRICS_FILE_KEY = "optimiser-metrics-file";
 
 	public final static String SIMPLE_BINDING_KEY = "simple-bindings";
@@ -140,7 +139,12 @@ public class ModelsService implements InitializingBean {
 
 		// Store bindings in models store
 		String bindingsFile = getFileName("bindings", appId, "json");
-		if (bindingsMap==null) bindingsMap = Map.of();
+		if (bindingsMap==null) {
+			bindingsMap = Map.of(
+					SIMPLE_BINDING_KEY, Map.of(),
+					COMPOSITE_BINDING_KEY, Map.of()
+			);
+		}
 		storeToFile(bindingsFile, objectMapper.writeValueAsString(bindingsMap));
 		log.info("Stored bindings in file: app-id={}, file={}", appId, bindingsFile);
 
@@ -232,7 +236,7 @@ public class ModelsService implements InitializingBean {
 		log.info("Stored solution in file: app-id={}, file={}", appId, solutionFile);
 
 		// Add appId-solutionFile entry in the stored Index
-		indexService.storeToIndex(appId, Map.of(SOLUTIONS_FILE_KEY, solutionFile));
+		indexService.storeToIndex(appId, Map.of(SOLUTION_FILE_KEY, solutionFile));
 
 		return "OK";
 	}

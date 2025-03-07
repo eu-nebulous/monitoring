@@ -1,0 +1,273 @@
+---
+extractBindings:
+  - | # Example taken from DYEMAC use case
+    {
+      "utilityFunctions": [
+        {
+          "name": "test_utility",
+          "type": "maximize",
+          "expression": {
+            "formula": "0.5*exp((log(0.001) * (mean_cpu_consumption_all - 50)^2) /1600) + 0.5*exp((log(0.001) * (mean_requests_per_second - 7)^2) /25)",
+            "variables": [
+              {
+                "name": "mean_cpu_consumption_all",
+                "value": "mean_cpu_consumption_all"
+              },
+              {
+                "name": "mean_requests_per_second",
+                "value": "mean_requests_per_second"
+              }
+            ]
+          }
+        },
+        {
+          "name": "dosage_analysis_replica_count_const",
+          "type": "constant",
+          "expression": {
+            "formula": "dosage_analysis_replica_count_const",
+            "variables": [
+              {
+                "name": "dosage_analysis_replica_count_const",
+                "value": "spec_components_1_traits_0_properties_replicas"
+              }
+            ]
+          }
+        },
+        {
+          "name": "data_collection_replica_count_const",
+          "type": "constant",
+          "expression": {
+            "formula": "data_collection_replica_count",
+            "variables": [
+              {
+                "name": "data_collection_replica_count",
+                "value": "spec_components_0_traits_0_properties_replicas"
+              }
+            ]
+          }
+        },
+        {
+          "name": "total_instances_const",
+          "type": "constant",
+          "expression": {
+            "formula": "data_collection_replica_count+dosage_analysis_replica_count_const+1",
+            "variables": [
+              {
+                "name": "data_collection_replica_count",
+                "value": "spec_components_0_traits_0_properties_replicas"
+              },
+              {
+                "name": "dosage_analysis_replica_count_const",
+                "value": "spec_components_1_traits_0_properties_replicas"
+              }
+            ]
+          }
+        }
+      ],
+      "uuid": "12345678-abcb-def0-123b-4567890abcde",
+      "_create": true,
+      "_delete": true
+    }
+
+  - | # Test with missing 'utilityFunctions' section
+    {
+      "uuid": "12345678-abcb-def0-123b-4567890abcde"
+    }
+
+  - | # Test with empty 'utilityFunctions' section
+    {
+      "uuid": "12345678-abcb-def0-123b-4567890abcde",
+      "utilityFunctions": [ ]
+    }
+
+  - | # Test with null 'utilityFunctions' section
+    {
+      "uuid": "12345678-abcb-def0-123b-4567890abcde",
+      "utilityFunctions": null
+    }
+
+  - | # Test with 'utilityFunctions' section with wrong data type
+    {
+      "uuid": "12345678-abcb-def0-123b-4567890abcde",
+      "utilityFunctions": { "aa": "xx" }
+    }
+
+  - | # Test with 'utilityFunctions' section with wrong data type
+    {
+      "uuid": "12345678-abcb-def0-123b-4567890abcde",
+      "utilityFunctions": "dummy"
+    }
+
+  - | # Test with 'utilityFunctions' section with no constants
+    {
+      "uuid": "12345678-abcb-def0-123b-4567890abcde",
+      "utilityFunctions": [
+        {
+          "name": "test_utility",
+          "type": "maximize",
+          "expression": {
+            "formula": "0.5*exp((log(0.001) * (mean_cpu_consumption_all - 50)^2) /1600) + 0.5*exp((log(0.001) * (mean_requests_per_second - 7)^2) /25)",
+            "variables": [
+              {
+                "name": "mean_cpu_consumption_all",
+                "value": "mean_cpu_consumption_all"
+              },
+              {
+                "name": "mean_requests_per_second",
+                "value": "mean_requests_per_second"
+              }
+            ]
+          }
+        }
+        ]
+    }
+
+  - | # Test with 'utilityFunctions' section with simple constants
+    {
+      "uuid": "12345678-abcb-def0-123b-4567890abcde",
+      "utilityFunctions": [
+        {
+          "name": "dosage_analysis_replica_count_const",
+          "type": "constant",
+          "expression": {
+            "formula": "dosage_analysis_replica_count_const",
+            "variables": [
+              {
+                "name": "dosage_analysis_replica_count_const",
+                "value": "spec_components_1_traits_0_properties_replicas"
+              }
+            ]
+          }
+        },
+        {
+          "name": "data_collection_replica_count_const",
+          "type": "constant",
+          "expression": {
+            "formula": "data_collection_replica_count",
+            "variables": [
+              {
+                "name": "data_collection_replica_count",
+                "value": "spec_components_0_traits_0_properties_replicas"
+              }
+            ]
+          }
+        }
+        ]
+    }
+
+  - | # Test with 'utilityFunctions' section with simple and composite constants
+    {
+      "uuid": "12345678-abcb-def0-123b-4567890abcde",
+      "utilityFunctions": [
+        {
+          "name": "dosage_analysis_replica_count_const",
+          "type": "constant",
+          "expression": {
+            "formula": "dosage_analysis_replica_count_const",
+            "variables": [
+              {
+                "name": "dosage_analysis_replica_count_const",
+                "value": "spec_components_1_traits_0_properties_replicas"
+              }
+            ]
+          }
+        },
+        {
+          "name": "data_collection_replica_count_const",
+          "type": "constant",
+          "expression": {
+            "formula": "data_collection_replica_count",
+            "variables": [
+              {
+                "name": "data_collection_replica_count",
+                "value": "spec_components_0_traits_0_properties_replicas"
+              }
+            ]
+          }
+        },
+        {
+          "name": "total_instances_const",
+          "type": "constant",
+          "expression": {
+            "formula": "data_collection_replica_count+dosage_analysis_replica_count_const+1",
+            "variables": [
+              {
+                "name": "data_collection_replica_count",
+                "value": "spec_components_0_traits_0_properties_replicas"
+              },
+              {
+                "name": "dosage_analysis_replica_count_const",
+                "value": "spec_components_1_traits_0_properties_replicas"
+              }
+            ]
+          }
+        },
+        {
+          "name": "negative_data_collection_replica_count_plus_one",
+          "type": "constant",
+          "expression": {
+            "formula": "-data_collection_replica_count+1",
+            "variables": [
+              {
+                "name": "data_collection_replica_count",
+                "value": "spec_components_0_traits_0_properties_replicas"
+              }
+            ]
+          }
+        }
+        ]
+    }
+
+  - | # Test with 'utilityFunctions' section with composite constants ONLY
+    {
+      "uuid": "12345678-abcb-def0-123b-4567890abcde",
+      "utilityFunctions": [
+        {
+          "name": "total_instances_const",
+          "type": "constant",
+          "expression": {
+            "formula": "data_collection_replica_count+dosage_analysis_replica_count_const+1",
+            "variables": [
+              {
+                "name": "data_collection_replica_count",
+                "value": "spec_components_0_traits_0_properties_replicas"
+              },
+              {
+                "name": "dosage_analysis_replica_count_const",
+                "value": "spec_components_1_traits_0_properties_replicas"
+              }
+            ]
+          }
+        }
+      ]
+    }
+
+extractSolution:
+  - | # Test with a proper solution
+    {
+      "uuid": "12345678-abcb-def0-123b-4567890abcde",
+      "DeploySolution": false,
+      "VariableValues": { "spec_components_0_traits_0_properties_replicas": 1.0, "spec_components_1_traits_0_properties_replicas": 2.0 }
+    }
+  - | # Test with a solution with no 'DeploySolution'
+    {
+      "uuid": "12345678-abcb-def0-123b-4567890abcde",
+      "VariableValues": { "spec_components_0_traits_0_properties_replicas": 1.0, "spec_components_1_traits_0_properties_replicas": 2.0 }
+    }
+  - | # Test with a solution with no 'VariableValues'
+    {
+      "uuid": "12345678-abcb-def0-123b-4567890abcde",
+      "DeploySolution": false
+    }
+  - | # Test with an empty solution
+    { }
+  - | # Test with a solution with items of wrong type
+    {
+      "uuid": "12345678-abcb-def0-123b-4567890abcde",
+      "VariableValues": { "spec_components_0_traits_0_properties_replicas": "1.0" }
+    }
+  - | # Test with a solution with null items
+    {
+      "uuid": "12345678-abcb-def0-123b-4567890abcde",
+      "VariableValues": { "spec_components_0_traits_0_properties_replicas": null }
+    }

@@ -1,40 +1,51 @@
 package eu.nebulous.ems.service;
 
-import lombok.NonNull;
+import eu.nebulous.ems.AbstractBaseTest;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.*;
+import java.util.Objects;
 
 @Slf4j
-class MvvServiceTest {
+class MvvServiceTest extends AbstractBaseTest {
+
+    public static final String TESTS_YAML_FILE = "src/test/resources/MvvServiceTest.yaml";
+
+    private MvvService mvvService;
+
+    @BeforeAll
+    public void setUp() throws IOException {
+        log.info("MvvServiceTest: Setting up");
+        mvvService = new MvvService(null);
+    }
 
     @Test
-    void translateAndSetControlServiceConstants() {
-        @NonNull Map<String, Map<String, String>> bindings = Map.of(
-                "simple-bindings", Map.of(
-                        "spec_components_1_traits_0_properties_replicas", "dosage_analysis_replica_count_const",
-                        "spec_components_0_traits_0_properties_replicas", "data_collection_replica_count_const"
-                ),
-                "composite-bindings", Map.of(
-                        "spec_components_0_traits_0_properties_replicas+spec_components_1_traits_0_properties_replicas+1", "total_instances_const"
-                )
-        );
-        Map<String, Object> newValues = Map.of(
-                "spec_components_1_traits_0_properties_replicas", 2.0,
-                "spec_components_0_traits_0_properties_replicas", 3.0
-        );
-        log.info("MvvServiceTest:  bindings: {}", bindings);
-        log.info("MvvServiceTest: newValues: {}", newValues);
+    void translateAndSetControlServiceConstants() throws IOException {
+        loadAndRunTests("translateAndSetControlServiceConstants", TESTS_YAML_FILE, (testDescription, yaml) -> {
+            Map testData = toMap(yaml);
+            log.debug("translateAndSetControlServiceConstants: {}: testData: {}", testDescription, testData);
+            String title = testData.getOrDefault("title", "").toString();
+            String expected = testData.getOrDefault("expected_outcome", "").toString();
 
-        MvvService mvvService = new MvvService(null);
-        mvvService.setBindings(bindings);
-        log.info("MvvServiceTest: values BEFORE: {}", mvvService.getValues());
-        try {
-            mvvService.translateAndSetValues(newValues);
-        } catch (Exception ignored) {}
-        log.info("MvvServiceTest: values AFTER: {}", mvvService.getValues());
+            Map bindings = toMap(Objects.requireNonNullElse(testData.get("bindings"), Map.of()));
+            Map newValues = toMap(Objects.requireNonNullElse(testData.get("solution"), Map.of()));
+
+            MvvService mvvService = new MvvService(null);
+            mvvService.setBindings(bindings);
+            log.info("translateAndSetControlServiceConstants: values BEFORE: {}", mvvService.getValues());
+            try {
+                mvvService.translateAndSetValues(newValues);
+            } catch (Exception ignored) {}
+            log.info("translateAndSetControlServiceConstants: values AFTER: {}", mvvService.getValues());
+
+            return Map.of(
+                    "result", mvvService.getValues().toString(),
+                    "title", title,
+                    "expected_outcome", expected
+            );
+        });
     }
 }
