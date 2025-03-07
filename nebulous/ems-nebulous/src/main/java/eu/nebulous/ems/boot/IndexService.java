@@ -155,7 +155,7 @@ public class IndexService implements InitializingBean {
 	}
 
 	public Map<String,Double> getAppSolution(@NonNull String appId) throws IOException {
-		String fileName = getAppData(appId).get(ModelsService.SOLUTION_FILE_KEY);
+		String fileName = getAppData(appId).get(ModelsService.SOLUTIONS_FILE_KEY);
 		String solutionStr = applicationContext.getBean(ModelsService.class).readFromFile(fileName);
 		return objectMapper.readValue(solutionStr, Map.class);
 	}
@@ -268,16 +268,14 @@ public class IndexService implements InitializingBean {
 
 	public synchronized void addAppData(String appId) throws IOException {
 		long ts = Instant.now().toEpochMilli();
-		String modelStr, bindingsStr, solutionStr, metricsStr;
+		String modelStr, bindingsStr, metricsStr;
 		Map<String, String> data = Map.of(
-				ModelsService.MODEL_FILE_KEY, modelStr = appId + "--model--" + ts + ".yml",
-				ModelsService.BINDINGS_FILE_KEY, bindingsStr = appId + "--bindings--" + ts + ".json",
-				ModelsService.SOLUTION_FILE_KEY, solutionStr = appId + "--solution--" + ts + ".json",
-				ModelsService.OPTIMISER_METRICS_FILE_KEY, metricsStr = appId + "--metrics--" + ts + ".json"
+				"model-file", modelStr = appId + "--model--" + ts + ".yml",
+				"bindings-file", bindingsStr = appId + "--bindings--" + ts + ".json",
+				"optimiser-metrics-file", metricsStr = appId + "--metrics--" + ts + ".json"
 		);
 		Files.writeString(Paths.get(properties.getModelsDir(), modelStr), "{}");
 		Files.writeString(Paths.get(properties.getModelsDir(), bindingsStr), "{}");
-		Files.writeString(Paths.get(properties.getModelsDir(), solutionStr), "{}");
 		Files.writeString(Paths.get(properties.getModelsDir(), metricsStr), "[]");
 		storeToIndex(appId, data);
 	}

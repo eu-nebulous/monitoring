@@ -9,6 +9,7 @@
 package eu.nebulous.ems.boot;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import eu.nebulouscloud.exn.core.Publisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -17,11 +18,9 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiConsumer;
 
 @Slf4j
 @Service
@@ -36,7 +35,7 @@ public class BootService implements InitializingBean {
 		log.info("EMS Boot Service: {}", properties.isEnabled() ? "enabled" : "disabled");
 	}
 
-	String processEmsBootMessage(Command command, String appId, BiConsumer<Map,String> emsBootResponsePublisher) throws IOException {
+	void processEmsBootMessage(Command command, String appId, Publisher emsBootResponsePublisher) throws IOException {
 		// Process EMS Boot message
 		log.info("Received a new EMS Boot message from external broker: {}", command.body());
 
@@ -44,13 +43,12 @@ public class BootService implements InitializingBean {
 		Map<String, String> entry = indexService.getFromIndex(appId);
 		log.debug("Index entry for app-id: {},  entry: {}", appId, entry);
 		if (entry==null) {
-			String msg = "No EMS Boot entry found for app-id: " + appId;
-			log.warn(msg);
-			return "ERROR "+msg;
+			log.warn("No EMS Boot entry found for app-id: {}", appId);
+			return;
 		}
 		String modelFile = entry.get(ModelsService.MODEL_FILE_KEY);
 		String bindingsFile = entry.get(ModelsService.BINDINGS_FILE_KEY);
-		String solutionFile = entry.get(ModelsService.SOLUTION_FILE_KEY);
+		String solutionFile = entry.get(ModelsService.SOLUTIONS_FILE_KEY);
 		String optimiserMetricsFile = entry.get(ModelsService.OPTIMISER_METRICS_FILE_KEY);
 		log.info("""
                 Received EMS Boot request:
@@ -62,24 +60,20 @@ public class BootService implements InitializingBean {
                 """, appId, modelFile, bindingsFile, solutionFile, optimiserMetricsFile);
 
 		if (StringUtils.isAnyBlank(appId, modelFile, bindingsFile, optimiserMetricsFile)) {
-			String msg = "Missing info in EMS Boot entry for app-id: " + appId;
-			log.warn(msg);
-			return "ERROR "+msg;
+			log.warn("Missing info in EMS Boot entry for app-id: {}", appId);
+			return;
 		}
 
-		String modelStr = readFileContentsSafe(modelFile);
+		String modelStr = Files.readString(Paths.get(properties.getModelsDir(), modelFile));
 		log.debug("Model file contents:\n{}", modelStr);
-
-		String bindingsStr = readFileContentsSafe(bindingsFile);
-		Map bindingsMap = bindingsStr!=null ? objectMapper.readValue(bindingsStr, Map.class) : Map.of();
+		String bindingsStr = Files.readString(Paths.get(properties.getModelsDir(), bindingsFile));
+		Map bindingsMap = objectMapper.readValue(bindingsStr, Map.class);
 		log.debug("Bindings file contents:\n{}", bindingsMap);
-
-		String solutionStr = readFileContentsSafe(solutionFile);
-		Map solutionMap = solutionStr!=null ? objectMapper.readValue(solutionStr, Map.class) : Map.of();
+		String solutionStr = Files.readString(Paths.get(properties.getModelsDir(), solutionFile));
+		Map solutionMap = objectMapper.readValue(solutionStr, Map.class);
 		log.debug("Solution file contents:\n{}", solutionMap);
-
-		String metricsStr = readFileContentsSafe(optimiserMetricsFile);
-		List metricsList = metricsStr!=null ? objectMapper.readValue(metricsStr, List.class) : List.of();
+		String metricsStr = Files.readString(Paths.get(properties.getModelsDir(), optimiserMetricsFile));
+		List metricsList = objectMapper.readValue(metricsStr, List.class);
 		log.debug("Optimiser Metrics file contents:\n{}", metricsList);
 
 		// Send EMS Boot response message
@@ -90,26 +84,7 @@ public class BootService implements InitializingBean {
 				"solution", solutionMap,
 				"optimiser-metrics", metricsList
 		);
-		log.debug("EMS Boot response message: {}", message);
-		emsBootResponsePublisher.accept(message, appId);
+		emsBootResponsePublisher.send(message, appId);
 		log.info("EMS Boot response sent");
-		return "OK";
-	}
-
-	protected String readFileContentsSafe(String file) {
-		if (StringUtils.isBlank(file)) return null;
-		Path path = Paths.get(properties.getModelsDir(), file);
-		if (! path.toFile().exists()) {
-			log.warn("File not found in models dir.: {}", file);
-			return null;
-		}
-
-		try {
-			String contents = Files.readString(path);
-			return contents;
-		} catch (Exception e) {
-			log.warn("Error while reading file: {}\n", file, e);
-			return null;
-		}
 	}
 }
