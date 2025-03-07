@@ -70,52 +70,66 @@ public class MvvService implements MetricVariableValuesService {
 	}
 
 	public void translateAndSetValues(Map<String,Object> varValues) {
-		log.info("MvvService.translateAndSetValues: New Variable Values: {}", varValues);
-		Map<String, Double> newValues = new HashMap<>();
-
-		// Process simple constants
-		final Map<String, String> simpleBindings = bindings.get(ModelsService.SIMPLE_BINDING_KEY);
-		varValues.forEach((k,v) -> {
-			String constName = simpleBindings.get(k);
-			if (StringUtils.isNotBlank(constName)) {
-				if (v instanceof Number n)
-					newValues.put(constName, n.doubleValue());
-				else
-					throw new IllegalArgumentException("Solution variable value is not a number: "+v);
-				log.trace("MvvService.translateAndSetValues:   Added Simple Constant value: {} = {}", constName, n);
-			} else
-				log.warn("MvvService.translateAndSetValues:   No Constant found for Solution variable: {}", k);
-		});
-		log.debug("MvvService.translateAndSetValues: Simple Constant values: {}", newValues);
-
-		// Process composite constants
-		Map<String, String> pending = new HashMap<>(bindings.get(ModelsService.COMPOSITE_BINDING_KEY));
-		@NotNull final Map<String, Double> varValues1 = varValues.entrySet().stream().collect(Collectors.toMap(
-				Map.Entry::getKey, e -> ((Number) e.getValue()).doubleValue()
-		));
-		while (! pending.isEmpty()) {
-			Map<String, String> newPending = new HashMap<>();
-			pending.forEach((formula, constName) -> {
-				if (StringUtils.isNotBlank(formula) && StringUtils.isNotBlank(constName)) {
-					try {
-						log.trace("MvvService.translateAndSetValues:   Calculating Composite Constant value: {} ::= {} -- Values: {}", constName, formula, newValues);
-						Double formulaValue = MathUtil.eval(formula, varValues1);
-						newValues.put(constName, formulaValue);
-						log.trace("MvvService.translateAndSetValues:   Added Composite Constant value: {} = {}", constName, formulaValue);
-					} catch (Exception e) {
-						log.trace("MvvService.translateAndSetValues:   Could not calculate Composite Constant value: {} ::= {} -- Values: {} -- Reason: {}", constName, formula, newValues, e.getMessage());
-						newPending.put(formula, constName);
-					}
-				}
-			});
-			if (pending.size()==newPending.size())
-				throw new IllegalArgumentException("Composite Constants cannot be calculated. Check for missing terms or circles in formulas: "+pending);
-			pending = newPending;
+        // Check if bindings are available
+        if (bindings == null || bindings.isEmpty()) {
+            log.error("MvvService.translateAndSetValues: No bindings provided: {}", bindings);
+            return;
+        }
+		Map<String, String> simpleBindings = bindings.get(ModelsService.SIMPLE_BINDING_KEY);
+        Map<String, String> compositeBindings = bindings.get(ModelsService.COMPOSITE_BINDING_KEY);
+        if (simpleBindings==null || simpleBindings.isEmpty()) {
+			log.error("MvvService.translateAndSetValues: No simple bindings provided: {}", bindings);
+			return;
 		}
-		log.info("MvvService.translateAndSetValues: New Constant values: {}", newValues);
 
-		setControlServiceConstants(newValues);
-	}
+        // Log new values
+        log.info("MvvService.translateAndSetValues: New Variable Values: {}", varValues);
+        Map<String, Double> newValues = new HashMap<>();
+
+        // Process simple constants
+        varValues.forEach((k, v) -> {
+            String constName = simpleBindings.get(k);
+            if (StringUtils.isNotBlank(constName)) {
+                if (v instanceof Number n)
+                    newValues.put(constName, n.doubleValue());
+                else
+                    throw new IllegalArgumentException("Solution variable value is not a number: " + v);
+                log.trace("MvvService.translateAndSetValues:   Added Simple Constant value: {} = {}", constName, n);
+            } else
+                log.warn("MvvService.translateAndSetValues:   No Constant found for Solution variable: {}", k);
+        });
+        log.debug("MvvService.translateAndSetValues: Simple Constant values: {}", newValues);
+
+        // Process composite constants
+		if (compositeBindings!=null && ! compositeBindings.isEmpty()) {
+			Map<String, String> pending = new HashMap<>(bindings.get(ModelsService.COMPOSITE_BINDING_KEY));
+			@NotNull final Map<String, Double> varValues1 = varValues.entrySet().stream().collect(Collectors.toMap(
+					Map.Entry::getKey, e -> ((Number) e.getValue()).doubleValue()
+			));
+			while (!pending.isEmpty()) {
+				Map<String, String> newPending = new HashMap<>();
+				pending.forEach((formula, constName) -> {
+					if (StringUtils.isNotBlank(formula) && StringUtils.isNotBlank(constName)) {
+						try {
+							log.trace("MvvService.translateAndSetValues:   Calculating Composite Constant value: {} ::= {} -- Values: {}", constName, formula, newValues);
+							Double formulaValue = MathUtil.eval(formula, varValues1);
+							newValues.put(constName, formulaValue);
+							log.trace("MvvService.translateAndSetValues:   Added Composite Constant value: {} = {}", constName, formulaValue);
+						} catch (Exception e) {
+							log.trace("MvvService.translateAndSetValues:   Could not calculate Composite Constant value: {} ::= {} -- Values: {} -- Reason: {}", constName, formula, newValues, e.getMessage());
+							newPending.put(formula, constName);
+						}
+					}
+				});
+				if (pending.size() == newPending.size())
+					throw new IllegalArgumentException("Composite Constants cannot be calculated. Check for missing terms or circles in formulas: " + pending);
+				pending = newPending;
+			}
+		}
+        log.info("MvvService.translateAndSetValues: New Constant values: {}", newValues);
+
+        setControlServiceConstants(newValues);
+    }
 
 	private void setControlServiceConstants(@NonNull Map<String, Double> newValues) {
 		this.values = newValues;
