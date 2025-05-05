@@ -1,0 +1,34 @@
+{
+  "os": "LINUX",
+  "description": "EMS client configuration copy instruction set at VM node",
+  "condition": "${ENABLE_BAGUETTE_CONF_COPY:-false}",
+  "instructions": [
+    {
+      "description": "Log EMS client configuration copy start",
+      "taskType": "LOG",
+      "message": "Copying EMS client configuration at Node"
+    },
+    {
+      "description": "Create conf directory",
+      "taskType": "CMD",
+      "command": "mkdir -p ${BAGUETTE_CLIENT_BASE_DIR}/conf/",
+      "executable": false,
+      "exitCode": 0,
+      "match": false
+    },
+    {
+      "description": "Copy-and-process configuration to target",
+      "taskType": "FILE",
+      "localFileName": "${EMS_CONFIG_DIR}/baguette-client/",
+      "fileName": "${BAGUETTE_CLIENT_BASE_DIR}",
+      "executable": false,
+      "exitCode": 0,
+      "match": false
+    },
+    {
+      "description": "Log EMS client configuration copy end",
+      "taskType": "LOG",
+      "message": "EMS client configuration copy completed at Node"
+    }
+  ]
+}

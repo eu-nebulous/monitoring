@@ -1,6 +1,7 @@
 {
   "os": "LINUX",
   "description": "EMS client removal instruction set",
+  "condition": "! ${SKIP_OLD_BAGUETTE_INSTALLATION_REMOVAL:-false}",
   "instructions": [
     {
       "description": "Kill EMS client if still running",

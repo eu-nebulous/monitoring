@@ -1,16 +1,25 @@
 package eu.nebulous.ems.service;
 
-import eu.nebulous.ems.AbstractBaseTest;
+import eu.nebulous.ems.test.TestUtils;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.platform.commons.util.StringUtils;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import static eu.nebulous.ems.test.TestUtils.toMap;
+
 @Slf4j
-class MvvServiceTest extends AbstractBaseTest {
+@DisplayName("MvvService Tests")
+@DisplayNameGeneration(DisplayNameGenerator.IndicativeSentences.class)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class MvvServiceTest {
 
     public static final String TESTS_YAML_FILE = "src/test/resources/MvvServiceTest.yaml";
 
@@ -22,30 +31,32 @@ class MvvServiceTest extends AbstractBaseTest {
         mvvService = new MvvService(null);
     }
 
-    @Test
-    void translateAndSetControlServiceConstants() throws IOException {
-        loadAndRunTests("translateAndSetControlServiceConstants", TESTS_YAML_FILE, (testDescription, yaml) -> {
-            Map testData = toMap(yaml);
-            log.debug("translateAndSetControlServiceConstants: {}: testData: {}", testDescription, testData);
-            String title = testData.getOrDefault("title", "").toString();
-            String expected = testData.getOrDefault("expected_outcome", "").toString();
+    static List<Arguments> testsForTranslateAndSetControlServiceConstants() throws IOException {
+        return TestUtils.getTestsFromYamlFile(MvvServiceTest.class, TESTS_YAML_FILE, "translateAndSetControlServiceConstants");
+    }
 
-            Map bindings = toMap(Objects.requireNonNullElse(testData.get("bindings"), Map.of()));
-            Map newValues = toMap(Objects.requireNonNullElse(testData.get("solution"), Map.of()));
+//    @DisplayName("Translate and Set Constants")
+    @ParameterizedTest(name = "#{index}: {0}")
+    @MethodSource("testsForTranslateAndSetControlServiceConstants")
+    void translateAndSetControlServiceConstants(String testDescription, Object yamlObj, String expectedOutcome) throws IOException {
+        log.info("translateAndSetControlServiceConstants: === Test: {} ===", testDescription);
+        Map testData = toMap(yamlObj);
+        log.debug("translateAndSetControlServiceConstants: testData: {}", testData);
 
-            MvvService mvvService = new MvvService(null);
-            mvvService.setBindings(bindings);
-            log.info("translateAndSetControlServiceConstants: values BEFORE: {}", mvvService.getValues());
-            try {
-                mvvService.translateAndSetValues(newValues);
-            } catch (Exception ignored) {}
-            log.info("translateAndSetControlServiceConstants: values AFTER: {}", mvvService.getValues());
+        Map bindings = toMap(Objects.requireNonNullElse(testData.get("bindings"), Map.of()));
+        Map newValues = toMap(Objects.requireNonNullElse(testData.get("solution"), Map.of()));
 
-            return Map.of(
-                    "result", mvvService.getValues().toString(),
-                    "title", title,
-                    "expected_outcome", expected
-            );
-        });
+        MvvService mvvService = new MvvService(null);
+        mvvService.setBindings(bindings);
+        log.info("translateAndSetControlServiceConstants: values BEFORE: {}", mvvService.getValues());
+        try {
+            mvvService.translateAndSetValues(newValues);
+        } catch (NullPointerException ignored) {
+            // Suppress NPE exception thrown because ControlServiceCoordinator is not available
+        }
+        log.info("translateAndSetControlServiceConstants: values AFTER: {}", mvvService.getValues());
+
+        if (StringUtils.isNotBlank(expectedOutcome))
+            Assertions.assertEquals(expectedOutcome, mvvService.getValues().toString());
     }
 }
