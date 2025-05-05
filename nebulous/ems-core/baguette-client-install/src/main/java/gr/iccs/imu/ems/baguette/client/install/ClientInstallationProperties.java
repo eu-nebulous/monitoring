@@ -9,14 +9,21 @@
 
 package gr.iccs.imu.ems.baguette.client.install;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import gr.iccs.imu.ems.util.EmsConstant;
+import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -26,8 +33,12 @@ import java.util.regex.Pattern;
 @ConfigurationProperties(prefix = EmsConstant.EMS_PROPERTIES_PREFIX + "baguette.client.install")
 public class ClientInstallationProperties implements InitializingBean {
 
+    private final static ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
+
     @Override
     public void afterPropertiesSet() throws Exception {
+        normalizeParameterKeys();
+        loadYamlFields();
         log.debug("ClientInstallationProperties: {}", this);
     }
 
@@ -88,9 +99,42 @@ public class ClientInstallationProperties implements InitializingBean {
 
     private final Map<String, List<String>> instructions = new LinkedHashMap<>();
     private final Map<String, String> parameters = new LinkedHashMap<>();
+    private String filePostProcessingRulesFile;
+    private Map<String,Map<String,String>> filePostProcessingRules;
 
     private boolean continueOnFail = false;
     private String sessionRecordingDir = "logs";
+
+    @PostConstruct
+    public void normalizeParameterKeys() {
+        Map<String, String> normalizedParameters = new LinkedHashMap<>();
+        parameters.forEach((key, value) -> {
+            String normalizedKey = key.toUpperCase();  // Convert to upper case keys
+            normalizedKey = normalizedKey.replace(".", "_");  // Replace dots (.) with underscores (_)
+            normalizedParameters.put(normalizedKey, value);
+        });
+        parameters.clear();
+        parameters.putAll(normalizedParameters);
+    }
+
+    @PostConstruct
+    public void loadYamlFields() {
+        filePostProcessingRules = loadYamlFromFile(filePostProcessingRulesFile);
+    }
+
+    private Map loadYamlFromFile(String jsonFile) {
+        if (StringUtils.isNotBlank(jsonFile)) {
+            try {
+                String jsonValue = Files.readString(Paths.get(jsonFile));
+                if (StringUtils.isNotBlank(jsonValue)) {
+                    return objectMapper.readValue(jsonValue, Map.class);
+                }
+            } catch (IOException e) {
+                throw new RuntimeException("Json property parsing failed", e);
+            }
+        }
+        return null;
+    }
 
     // ----------------------------------------------------
 

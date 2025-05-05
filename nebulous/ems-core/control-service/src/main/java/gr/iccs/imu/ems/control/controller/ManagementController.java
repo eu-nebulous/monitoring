@@ -102,7 +102,6 @@ public class ManagementController {
 
     @GetMapping(value = "/ems/shutdown")
     public String emsShutdown() {
-        log.info("ManagementController.emsShutdown(): Not implemented");
         coordinator.emsShutdownServices();
         return "OK";
     }
@@ -127,8 +126,7 @@ public class ManagementController {
 
     @GetMapping(value = "/ems/status", produces = MediaType.APPLICATION_JSON_VALUE)
     public Map<String, Object> emsStatus() {
-        log.info("ManagementController.emsStatus(): Not implemented");
-        return Collections.emptyMap();
+        return coordinator.getEmsStatus();
     }
 
     @GetMapping(value = "/ems/topology", produces = MediaType.APPLICATION_JSON_VALUE)

@@ -20,10 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -61,6 +58,14 @@ public class ManagementCoordinator {
         } else {
             log.warn("ManagementCoordinator.emsExit(): Exit is not allowed");
         }
+    }
+
+    public Map<String, Object> getEmsStatus() {
+        return Map.of(
+                "state", Objects.requireNonNullElse(coordinator.getCurrentEmsState(), "unknown"),
+                "message", Objects.requireNonNullElse(coordinator.getCurrentEmsStateMessage(), ""),
+                "timestamp", coordinator.getCurrentEmsStateChangeTimestamp()
+        );
     }
 
     // ------------------------------------------------------------------------------------------------------------
