@@ -9,24 +9,33 @@
 package eu.nebulous.ems.translate.analyze;
 
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.FieldSource;
 
-import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
+@DisplayNameGeneration(DisplayNameGenerator.IndicativeSentences.class)
 class ShorthandsExpansionHelperTest {
-    @Test
-    void testExpandConstraint() throws IOException {
-        Object spec = new HashMap<>(Map.of(
-//                "constraint", "ZZ < 7 AND ( IF NOT XX <= 5 THEN 4 > YY Else XX <> 7 ) AND BBBB <> 8 OR CCC == 1"
-                "constraint", "(mean_job < 7878 AND NOT (mean_job_process_time < 12) AND\n" +
-                        "            job_process_time_instance < 1 AND time > 10 AND NOT (tstee <\n" +
-                        "            312432))"
-        ));
+    protected static List<Object> tests = List.of(
+            new HashMap<>(Map.of("constraint",
+                    "ZZ < 7 AND ( IF NOT XX <= 5 THEN 4 > YY Else XX <> 7 ) AND BBBB <> 8 OR CCC == 1")),
+            new HashMap<>(Map.of("constraint", """
+                            (mean_job < 7878 AND NOT (mean_job_process_time < 12)
+                             AND job_process_time_instance < 1 AND time > 10 AND NOT (tstee < 312432))"""))
+    );
+
+
+    @ParameterizedTest
+    @FieldSource("tests")
+    void testExpandConstraint(Object spec) {
+        log.info("ShorthandsExpansionHelperTest: BEGIN:\n{}", spec);
         ShorthandsExpansionHelper helper = new ShorthandsExpansionHelper(null);
         helper.expandConstraintExpression(spec);
-        log.info("ShorthandsExpansionHelperTest:\n{}", spec);
+        log.info("ShorthandsExpansionHelperTest: END:\n{}", spec);
     }
 }
