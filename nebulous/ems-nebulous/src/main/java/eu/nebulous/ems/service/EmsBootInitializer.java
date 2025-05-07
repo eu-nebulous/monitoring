@@ -123,7 +123,7 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 					"address", NetUtil.getIpAddress()
 			);
 			log.debug("ExternalBrokerPublisherService: Sending periodic report: {}", message);
-			reportPublisher.send(message, null, true);
+			reportPublisher.send(message, applicationId, true);
 			log.debug("ExternalBrokerPublisherService: Sent periodic report");
 		} catch (Exception e) {
 			log.warn("ExternalBrokerPublisherService: Exception while sending periodic report: ", e);
@@ -142,7 +142,7 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 				"address", NetUtil.getIpAddress()
 		);
 		log.debug("ExternalBrokerPublisherService: Sending message to EMS Boot: {}", message);
-		publisher.send(message, null, true);
+		publisher.send(message, applicationId, true);
 		log.debug("ExternalBrokerPublisherService: Sent message to EMS Boot");
 	}
 
