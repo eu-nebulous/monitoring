@@ -549,7 +549,7 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
                     case COUNT -> resultsMap.values().size();
                     case MIN -> resultsMap.values().stream().mapToDouble(Double::doubleValue).min().orElse(0);
                     case MAX -> resultsMap.values().stream().mapToDouble(Double::doubleValue).max().orElse(0);
-                    case NONE -> throw new IllegalArgumentException("FATAL: Execution should never reached this point");
+                    case NONE -> throw new IllegalArgumentException("FATAL: Execution should never have reached this point");
                 };
                 if (!resultsMap.isEmpty())
                     publishResults.put(null, publishMetricEvent(cfgCtx.destination, null, result, timestamp1, address));
@@ -674,7 +674,7 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
         event.setEventProperty(EmsConstant.EVENT_PROPERTY_SOURCE_ADDRESS, nodeAddress);
         event.getEventProperties().put(EmsConstant.EVENT_PROPERTY_EFFECTIVE_DESTINATION, metricName);
         event.getEventProperties().put(EmsConstant.EVENT_PROPERTY_ORIGINAL_DESTINATION, originalTopic);
-        if (key!=null) event.getEventProperties().put(EmsConstant.EVENT_PROPERTY_KEY, key);
+        if (key!=null) event.getEventProperties().put(EmsConstant.EVENT_PROPERTY_DESTINATION_KEY, key);
         log.debug("K8sNetdataCollector:    Publishing metric: {}: {}", metricName, event.getMetricValue());
         CollectorContext.PUBLISH_RESULT result = collectorContext.sendEvent(null, metricName, event, createDestination);
         log.trace("K8sNetdataCollector:    Publishing metric: {}: {} -> result: {}", metricName, event.getMetricValue(), result);
