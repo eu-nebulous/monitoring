@@ -555,6 +555,7 @@ baguette.client.install:
       - file:${EMS_CONFIG_DIR}/baguette-client-install/linux/baguette-remove.json
       - file:${EMS_CONFIG_DIR}/baguette-client-install/linux/jre.json
       - file:${EMS_CONFIG_DIR}/baguette-client-install/linux/baguette.json
+      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux/baguette-conf.json
       - file:${EMS_CONFIG_DIR}/baguette-client-install/linux/baguette-skip.json
       - file:${EMS_CONFIG_DIR}/baguette-client-install/linux/start-agents.json
       # Instructions set files - YAML version
@@ -564,6 +565,7 @@ baguette.client.install:
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/baguette-remove.yml
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/jre.yml
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/baguette.yml
+#      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/baguette-conf.yml
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/baguette-skip.yml
 #      - file:${EMS_CONFIG_DIR}/baguette-client-install/linux-yaml/start-agents.yml
     WINDOWS:
@@ -583,7 +585,9 @@ baguette.client.install:
     #SKIP_IGNORE_CHECK: true
     #SKIP_DETECTION: true
     #SKIP_NETDATA_INSTALLATION: true
+    #SKIP_OLD_BAGUETTE_INSTALLATION_REMOVAL: true
     #SKIP_BAGUETTE_INSTALLATION: true
+    #ENABLE_BAGUETTE_CONF_COPY: true
     #SKIP_JRE_INSTALLATION: true
     #SKIP_START: true
 

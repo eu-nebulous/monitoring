@@ -72,13 +72,13 @@ public class MvvService implements MetricVariableValuesService {
 	public void translateAndSetValues(Map<String,Object> varValues) {
         // Check if bindings are available
         if (bindings == null || bindings.isEmpty()) {
-            log.error("MvvService.translateAndSetValues: No bindings provided: {}", bindings);
+            log.info("MvvService.translateAndSetValues: No bindings found: {}", bindings);
             return;
         }
 		Map<String, String> simpleBindings = bindings.get(ModelsService.SIMPLE_BINDING_KEY);
         Map<String, String> compositeBindings = bindings.get(ModelsService.COMPOSITE_BINDING_KEY);
         if (simpleBindings==null || simpleBindings.isEmpty()) {
-			log.error("MvvService.translateAndSetValues: No simple bindings provided: {}", bindings);
+			log.error("MvvService.translateAndSetValues: No simple bindings found: {}", bindings);
 			return;
 		}
 

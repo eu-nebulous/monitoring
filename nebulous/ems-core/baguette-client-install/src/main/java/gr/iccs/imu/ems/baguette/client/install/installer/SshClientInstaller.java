@@ -20,6 +20,7 @@ import gr.iccs.imu.ems.baguette.client.install.instruction.InstructionsSet;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringSubstitutor;
@@ -36,7 +37,6 @@ import org.apache.sshd.mina.MinaServiceFactoryFactory;
 import org.apache.sshd.scp.client.DefaultScpClientCreator;
 import org.apache.sshd.scp.client.ScpClient;
 import org.apache.sshd.scp.client.ScpClientCreator;
-import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.jcajce.spec.OpenSSHPrivateKeySpec;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
@@ -58,6 +58,8 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -71,7 +73,7 @@ import java.util.stream.Stream;
 @Slf4j
 @Getter
 public class SshClientInstaller implements ClientInstallerPlugin {
-    private final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss.SSS");
+    private final static SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss.SSS");
 
     private final ClientInstallationTask task;
     private final long taskCounter;
@@ -890,13 +892,41 @@ public class SshClientInstaller implements ClientInstallerPlugin {
         targetFile = targetDir + targetFile;
 
         String contents = new String(Files.readAllBytes(sourcePath));
-        log.info("SshClientInstaller: Task #{}: FILE: {}, content-length={}", taskCounter, targetFile, contents.length());
+        log.trace("SshClientInstaller: Task #{}: FILE: {}, content={}", taskCounter, targetFile, contents);
         contents = StringSubstitutor.replace(contents, valueMap);
-        log.trace("SshClientInstaller: Task #{}: FILE: {}, final-content:\n{}", taskCounter, targetFile, contents);
+        log.trace("SshClientInstaller: Task #{}: FILE: {}, content after placeholder replacement:\n{}", taskCounter, targetFile, contents);
+
+        // File post-processing
+        contents = doFilePostProcessing(contents, targetFile);
+        log.debug("SshClientInstaller: Task #{}: FILE: {}, final-content:\n{}", taskCounter, targetFile, contents);
 
         String description = "Copy file from server to temp to client: %s -> %s".formatted(sourcePath.toString(), targetFile);
 
         return sshFileWrite(contents, targetFile, isExecutable);
+    }
+
+    @SneakyThrows
+    public String doFilePostProcessing(String contents, String targetFile) {
+        Map<String, Map<String, String>> ruleSets = properties.getFilePostProcessingRules();
+        if (ruleSets==null || ruleSets.isEmpty()) return contents;
+
+        AtomicReference<String> ref = new AtomicReference<>(contents);
+        AtomicInteger ruleCnt = new AtomicInteger();
+        ruleSets.entrySet().stream()
+                .peek(e -> log.debug("SshClientInstaller: Task #{}: FILE: {}, Check if post-processing ruleset #{} applies. Regexp: {}", taskCounter, targetFile, ruleCnt.incrementAndGet(), e.getKey()))
+                .filter(e -> e.getValue() != null)
+                .filter(e -> Pattern.compile(e.getKey()).matcher(targetFile).find())
+                .peek(e -> log.debug("SshClientInstaller: Task #{}: FILE: {}, Post-processing ruleset #{} applies. Regexp: {}", taskCounter, targetFile, ruleCnt, e.getKey()))
+                .forEach(e -> {
+                    e.getValue().forEach((regex,replace) -> {
+                        if (regex==null) return;
+                        log.trace("SshClientInstaller: Task #{}: FILE: {}, Applying post-process rule: {} --> {}", taskCounter, targetFile, regex, replace);
+                        String newContent = Pattern.compile(regex).matcher(ref.get()).replaceAll(replace);
+                        log.debug("SshClientInstaller: Task #{}: FILE: {}, Applied post-process rule: {} --> {}\n{}", taskCounter, targetFile, regex, replace, newContent);
+                        ref.set(newContent);
+                    });
+                });
+        return ref.get();
     }
 
     private boolean processPatterns(Instruction ins, Map<String,String> valueMap) {

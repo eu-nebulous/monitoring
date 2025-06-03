@@ -511,6 +511,7 @@ baguette.client.install.instructions.LINUX = \
   file:${EMS_CONFIG_DIR}/baguette-client-install/linux/netdata.json, \
   file:${EMS_CONFIG_DIR}/baguette-client-install/linux/jre.json, \
   file:${EMS_CONFIG_DIR}/baguette-client-install/linux/baguette.json, \
+  file:${EMS_CONFIG_DIR}/baguette-client-install/linux/baguette-conf.json, \
   file:${EMS_CONFIG_DIR}/baguette-client-install/linux/baguette-skip.json, \
   file:${EMS_CONFIG_DIR}/baguette-client-install/linux/start-agents.json
 baguette.client.install.instructions.WINDOWS = file:${EMS_CONFIG_DIR}/baguette-client-install/win/win.json
@@ -525,7 +526,9 @@ baguette.client.install.sessionRecordingDir = ${LOGS_DIR:${EMS_CONFIG_DIR}/../lo
 #baguette.client.install.parameters.SKIP_IGNORE_CHECK=true
 #baguette.client.install.parameters.SKIP_DETECTION=true
 #baguette.client.install.parameters.SKIP_NETDATA_INSTALLATION=true
+#baguette.client.install.parameters.SKIP_OLD_BAGUETTE_INSTALLATION_REMOVAL=true
 #baguette.client.install.parameters.SKIP_BAGUETTE_INSTALLATION=true
+#baguette.client.install.parameters.ENABLE_BAGUETTE_CONF_COPY=true
 #baguette.client.install.parameters.SKIP_JRE_INSTALLATION=true
 #baguette.client.install.parameters.SKIP_START=true
 
