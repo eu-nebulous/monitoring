@@ -29,6 +29,7 @@ public class ExternalBrokerServiceProperties implements InitializingBean {
     public final static String BASE_TOPIC_PREFIX = NEBULOUS_TOPIC_PREFIX + COMPONENT_NAME + ".";
 
     private boolean enabled = true;
+    //private String brokerConnectionStringFormatter = "amqp://%s:%s";
     private String brokerAddress;
     private int brokerPort;
     private String brokerUsername;

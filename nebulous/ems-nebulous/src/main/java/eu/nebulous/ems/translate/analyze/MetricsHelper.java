@@ -492,7 +492,8 @@ class MetricsHelper extends AbstractHelper {
     }
 
     private WindowProcessing processProcessing(Map<String, Object> processingSpec, NamesKey metricNamesKey) {
-        // Get processing type
+        // Get name and processing type
+        String nameStr = getSpecName(processingSpec);
         String typeStr = getMandatorySpecField(processingSpec, "type", "Window Processing without 'type': at metric '"+metricNamesKey+"': ");
         WindowProcessingType processingType = WindowProcessingType.valueOf(typeStr.trim().toUpperCase());
 
@@ -510,6 +511,7 @@ class MetricsHelper extends AbstractHelper {
 
         return WindowProcessing.builder()
                 .object(processingSpec)
+                .name(nameStr)
                 .processingType(processingType)
                 .groupingCriteria( processingType==WindowProcessingType.GROUP ? criteriaList : null )
                 .rankingCriteria( processingType!=WindowProcessingType.GROUP ? criteriaList : null )
@@ -528,7 +530,8 @@ class MetricsHelper extends AbstractHelper {
         }
 
         if (criterionSpec instanceof Map) {
-            // Get processing type
+            // Get name and criterion type
+            String nameStr = getSpecName(criterionSpec);
             String typeStr = getMandatorySpecField(criterionSpec, "type", "Window Criterion without 'type': at metric '"+metricNamesKey+"': ");
             CriterionType criterionType = CriterionType.valueOf(typeStr);
 
@@ -544,6 +547,7 @@ class MetricsHelper extends AbstractHelper {
             boolean isAscending = getBooleanValue(ascStr.trim(), true);
 
             return WindowCriterion.builder()
+                    .name(nameStr)
                     .object(criterionSpec)
                     .type(criterionType)
                     .custom(custom)
@@ -564,7 +568,7 @@ class MetricsHelper extends AbstractHelper {
             Attribute eplAttr = Attribute.builder()
                     .name(RuleGenerator.EPL_VALUE)
                     .valueType(ValueType.STRING_TYPE)
-                    .value(eplStr)
+                    .value(StringValue.builder().value(eplStr).build())
                     .build();
             List<Attribute> translationAttributes = List.of(eplAttr);
 

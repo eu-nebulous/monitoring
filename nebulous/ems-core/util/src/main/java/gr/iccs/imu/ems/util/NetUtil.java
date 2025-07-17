@@ -263,9 +263,11 @@ public class NetUtil {
         try {
             log_debug("NetUtil.getDefaultIpAddress(): Datagram address: {}", DATAGRAM_ADDRESS);
             String addr = getIpAddressWithDatagram(DATAGRAM_ADDRESS);
-            if (cacheAddresses) defaultIpAddress = addr;
-            log_debug("NetUtil.getDefaultIpAddress(): Response: {}", addr);
-            if (StringUtils.isNotBlank(defaultIpAddress)) return addr;
+            if (StringUtils.isNotBlank(addr)) {
+                if (cacheAddresses) defaultIpAddress = addr;
+                log_debug("NetUtil.getDefaultIpAddress(): Response: {}", addr);
+                return addr;
+            }
         } catch (Exception ex) {
             log_warn("NetUtil.getDefaultIpAddress(): Datagram method failed: outgoing-ip-address={}, exception=", DATAGRAM_ADDRESS, ex);
             if (cacheAddresses) defaultIpAddress = "";
@@ -276,7 +278,7 @@ public class NetUtil {
     }
 
     public static String getIpAddressWithDatagram(String address) throws SocketException, UnknownHostException {
-        try(final DatagramSocket socket = new DatagramSocket()) {
+        try (final DatagramSocket socket = new DatagramSocket()) {
             socket.connect(InetAddress.getByName(address), 10002);
             return socket.getLocalAddress().getHostAddress();
         }
