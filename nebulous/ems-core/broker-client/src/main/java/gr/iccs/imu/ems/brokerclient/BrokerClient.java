@@ -206,12 +206,20 @@ public class BrokerClient {
         _publishEvent(connectionString, destinationName, MESSAGE_TYPE.TEXT, new EventMap(eventMap), propertiesMap);
     }
 
+    public synchronized void publishEvent(String connectionString, String destinationName, MESSAGE_TYPE messageType, Map<String, Object> eventMap, Map<String,String> propertiesMap) throws JMSException {
+        _publishEvent(connectionString, destinationName, messageType, new EventMap(eventMap), propertiesMap);
+    }
+
     public synchronized void publishEvent(String connectionString, String destinationName, String eventContents) throws JMSException {
         _publishEvent(connectionString, destinationName, MESSAGE_TYPE.TEXT, eventContents, null);
     }
 
     public synchronized void publishEvent(String connectionString, String destinationName, String eventContents, Map<String,String> propertiesMap) throws JMSException {
         _publishEvent(connectionString, destinationName, MESSAGE_TYPE.TEXT, eventContents, propertiesMap);
+    }
+
+    public synchronized void publishEvent(String connectionString, String destinationName, MESSAGE_TYPE messageType, String eventContents, Map<String,String> propertiesMap) throws JMSException {
+        _publishEvent(connectionString, destinationName, messageType, eventContents, propertiesMap);
     }
 
     public synchronized void publishEvent(String connectionString, String destinationName, String type, Serializable eventContents, Map<String,String> propertiesMap) throws JMSException {
@@ -229,12 +237,20 @@ public class BrokerClient {
         _publishEvent(connectionString, username, password, destinationName, MESSAGE_TYPE.TEXT, new EventMap(eventMap), propertiesMap);
     }
 
+    public synchronized void publishEventWithCredentials(String connectionString, String username, String password, String destinationName, MESSAGE_TYPE messageType, Map<String, Object> eventMap, Map<String,String> propertiesMap) throws JMSException {
+        _publishEvent(connectionString, username, password, destinationName, messageType, new EventMap(eventMap), propertiesMap);
+    }
+
     public synchronized void publishEventWithCredentials(String connectionString, String username, String password, String destinationName, String eventContents) throws JMSException {
         _publishEvent(connectionString, username, password, destinationName, MESSAGE_TYPE.TEXT, eventContents, null);
     }
 
     public synchronized void publishEventWithCredentials(String connectionString, String username, String password, String destinationName, String eventContents, Map<String,String> propertiesMap) throws JMSException {
         _publishEvent(connectionString, username, password, destinationName, MESSAGE_TYPE.TEXT, eventContents, propertiesMap);
+    }
+
+    public synchronized void publishEventWithCredentials(String connectionString, String username, String password, String destinationName, MESSAGE_TYPE messageType, String eventContents, Map<String,String> propertiesMap) throws JMSException {
+        _publishEvent(connectionString, username, password, destinationName, messageType, eventContents, propertiesMap);
     }
 
     public synchronized void publishEventWithCredentials(String connectionString, String username, String password, String destinationName, String type, Serializable eventContents, Map<String,String> propertiesMap) throws JMSException {

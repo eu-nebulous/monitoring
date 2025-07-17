@@ -8,7 +8,7 @@
 #
 
 ARG RUN_IMAGE=eclipse-temurin
-ARG RUN_IMAGE_TAG=21.0.3_9-jre
+ARG RUN_IMAGE_TAG=21.0.7_6-jre
 
 # -----------------   Run image   -----------------
 FROM $RUN_IMAGE:$RUN_IMAGE_TAG

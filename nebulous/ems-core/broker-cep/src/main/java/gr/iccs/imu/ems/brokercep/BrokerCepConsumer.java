@@ -269,7 +269,7 @@ public class BrokerCepConsumer implements MessageListener, InitializingBean, App
         }
     }
 
-    private EventMap copyEventProperties(Message message, EventMap eventMap) throws JMSException {
+    public static EventMap copyEventProperties(Message message, EventMap eventMap) throws JMSException {
         log.debug("BrokerCepConsumer.copyEventProperties(): BEGIN: message={}, event={}", message, eventMap);
 
         // Copy message properties to event map

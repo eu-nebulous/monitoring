@@ -14,7 +14,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.5</version>
+        <version>3.4.7</version>
         <relativePath></relativePath>
     </parent>
 
@@ -70,13 +70,14 @@
         <!-- Lombok version -->
         <lombok.version>1.18.36</lombok.version>
         <!-- ActiveMQ (classic) version -->
-        <activemq.version>6.1.5</activemq.version>
+        <activemq.version>6.1.6</activemq.version>
         <!-- QPid AMQP client version -->
         <qpid-jms-client.version>2.6.1</qpid-jms-client.version>
         <!-- Jasypt version -->
         <jasypt.starter.version>3.0.5</jasypt.starter.version>
         <!-- Apache SSHD version -->
-        <apache-sshd.version>2.14.0</apache-sshd.version>
+        <apache-sshd.version>2.15.0</apache-sshd.version>
+        <mina-core.version>2.2.4</mina-core.version>
         <!-- Bouncy Castle version -->
         <bouncy-castle.version>1.80</bouncy-castle.version>
         <!-- Guava version -->
@@ -93,6 +94,7 @@
         <!-- Baguette Client dependency versions -->
         <!-- Atomix version -->
         <atomix.version>3.1.12</atomix.version>
+        <io.github.classgraph.version>4.8.179</io.github.classgraph.version>
 
         <!-- Common module dependency versions -->
         <!-- io.fabric8 :: kubernetes-client -->

@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Data
@@ -48,6 +49,8 @@ public class EventMap extends LinkedHashMap<String, Object> implements Serializa
     public final static String LEVEL_NAME = "level";
     public final static String TIMESTAMP_NAME = "timestamp";
 
+    private static final Pattern PROPERTY_NAME_INVALID_CHARS = Pattern.compile("[^a-zA-Z0-9_]");
+
     public final static List<EventField> STANDARD_EVENT_FIELDS = Collections.unmodifiableList(Arrays.asList(
             new EventField(METRIC_VALUE_NAME, Double.class, false, false, Double::parseDouble, null),
             new EventField(LEVEL_NAME, Integer.class, true, true, (v)->(int)Double.parseDouble(v), null),
@@ -58,9 +61,9 @@ public class EventMap extends LinkedHashMap<String, Object> implements Serializa
             STANDARD_EVENT_FIELDS.stream().collect(Collectors.toMap(EventField::getName, x->x)));
 
     public final static String[] PROPERTY_NAMES_ARRAY = STANDARD_EVENT_FIELDS.stream()
-            .map(EventField::getName).collect(Collectors.toList()).toArray(new String[0]);
+            .map(EventField::getName).toList().toArray(new String[0]);
     public final static Class<?>[] PROPERTY_CLASSES_ARRAY = STANDARD_EVENT_FIELDS.stream()
-            .map(EventField::getType).collect(Collectors.toList()).toArray(new Class[0]);
+            .map(EventField::getType).toList().toArray(new Class[0]);
 
     public static String[] getPropertyNames() {
         return PROPERTY_NAMES_ARRAY;
@@ -136,7 +139,7 @@ public class EventMap extends LinkedHashMap<String, Object> implements Serializa
     // Convert Object to EventMap
     public static EventMap toEventMap(@NonNull Object o) {
         if (o instanceof EventMap map) return map;
-        if (o instanceof Map) return new EventMap(StrUtil.castToMapStringObject(o) );
+        if (o instanceof Map) return new EventMap( StrUtil.castToMapStringObject(o) );
         return parseEventMap(o.toString());
     }
 
@@ -162,6 +165,13 @@ public class EventMap extends LinkedHashMap<String, Object> implements Serializa
         EventMap eventMap = gson.fromJson(s, EventMap.class);
         eventMap.checkEvent();
         return eventMap;
+    }
+
+    public static Map parseMap(@NonNull String s) {
+        Map map = gson.fromJson(s, Map.class);
+        Object ts = map.get(TIMESTAMP_NAME);
+        if (ts instanceof Double d) map.put(TIMESTAMP_NAME, d.longValue());
+        return map;
     }
 
     public void checkEvent() {
@@ -243,6 +253,22 @@ public class EventMap extends LinkedHashMap<String, Object> implements Serializa
 
     public Map<String,Object> getPayload() {
         return new LinkedHashMap<>(this);
+    }
+
+    public Map<String,String> getEventPropertiesAsStringMap(boolean normalizeKeys) {
+        return getEventProperties().entrySet().stream().collect(Collectors.toMap(
+                x-> normalizeKeys ? normalizeKey(x.getKey()) : x.getKey(),
+                x->x!=null ? x.getValue().toString() : null
+        ));
+    }
+
+    private String normalizeKey(String key) {
+        if (key==null || key.isBlank()) return key;
+        String sanitized = PROPERTY_NAME_INVALID_CHARS.matcher(key).replaceAll("_");
+        if (!Character.isLetter(sanitized.charAt(0)) && sanitized.charAt(0) != '_') {
+            sanitized = "_" + sanitized;
+        }
+        return sanitized;
     }
 
     public String toString() {
