@@ -30,7 +30,7 @@ spec:
         # Metrics to collect
         # ------------------
         # ipv4.packets ; ipv4.errors ; ipv6.packets ; ipv6.errors
-        # net.packets ; net.net ; net.fifo ; net.speed
+        # net.packets ; net.net ; net.fifo
         # net.events ; net.errors ; net.drops
         # k8s.cgroup.net_packets ; k8s.cgroup.net_net
         # k8s.cgroup.net_events ; k8s.cgroup.net_fifo
@@ -115,18 +115,6 @@ spec:
             type: netdata
             config:
               scope_contexts: net.fifo
-              namespace: ''
-              components: ''
-              after: -10
-          output: 'all 10 sec'
-
-        # Metric: net.speed
-        - name: adt_net_speed
-          busy-status: true
-          sensor:
-            type: netdata
-            config:
-              scope_contexts: net.speed
               namespace: ''
               components: ''
               after: -10

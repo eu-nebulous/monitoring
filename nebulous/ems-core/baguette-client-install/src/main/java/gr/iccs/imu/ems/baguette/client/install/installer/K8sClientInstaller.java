@@ -26,6 +26,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static gr.iccs.imu.ems.common.k8s.K8sClient.getConfig;
@@ -70,6 +71,7 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
 
         initializeAdditionalCredentials();
         initializeExtraEnvVars();
+        initializeLoggingEnvVars();
         initializeTolerations();
     }
 
@@ -99,6 +101,26 @@ public class K8sClientInstaller implements ClientInstallerPlugin {
                 .collect(Collectors.joining("\n"));
         log.info("K8sClientInstaller: Extra Env.Vars:\n{}", str);
         extraEnvVars = str;
+    }
+
+    private void initializeLoggingEnvVars() {
+        final StringBuilder sb = new StringBuilder(extraEnvVars);
+        final AtomicBoolean comma = new AtomicBoolean(! extraEnvVars.isBlank());
+        System.getenv()
+                .forEach((name, value) -> {
+                    if (StringUtils.startsWith(name.trim(), "EMS_CLIENT_LOGGING_LEVEL_")) {
+                        sb.append( String.format("""
+                                                            - name: "%s"
+                                                              value: "%s"
+                                                """,
+                                StringUtils.removeStart(name.trim(), "EMS_CLIENT_"),
+                                value)
+                        );
+                    }
+                });
+        if (sb.length()>extraEnvVars.length())
+            extraEnvVars = sb.toString();
+        log.info("K8sClientInstaller: Extra Env.Vars with Log settings:\n{}", extraEnvVars);
     }
 
     private void initializeTolerations() {
