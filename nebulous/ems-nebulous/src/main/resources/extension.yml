@@ -45,8 +45,8 @@ spec:
               scope_contexts: ipv4.packets
               namespace: ''
               components: ''
-              after: -10
-          output: 'all 10 sec'
+              after: -60
+          output: 'all 60 sec'
 
         # Metric: ipv4.errors
         - name: adt_ipv4_errors
@@ -57,8 +57,8 @@ spec:
               scope_contexts: ipv4.errors
               namespace: ''
               components: ''
-              after: -10
-          output: 'all 10 sec'
+              after: -60
+          output: 'all 60 sec'
 
         # Metric: ipv6.packets
         - name: adt_ipv6_packets
@@ -69,8 +69,8 @@ spec:
               scope_contexts: ipv6.packets
               namespace: ''
               components: ''
-              after: -10
-          output: 'all 10 sec'
+              after: -60
+          output: 'all 60 sec'
 
         # Metric: ipv6.errors
         - name: adt_ipv6_errors
@@ -81,8 +81,8 @@ spec:
               scope_contexts: ipv6.errors
               namespace: ''
               components: ''
-              after: -10
-          output: 'all 10 sec'
+              after: -60
+          output: 'all 60 sec'
 
         # Metric: net.packets
         - name: adt_net_packets
@@ -93,8 +93,8 @@ spec:
               scope_contexts: net.packets
               namespace: ''
               components: ''
-              after: -10
-          output: 'all 10 sec'
+              after: -60
+          output: 'all 60 sec'
 
         # Metric: net.net
         - name: adt_net_net
@@ -105,8 +105,8 @@ spec:
               scope_contexts: net.net
               namespace: ''
               components: ''
-              after: -10
-          output: 'all 10 sec'
+              after: -60
+          output: 'all 60 sec'
 
         # Metric: net.fifo
         - name: adt_net_fifo
@@ -117,8 +117,8 @@ spec:
               scope_contexts: net.fifo
               namespace: ''
               components: ''
-              after: -10
-          output: 'all 10 sec'
+              after: -60
+          output: 'all 60 sec'
 
         # Metric: net.events
         - name: adt_net_events
@@ -129,8 +129,8 @@ spec:
               scope_contexts: net.events
               namespace: ''
               components: ''
-              after: -10
-          output: 'all 10 sec'
+              after: -60
+          output: 'all 60 sec'
 
         # Metric: net.errors
         - name: adt_net_errors
@@ -141,8 +141,8 @@ spec:
               scope_contexts: net.errors
               namespace: ''
               components: ''
-              after: -10
-          output: 'all 10 sec'
+              after: -60
+          output: 'all 60 sec'
 
         # Metric: net.drops
         - name: adt_net_drops
@@ -153,8 +153,8 @@ spec:
               scope_contexts: net.drops
               namespace: ''
               components: ''
-              after: -10
-          output: 'all 10 sec'
+              after: -60
+          output: 'all 60 sec'
 
         # Metric: k8s.cgroup.net_packets
         - name: adt_k8s_cgroup_net_packets
@@ -165,8 +165,8 @@ spec:
               scope_contexts: k8s.cgroup.net_packets
               namespace: ''
               components: ''
-              after: -10
-          output: 'all 10 sec'
+              after: -60
+          output: 'all 60 sec'
 
         # Metric: k8s.cgroup.net_net
         - name: adt_k8s_cgroup_net_net
@@ -177,8 +177,8 @@ spec:
               scope_contexts: k8s.cgroup.net_net
               namespace: ''
               components: ''
-              after: -10
-          output: 'all 10 sec'
+              after: -60
+          output: 'all 60 sec'
 
         # Metric: k8s.cgroup.net_events
         - name: adt_k8s_cgroup_net_events
@@ -189,8 +189,8 @@ spec:
               scope_contexts: k8s.cgroup.net_events
               namespace: ''
               components: ''
-              after: -10
-          output: 'all 10 sec'
+              after: -60
+          output: 'all 60 sec'
 
         # Metric: k8s.cgroup.net_fifo
         - name: adt_k8s_cgroup_net_fifo
@@ -201,8 +201,8 @@ spec:
               scope_contexts: k8s.cgroup.net_fifo
               namespace: ''
               components: ''
-              after: -10
-          output: 'all 10 sec'
+              after: -60
+          output: 'all 60 sec'
 
         # Metric: k8s.cgroup.net_errors
         - name: adt_k8s_cgroup_net_errors
@@ -213,8 +213,8 @@ spec:
               scope_contexts: k8s.cgroup.net_errors
               namespace: ''
               components: ''
-              after: -10
-          output: 'all 10 sec'
+              after: -60
+          output: 'all 60 sec'
 
         # Metric: k8s.cgroup.net_drops
         - name: adt_k8s_cgroup_net_drops
@@ -225,5 +225,5 @@ spec:
               scope_contexts: k8s.cgroup.net_drops
               namespace: ''
               components: ''
-              after: -10
-          output: 'all 10 sec'
+              after: -60
+          output: 'all 60 sec'
