@@ -87,6 +87,8 @@ public class BaguetteServerProperties implements InitializingBean {
     private String clientIdFormatEscape = "~";
 
     private final CredentialsMap credentials = new CredentialsMap();
+    private String healthCheckUser = "test";
+    private String healthCheckMessage = " >>>>>>>>>>>>>> <<<<<<<<<<<<<<\r\n >>>>  SSH server is ok!  <<<<\r\n >>>>>>>>>>>>>> <<<<<<<<<<<<<<\r\n";
 
     @Data
     public static class CoordinatorConfig {
