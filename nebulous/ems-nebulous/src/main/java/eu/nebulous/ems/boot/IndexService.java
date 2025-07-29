@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class IndexService implements InitializingBean {
-	private final Collection<String> FILES_TO_EXCLUDE_FROM_PURGE = new LinkedHashSet<>(Set.of("index.json", "empty.yml"));
+	private final Collection<String> FILES_TO_EXCLUDE_FROM_PURGE = new LinkedHashSet<>(Set.of("index.json", "empty.yml", "edge.yml"));
 
 	private final NebulousEmsTranslatorProperties translatorProperties;
 	private final ApplicationContext applicationContext;
