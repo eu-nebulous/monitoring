@@ -12,20 +12,14 @@ metadata:
   name: 'Edge-device Nebulous metric model'
 spec:
   components:
-  scopes:
-    - name: app-wide-scope
+    - name: dummy-component-for-edge-devices
       components: '*'
-      requirements:
-        - name: 'cpu_slo'
-          type: slo
-          constraint: 'cpu_avg > 50'
       metrics:
-        - name: cpu_avg
-          formula: 'mean( cpu_instant )'
+        - name: edge_cpu_avg
+          formula: 'mean( edge_cpu_instant )'
           window: 'sliding 5 min'
           output: 'all 1 min'
-        - name: cpu_instant
-          busy-status: true
+        - name: edge_cpu_instant
           sensor:
             type: 'netdata'
             config:
