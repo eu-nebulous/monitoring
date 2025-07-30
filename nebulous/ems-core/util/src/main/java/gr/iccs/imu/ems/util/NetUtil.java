@@ -81,6 +81,20 @@ public class NetUtil {
         s = s!=null ? s.trim() : "";
         useDefault = "DEFAULT_IP".equalsIgnoreCase(s);
         usePublic = ! useDefault;
+
+        // Initialize addresses from env. vars
+        defaultIpAddress = null;
+        String defaultAddrStr = System.getenv("NET_UTIL_DEFAULT_IP_ADDRESS");
+        if (StringUtils.isNotBlank(defaultAddrStr)) {
+            defaultIpAddress = defaultAddrStr.trim();
+            log_info("NetUtil.<cinit>: Default IP from env. var.: {}",  defaultAddrStr.trim());
+        }
+        publicIpAddress = null;
+        String publicAddrStr = System.getenv("NET_UTIL_PUBLIC_IP_ADDRESS");
+        if (StringUtils.isNotBlank(publicAddrStr)) {
+            publicIpAddress = publicAddrStr.trim();
+            log_info("NetUtil.<cinit>: Public IP from env. var.: {}", publicAddrStr.trim());
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -203,7 +217,7 @@ public class NetUtil {
 
     // ------------------------------------------------------------------------
 
-    private static String publicIpAddress = null;
+    private static String publicIpAddress;
 
     public static String getPublicIpAddress() {
         if (cacheAddresses && publicIpAddress!=null) {
@@ -252,7 +266,7 @@ public class NetUtil {
 
     // ------------------------------------------------------------------------
 
-    private static String defaultIpAddress = null;
+    private static String defaultIpAddress;
 
     public static String getDefaultIpAddress() {
         if (cacheAddresses && defaultIpAddress!=null) {
