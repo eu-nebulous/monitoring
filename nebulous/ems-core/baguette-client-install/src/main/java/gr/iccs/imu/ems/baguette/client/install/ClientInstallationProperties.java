@@ -154,7 +154,7 @@ public class ClientInstallationProperties implements InitializingBean {
 
     // ----------------------------------------------------
 
-    private List<Class<InstallationContextProcessorPlugin>> installationContextProcessorPlugins = Collections.emptyList();
+    private List<Class<InstallationContextProcessorPlugin>> installationContextProcessorPlugins = new LinkedList<>();
 
     // ----------------------------------------------------
 
