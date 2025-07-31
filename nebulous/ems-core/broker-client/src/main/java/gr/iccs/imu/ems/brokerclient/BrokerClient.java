@@ -15,6 +15,7 @@ import gr.iccs.imu.ems.brokerclient.event.EventMap;
 import gr.iccs.imu.ems.brokerclient.properties.BrokerClientProperties;
 import gr.iccs.imu.ems.util.PasswordUtil;
 import jakarta.jms.*;
+import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.activemq.ActiveMQConnection;
@@ -64,6 +65,11 @@ public class BrokerClient {
     private Future<?> receiveEventsWithAutoReconnectFuture;
 
     private static TaskScheduler defaultTaskScheduler;
+
+    @Getter
+    private String brokerUrl;
+    @Getter
+    private String brokerUsername;
 
     public BrokerClient() {
     }
@@ -556,6 +562,8 @@ public class BrokerClient {
     // ------------------------------------------------------------------------
 
     public ConnectionFactory createConnectionFactory(String brokerUrl, String username, String password) {
+        this.brokerUrl = brokerUrl;
+        this.brokerUsername = username;
         if (StringUtils.startsWithIgnoreCase(brokerUrl, "amqp:"))
             return createQpidConnectionFactory(brokerUrl, username, password);
         return createActiveMQConnectionFactory(brokerUrl, username, password);
@@ -653,5 +661,13 @@ public class BrokerClient {
             connection.close();
         session = null;
         connection = null;
+    }
+
+    public boolean isConnected() {
+        if (connection instanceof org.apache.activemq.ActiveMQConnection activeMQConn)
+            return ! activeMQConn.isClosed() && ! activeMQConn.isTransportFailed();
+        if (connection instanceof org.apache.qpid.jms.JmsConnection jmsConnection)
+            return jmsConnection.isConnected();
+        return session!=null;
     }
 }

@@ -16,17 +16,17 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.google.gson.Gson;
 import gr.iccs.imu.ems.brokerclient.event.EventGenerator;
+import gr.iccs.imu.ems.brokerclient.event.EventGeneratorCli;
 import gr.iccs.imu.ems.brokerclient.event.EventMap;
 import gr.iccs.imu.ems.util.LogsUtil;
+import jakarta.jms.*;
+import jakarta.jms.Queue;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.activemq.command.*;
+import org.apache.activemq.command.ActiveMQMessage;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.lang3.StringUtils;
 
-import jakarta.jms.Message;
-import jakarta.jms.Queue;
-import jakarta.jms.*;
 import javax.script.Bindings;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
@@ -230,11 +230,21 @@ public class BrokerClientApp {
             generator.setEventType(type);
             generator.setInterval(interval);
             generator.setHowMany(howmany);
-            generator.setLowerValue(lowerValue);
-            generator.setUpperValue(upperValue);
+            generator.setValues(lowerValue, upperValue);
             generator.setLevel(level);
             generator.setEventProperties(props);
             generator.run();
+            client.closeConnection();
+        } else
+        // Run generator CLI
+        if ("generator-cli".equalsIgnoreCase(command)) {
+            String url = processUrlArg( args[aa++] );
+            String topic = args[aa++];
+
+            BrokerClient client = BrokerClient.newClient();
+            client.openConnection(url, username, password, true);
+
+            new EventGeneratorCli().runCli(client, topic);
             client.closeConnection();
         } else
         // Run JS script
@@ -953,6 +963,7 @@ public class BrokerClientApp {
         log.info("client record    [-Q] [-NJP] [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC_LIST> [-Mcsv|-Mjson] <REC-FILE> ");
         log.info("client playback  [-U<USERNAME> [-P<PASSWORD]] <URL> [-Innn|-Dnnn|-Sd[.d]] [-Mcsv|-Mjson] <REC-FILE> ");
         log.info("client generator [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] <INTERVAL> <HOWMANY> <LOWER-VALUE> <UPPER-VALUE> <LEVEL>  [<PROPERTY>]*");
+        log.info("client generator-cli [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC>");
         log.info("client js [-E<engine-name>] <JS-file> ");
         log.info("  More Flags: -LL<level> -Q -FD<regex> -FP<regex>=<regex>;... -NPJ");
         log.info("    <URL>: (tcp:|ssl|amqp:)//<ADDRESS>:<PORT>[?[%KAP%][&...additional properties]*]   KAP: Keep-Alive Properties ");
@@ -1043,6 +1054,10 @@ public class BrokerClientApp {
                 <HOWMANY>:   Number of messages to generate. Use a negative number for infinite messages.
                 <LOWER-VALUE>, <UPPER-VALUE>:  Message metric values are randomly picked from this range.
                 <LEVEL>:     Message metric level.
+        
+              generator-cli <FLAGS> <URL> <TOPIC>
+                Start an interactive shell for controlling event generator.
+                Additional help available in the CLI. Type 'help'
         
               js [-E<engine-name>] <JS-file>
                 Execute a JavaScript file with a specific engine.
