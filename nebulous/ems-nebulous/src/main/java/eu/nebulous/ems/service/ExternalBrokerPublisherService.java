@@ -165,6 +165,7 @@ public class ExternalBrokerPublisherService extends AbstractExternalBrokerServic
 	public void onMessage(Message message) {
         if (message instanceof ActiveMQMessage amqMessage) {
             String topic = amqMessage.getDestination().getPhysicalName();
+			log.trace("ExternalBrokerPublisherService: New AMQP message: Topic: {}", topic);
 			Publisher publisher = publishersMap.get(topic);
 			if (publisher!=null) {
 				log.trace("ExternalBrokerPublisherService: Sending message to external broker: topic: {}, message: {}", topic, amqMessage);
