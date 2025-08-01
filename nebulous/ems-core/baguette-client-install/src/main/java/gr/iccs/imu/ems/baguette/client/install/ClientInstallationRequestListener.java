@@ -19,6 +19,7 @@ import gr.iccs.imu.ems.baguette.server.BaguetteServer;
 import gr.iccs.imu.ems.baguette.server.NodeRegistryEntry;
 import gr.iccs.imu.ems.brokercep.BrokerCepService;
 import gr.iccs.imu.ems.translate.TranslationContext;
+import gr.iccs.imu.ems.translate.TranslationContextProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.activemq.ActiveMQConnection;
@@ -27,6 +28,7 @@ import org.apache.activemq.command.ActiveMQTextMessage;
 import org.apache.activemq.command.ActiveMQTopic;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
 import jakarta.jms.*;
@@ -43,6 +45,7 @@ import static gr.iccs.imu.ems.baguette.client.install.ClientInstallationTask.TAS
 @Service
 @RequiredArgsConstructor
 public class ClientInstallationRequestListener implements InitializingBean {
+    private final ApplicationContext applicationContext;
     private final ClientInstallationProperties properties;
     private final InstructionsService instructionsService;
     private final INodeRegistration nodeRegistration;
@@ -64,14 +67,14 @@ public class ClientInstallationRequestListener implements InitializingBean {
                 .filter(entry -> entry.getKey() != null)
                 .filter(entry -> entry.getKey().contains("_"))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        log.debug("InstallationEventListener: Instructions sets configuration: {}", instructionsSetConfig);
+        log.debug("ClientInstallationRequestListener: Instructions sets configuration: {}", instructionsSetConfig);
         if (instructionsSetConfig.isEmpty())
-            log.warn("InstallationEventListener: No instructions sets found");
+            log.warn("ClientInstallationRequestListener: No instructions sets found");
 
         instructionsSetMap = new HashMap<>();
         instructionsSetConfig.forEach((name, value) -> {
             if (value == null || value.isEmpty()) {
-                log.warn("InstallationEventListener: Instructions sets map is empty: {}", name);
+                log.warn("ClientInstallationRequestListener: Instructions sets map is empty: {}", name);
             } else {
                 try {
                     for (String fileName : value) {
@@ -80,15 +83,15 @@ public class ClientInstallationRequestListener implements InitializingBean {
                         instructionsSetMap.computeIfAbsent(name, k -> new ArrayList<>()).add(instructionsSet);
                     }
                 } catch (Exception e) {
-                    log.error("InstallationEventListener: ERROR: while loading instructions set: {}", name);
+                    log.error("ClientInstallationRequestListener: ERROR: while loading instructions set: {}", name);
                 }
             }
         });
-        log.debug("InstallationEventListener: Instructions sets loaded: {}", instructionsSetMap);
+        log.debug("ClientInstallationRequestListener: Instructions sets loaded: {}", instructionsSetMap);
     }
 
     private void connectToBroker() throws JMSException {
-        log.debug("InstallationEventListener: Connecting to local broker");
+        log.debug("ClientInstallationRequestListener: Connecting to local broker");
         ActiveMQConnectionFactory connectionFactory = new ActiveMQConnectionFactory(
                 brokerCepService.getBrokerCepProperties().getBrokerUrlForConsumer());
         ActiveMQConnection connection = (ActiveMQConnection) (StringUtils.isNotBlank(brokerCepService.getBrokerUsername())
@@ -100,18 +103,18 @@ public class ClientInstallationRequestListener implements InitializingBean {
                 properties.getClientInstallationRequestsTopic(),
                 properties.getClientInfoRequestsTopic()
         );
-        log.debug("InstallationEventListener: Will subscribe to topics: {}", topics);
+        log.debug("ClientInstallationRequestListener: Will subscribe to topics: {}", topics);
 
         MessageListener listener = getMessageListener();
         for (String topic : topics) {
             MessageConsumer consumer = session.createConsumer(
                     new ActiveMQTopic( topic ));
             consumer.setMessageListener(listener);
-            log.debug("InstallationEventListener: Subscribed to topic: {}", topic);
+            log.debug("ClientInstallationRequestListener: Subscribed to topic: {}", topic);
         }
 
         connection.start();
-        log.debug("InstallationEventListener: STARTED");
+        log.debug("ClientInstallationRequestListener: STARTED");
     }
 
     private MessageListener getMessageListener() {
@@ -121,7 +124,7 @@ public class ClientInstallationRequestListener implements InitializingBean {
             try {
                 // Extract request from JMS message
                 request = extractRequest(message);
-                log.debug("InstallationEventListener: Got a client installation request: {}", request);
+                log.debug("ClientInstallationRequestListener: Got a client installation request: {}", request);
                 if (request==null) {
                     clientInstaller.sendErrorClientInstallationReport(TASK_TYPE.OTHER,
                             null, "ERROR: Invalid request. Could not extract request data");
@@ -177,12 +180,12 @@ public class ClientInstallationRequestListener implements InitializingBean {
                 };
 
             } catch (Throwable e) {
-                log.error("InstallationEventListener: ERROR: ", e);
+                log.error("ClientInstallationRequestListener: ERROR: ", e);
                 try {
                     clientInstaller.sendErrorClientInstallationReport(
                             requestType, request, "ERROR: "+e.getMessage()+"\n"+message);
                 } catch (Throwable t) {
-                    log.info("InstallationEventListener: EXCEPTION while sending Client installation report for incoming request: request={}, Exception: ", message, t);
+                    log.info("ClientInstallationRequestListener: EXCEPTION while sending Client installation report for incoming request: request={}, Exception: ", message, t);
                 }
             }
         };
@@ -190,7 +193,7 @@ public class ClientInstallationRequestListener implements InitializingBean {
 
     private void processDiagnosticsRequest(Map<String, String> request) {
         String requestId = request.get("requestId").trim();
-        log.info("InstallationEventListener: New node DIAGNOSTICS request with Id: {}", requestId);
+        log.info("ClientInstallationRequestListener: New node DIAGNOSTICS request with Id: {}", requestId);
 
         // Get instructions set for device
         String normalizedDeviceOs = request.get("deviceOs").trim().toUpperCase();
@@ -205,9 +208,9 @@ public class ClientInstallationRequestListener implements InitializingBean {
 
         String instructionsSetsName = request.get("requestType").trim().toUpperCase() + "_" + deviceOsFamily;
         List<InstructionsSet> instructionsSetsList = instructionsSetMap.get(instructionsSetsName);
-        log.debug("InstallationEventListener: instructionsSetsName={}, instructionsSetsList={}", instructionsSetsName, instructionsSetsList);
+        log.debug("ClientInstallationRequestListener: instructionsSetsName={}, instructionsSetsList={}", instructionsSetsName, instructionsSetsList);
         if (instructionsSetsList==null || instructionsSetsList.isEmpty()) {
-            log.warn("InstallationEventListener: No instructions sets found for request: id={}, instructionsSetsName={}",
+            log.warn("ClientInstallationRequestListener: No instructions sets found for request: id={}, instructionsSetsName={}",
                     request.get("requestId"), instructionsSetsName);
             return;
         }
@@ -233,26 +236,42 @@ public class ClientInstallationRequestListener implements InitializingBean {
                         .build())
                 .instructionSets(instructionsSetsList)
                 .nodeMustBeInRegistry(false)
-                .translationContext(new TranslationContext(requestId))
+                .translationContext(getTranslationContext(requestId))
                 .build();
 
-        log.debug("InstallationEventListener: New client installation task: {}", newTask);
+        log.debug("ClientInstallationRequestListener: New client installation task: {}", newTask);
         clientInstaller.addTask(newTask);
     }
 
     private Map<String, String> extractRequest(Message message) throws JMSException, JsonProcessingException {
         if (message instanceof ActiveMQTextMessage textMessage) {
-            log.debug("InstallationEventListener: Message payload: {}", textMessage.getText());
+            log.debug("ClientInstallationRequestListener: Message payload: {}", textMessage.getText());
             TypeReference<Map<String,String>> typeRef = new TypeReference<>() { };
             return objectMapper.readerFor(typeRef).readValue(textMessage.getText());
         }
-        log.warn("InstallationEventListener: IGNORING non-text message: {}", message);
+        log.warn("ClientInstallationRequestListener: IGNORING non-text message: {}", message);
         return null;
+    }
+
+    private TranslationContext getTranslationContext(String requestId) {
+        log.debug("ClientInstallationRequestListener: requestId: {}", requestId);
+        Map<String, TranslationContextProvider> providers = applicationContext.getBeansOfType(TranslationContextProvider.class);
+        log.trace("ClientInstallationRequestListener: providers: {}", providers);
+        TranslationContext translationContext;
+        if (! providers.isEmpty()) {
+            TranslationContextProvider translationContextProvider = applicationContext.getBean(TranslationContextProvider.class);
+            translationContext = translationContextProvider.getDefaultTranslationContext();
+            log.trace("ClientInstallationRequestListener: Default TranslationContext: {}", translationContext);
+        } else {
+            translationContext = new TranslationContext(requestId);
+            log.trace("ClientInstallationRequestListener: No Default TranslationContext. Using an EMPTY one: {}", translationContext);
+        }
+        return translationContext;
     }
 
     private void processOnboardingRequest(Map<String,String> request) throws Exception {
         String requestId = request.getOrDefault("requestId", "").trim();
-        log.info("InstallationEventListener: New node ONBOARDING request with Id: {}", requestId);
+        log.info("ClientInstallationRequestListener: New node ONBOARDING request with Id: {}", requestId);
         if (StringUtils.isBlank(requestId)) {
             clientInstaller.sendErrorClientInstallationReport(
                     TASK_TYPE.INSTALL, request, "INVALID REQUEST. MISSING REQUEST ID");
@@ -260,10 +279,10 @@ public class ClientInstallationRequestListener implements InitializingBean {
         }
 
         try {
-            log.debug("InstallationEventListener: Registering node due to ONBOARDING request with Id: {}", requestId);
-            nodeRegistration.registerNode(null, convertToNodeInfoMap(request), new TranslationContext(requestId));
+            log.debug("ClientInstallationRequestListener: Registering node due to ONBOARDING request with Id: {}", requestId);
+            nodeRegistration.registerNode(null, convertToNodeInfoMap(request), getTranslationContext(requestId));
         } catch (Exception e) {
-            log.warn("InstallationEventListener: EXCEPTION while executing ONBOARDING request with Id: {}\n", requestId, e);
+            log.warn("ClientInstallationRequestListener: EXCEPTION while executing ONBOARDING request with Id: {}\n", requestId, e);
             clientInstaller.sendErrorClientInstallationReport(
                     TASK_TYPE.INSTALL, request, "ERROR: "+e.getMessage());
         }
@@ -273,7 +292,7 @@ public class ClientInstallationRequestListener implements InitializingBean {
         String requestId = request.getOrDefault("requestId", "").trim();
         String deviceId = request.getOrDefault("deviceId", "").trim();
         String ipAddress = request.getOrDefault("deviceIpAddress", "").trim();
-        log.info("InstallationEventListener: REINSTALL request with device Id: {}, ip-address={}", deviceId, ipAddress);
+        log.info("ClientInstallationRequestListener: REINSTALL request with device Id: {}, ip-address={}", deviceId, ipAddress);
         if (StringUtils.isBlank(deviceId)) {
             clientInstaller.sendErrorClientInstallationReport(
                     TASK_TYPE.REINSTALL, request, "INVALID REQUEST. MISSING DEVICE ID");
@@ -286,10 +305,10 @@ public class ClientInstallationRequestListener implements InitializingBean {
         }
 
         try {
-            log.debug("InstallationEventListener: Reinstalling node due to REINSTALL request with Id: {}", deviceId);
-            nodeRegistration.reinstallNode(ipAddress, new TranslationContext(requestId));
+            log.debug("ClientInstallationRequestListener: Reinstalling node due to REINSTALL request with Id: {}", deviceId);
+            nodeRegistration.reinstallNode(ipAddress, getTranslationContext(requestId));
         } catch (Exception e) {
-            log.warn("InstallationEventListener: EXCEPTION while executing REINSTALL request with Id: {}\n", deviceId, e);
+            log.warn("ClientInstallationRequestListener: EXCEPTION while executing REINSTALL request with Id: {}\n", deviceId, e);
             clientInstaller.sendErrorClientInstallationReport(
                     TASK_TYPE.REINSTALL, request, "ERROR: "+e.getMessage());
         }
@@ -299,7 +318,7 @@ public class ClientInstallationRequestListener implements InitializingBean {
         String requestId = request.getOrDefault("requestId", "").trim();
         String deviceId = request.getOrDefault("deviceId", "").trim();
         String nodeAddress = request.getOrDefault("deviceIpAddress", "").trim();
-        log.info("InstallationEventListener: New node REMOVE request with Id: {}, address={}", deviceId, nodeAddress);
+        log.info("ClientInstallationRequestListener: New node REMOVE request with Id: {}, address={}", deviceId, nodeAddress);
         if (StringUtils.isBlank(deviceId)) {
             clientInstaller.sendErrorClientInstallationReport(
                     TASK_TYPE.UNINSTALL, request, "INVALID REQUEST. MISSING DEVICE ID");
@@ -312,10 +331,10 @@ public class ClientInstallationRequestListener implements InitializingBean {
         }
 
         try {
-            log.debug("InstallationEventListener: Off-boarding node due to REMOVE request with Id: {}, requestId={}", deviceId, requestId);
-            nodeRegistration.unregisterNode(nodeAddress, new TranslationContext(requestId));
+            log.debug("ClientInstallationRequestListener: Off-boarding node due to REMOVE request with Id: {}, requestId={}", deviceId, requestId);
+            nodeRegistration.unregisterNode(nodeAddress, getTranslationContext(requestId));
         } catch (Exception e) {
-            log.warn("InstallationEventListener: EXCEPTION while executing REMOVE request with Id: {}\n", deviceId, e);
+            log.warn("ClientInstallationRequestListener: EXCEPTION while executing REMOVE request with Id: {}\n", deviceId, e);
             clientInstaller.sendErrorClientInstallationReport(
                     TASK_TYPE.UNINSTALL, request, "ERROR: "+e.getMessage());
         }
@@ -323,25 +342,25 @@ public class ClientInstallationRequestListener implements InitializingBean {
 
     private void processNodeDetailsRequest(Map<String,String> request) throws Exception {
         String nodeAddress = request.getOrDefault("deviceIpAddress", "").trim();
-        log.info("InstallationEventListener: New node NODE_DETAILS request with: address={}", nodeAddress);
+        log.info("ClientInstallationRequestListener: New node NODE_DETAILS request with: address={}", nodeAddress);
         if (StringUtils.isBlank(nodeAddress)) {
             clientInstaller.sendErrorClientInstallationReport(
                     TASK_TYPE.NODE_DETAILS, request, "INVALID REQUEST. MISSING IP ADDRESS");
             return;
         }
 
-        log.info("InstallationEventListener: Processing NODE_DETAILS request");
+        log.info("ClientInstallationRequestListener: Processing NODE_DETAILS request");
         try {
-            log.debug("InstallationEventListener: Requesting NODE_DETAILS");
+            log.debug("ClientInstallationRequestListener: Requesting NODE_DETAILS");
             NodeRegistryEntry entry = nodeRegistration.requestNodeDetails(nodeAddress);
-            log.trace("InstallationEventListener: NODE_DETAILS: entry={}", entry);
+            log.trace("ClientInstallationRequestListener: NODE_DETAILS: entry={}", entry);
 
             if (entry!=null) {
                 // Get node details from NodeRegistry
                 Map<String, Object> response = clientInstaller.createReportEventFromNodeData(
                         -1, TASK_TYPE.NODE_DETAILS, "", "",
                         entry.getIpAddress(), entry.getReference(), entry.getPreregistration(), "SUCCESS");
-                log.debug("InstallationEventListener: NODE_DETAILS response (1): {}", response);
+                log.debug("ClientInstallationRequestListener: NODE_DETAILS response (1): {}", response);
 
                 // ...make response map mutable
                 response = new LinkedHashMap<>(response);
@@ -356,31 +375,31 @@ public class ClientInstallationRequestListener implements InitializingBean {
 
                 response.put("requestId", "");
                 response.put("state", entry.getState()!=null ? entry.getState().name() : "");
-                log.debug("InstallationEventListener: NODE_DETAILS response (2): {}", response);
+                log.debug("ClientInstallationRequestListener: NODE_DETAILS response (2): {}", response);
 
                 // Send NODE_DETAILS response
-                log.trace("InstallationEventListener: Sending NODE_DETAILS response: {}", response);
+                log.trace("ClientInstallationRequestListener: Sending NODE_DETAILS response: {}", response);
                 clientInstaller.publishReport(new LinkedHashMap<>(response));
 
-                log.debug("InstallationEventListener: Sent NODE_DETAILS response: {}", response);
+                log.debug("ClientInstallationRequestListener: Sent NODE_DETAILS response: {}", response);
             } else {
                 clientInstaller.sendErrorClientInstallationReport(
                         TASK_TYPE.NODE_DETAILS, request, "ERROR: No node found in NodeRegistry with IP address: "+nodeAddress);
             }
         } catch (Exception e) {
-            log.warn("InstallationEventListener: EXCEPTION while retrieving NODE_DETAILS:\n", e);
+            log.warn("ClientInstallationRequestListener: EXCEPTION while retrieving NODE_DETAILS:\n", e);
             clientInstaller.sendErrorClientInstallationReport(
                     TASK_TYPE.INFO, request, "ERROR: "+e.getMessage());
         }
     }
 
     private void processInfoRequest(Map<String,String> request) throws Exception {
-        log.info("InstallationEventListener: INFO request");
+        log.info("ClientInstallationRequestListener: INFO request");
         try {
-            log.debug("InstallationEventListener: Requesting INFO");
+            log.debug("ClientInstallationRequestListener: Requesting INFO");
             nodeRegistration.requestInfo();
         } catch (Exception e) {
-            log.warn("InstallationEventListener: EXCEPTION while executing INFO:\n", e);
+            log.warn("ClientInstallationRequestListener: EXCEPTION while executing INFO:\n", e);
             clientInstaller.sendErrorClientInstallationReport(
                     TASK_TYPE.INFO, request, "ERROR: "+e.getMessage());
         }
