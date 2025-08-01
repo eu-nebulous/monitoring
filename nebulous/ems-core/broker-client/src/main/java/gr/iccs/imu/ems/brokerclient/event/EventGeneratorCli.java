@@ -11,6 +11,7 @@ package gr.iccs.imu.ems.brokerclient.event;
 
 import com.google.gson.GsonBuilder;
 import gr.iccs.imu.ems.brokerclient.BrokerClient;
+import jakarta.jms.JMSException;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -27,15 +28,25 @@ import java.util.Map;
 @Data
 @Component
 public class EventGeneratorCli {
-    public void runCli(BrokerClient client, String initialTopic) {
-        runCli(client, null, initialTopic);
+    private final BrokerClient client;
+    private EventGenerator generator;
+
+    private InputStream in;
+    private BufferedReader rIn;
+    private PrintStream out;
+    private PrintStream err;
+
+    public EventGeneratorCli(BrokerClient client, String topic) {
+        this.client = client;
+        initGenerator(topic);
+
+        this.in = System.in;
+        this.rIn = new BufferedReader(new InputStreamReader(in));
+        this.out = System.out;
+        this.err = System.err;
     }
 
-    public void runCli(BrokerClient client, String prompt, String topic) {
-        if (client==null || ! client.isConnected())
-            throw new IllegalArgumentException("A connected BrokerClient must be provided: "+client);
-        if (prompt==null)
-            prompt = "GEN> ";
+    private void initGenerator(String initialTopic) {
         String type = "text";
 
         long interval = 1000;
@@ -46,10 +57,10 @@ public class EventGeneratorCli {
 
         Map<String, String> props = new HashMap<>();
 
-        EventGenerator generator = new EventGenerator(client);
+        generator = new EventGenerator(client);
         generator.setBrokerUrl(client.getBrokerUrl());
         generator.setBrokerUsername(client.getBrokerUsername());
-        generator.setDestinationName(topic);
+        generator.setDestinationName(initialTopic);
         generator.setEventType(type);
         generator.setInterval(interval);
         generator.setHowMany(howmany);
@@ -57,11 +68,18 @@ public class EventGeneratorCli {
         generator.setUpperValue(upperValue);
         generator.setLevel(level);
         generator.setEventProperties(props);
+    }
 
-        InputStream in = System.in;
-        BufferedReader rIn = new BufferedReader(new InputStreamReader(in));
-        PrintStream out = System.out;
-        PrintStream err = System.err;
+    public void runCli() {
+        runCli(null);
+    }
+
+    public void runCli(String prompt) {
+        if (client==null || ! client.isConnected())
+            throw new IllegalArgumentException("A connected BrokerClient must be provided: "+client);
+        if (prompt==null)
+            prompt = "GEN> ";
+
         boolean keepRunning = true;
         while (keepRunning) {
             try {
@@ -69,12 +87,24 @@ public class EventGeneratorCli {
                 out.flush();
                 String line = rIn.readLine();
 
-                if (StringUtils.isBlank(line)) continue;
-                String[] cmd = line.trim().split("[ \t\r\n]+");
+                keepRunning = runCommand(line);
 
-                switch (cmd[0].toLowerCase()) {
-                    case "info" ->
-                            out.format("""
+            } catch (Exception ex) {
+                ex.printStackTrace(err);
+            }
+        }
+    }
+
+    public boolean runCommand(String line) throws JMSException {
+        if (StringUtils.isBlank(line))
+            return true;    // Keep running
+
+        String[] cmd = line.trim().split("[ \t\r\n]+");
+
+        boolean keepRunning = true;
+        switch (cmd[0].toLowerCase()) {
+            case "info" ->
+                    out.format("""
                                     Broker:  %s
                                     User:    %s
                                     Status:  %s
@@ -89,137 +119,137 @@ public class EventGeneratorCli {
                                     Count:   %d
                                     Retries: %d
                                     """,
-                                    generator.getBrokerUrl(),
-                                    generator.getBrokerUsername(),
-                                    generator.isKeepRunning() ? "Running"
-                                            : generator.isPaused() ? "Paused"
-                                            : "Idle",
-                                    generator.getDestinationName(),
-                                    generator.getEventType(),
-                                    generator.getLowerValue(),
-                                    generator.getUpperValue(),
-                                    generator.getLevel(),
-                                    generator.getEventProperties().toString(),
-                                    generator.getInterval(),
-                                    generator.getHowMany(),
-                                    generator.getCountSent(),
-                                    generator.getRetriesLimit()
-                            );
-                    case "start" ->
-                            generator.start();
-                    case "stop" ->
-                            generator.stop();
-                    case "pause" ->
-                            generator.pause();
-                    case "resume" ->
-                            generator.resume();
-                    case "value" -> {
-                        if (cmd.length<2)
-                            out.println("  [ "+generator.getLowerValue()+" .. "+generator.getUpperValue()+" ]");
-                        else {
-                            double v = Double.parseDouble(requireNonBlank(cmd[1]));
-                            generator.setLowerValue(v);
-                            generator.setUpperValue(v);
+                            generator.getBrokerUrl(),
+                            generator.getBrokerUsername(),
+                            generator.isKeepRunning() ? "Running"
+                                    : generator.isPaused() ? "Paused"
+                                    : "Idle",
+                            generator.getDestinationName(),
+                            generator.getEventType(),
+                            generator.getLowerValue(),
+                            generator.getUpperValue(),
+                            generator.getLevel(),
+                            generator.getEventProperties().toString(),
+                            generator.getInterval(),
+                            generator.getHowMany(),
+                            generator.getCountSent(),
+                            generator.getRetriesLimit()
+                    );
+            case "start" ->
+                    generator.start();
+            case "stop" ->
+                    generator.stop();
+            case "pause" ->
+                    generator.pause();
+            case "resume" ->
+                    generator.resume();
+            case "value" -> {
+                if (cmd.length<2)
+                    out.println("  [ "+generator.getLowerValue()+" .. "+generator.getUpperValue()+" ]");
+                else {
+                    double v = Double.parseDouble(requireNonBlank(cmd[1]));
+                    generator.setLowerValue(v);
+                    generator.setUpperValue(v);
+                }
+            }
+            case "lower" -> {
+                if (cmd.length < 2)
+                    out.println("  " + generator.getLowerValue());
+                else
+                    generator.setLowerValue(Double.parseDouble(requireNonBlank(cmd[1])));
+            }
+            case "upper" -> {
+                if (cmd.length < 2)
+                    out.println("  " + generator.getUpperValue());
+                else
+                    generator.setUpperValue(Double.parseDouble(requireNonBlank(cmd[1])));
+            }
+            case "level" -> {
+                if (cmd.length < 2)
+                    out.println("  " + generator.getLevel());
+                else
+                    generator.setLevel(Integer.parseInt(requireNonBlank(cmd[1])));
+            }
+            case "property" -> {
+                String subCmd = requireNonBlank(cmd[1]).trim().toLowerCase();
+                switch (subCmd) {
+                    case "ls" ->
+                            generator.getEventProperties().forEach((k,v) -> out.format("  %s = %s\n", k, v));
+                    case "get" -> {
+                        String prop = requireNonBlank(cmd[2]).trim();
+                        if (StringUtils.isNotBlank(prop)) {
+                            if (generator.getEventProperties().containsKey(prop)) {
+                                String value = generator.getEventProperties().get(prop);
+                                out.println("  " + prop + " = " + value);
+                            } else {
+                                out.println("  Not found property: " + prop);
+                            }
                         }
                     }
-                    case "lower" -> {
-                        if (cmd.length < 2)
-                            out.println("  " + generator.getLowerValue());
-                        else
-                            generator.setLowerValue(Double.parseDouble(requireNonBlank(cmd[1])));
-                    }
-                    case "upper" -> {
-                        if (cmd.length < 2)
-                            out.println("  " + generator.getUpperValue());
-                        else
-                            generator.setUpperValue(Double.parseDouble(requireNonBlank(cmd[1])));
-                    }
-                    case "level" -> {
-                        if (cmd.length < 2)
-                            out.println("  " + generator.getLevel());
-                        else
-                            generator.setLevel(Integer.parseInt(requireNonBlank(cmd[1])));
-                    }
-                    case "property" -> {
-                        String subCmd = requireNonBlank(cmd[1]).trim().toLowerCase();
-                        switch (subCmd) {
-                            case "ls" ->
-                                    generator.getEventProperties().forEach((k,v) -> out.format("  %s = %s\n", k, v));
-                            case "get" -> {
-                                String prop = requireNonBlank(cmd[2]).trim();
-                                if (StringUtils.isNotBlank(prop)) {
-                                    if (generator.getEventProperties().containsKey(prop)) {
-                                        String value = generator.getEventProperties().get(prop);
-                                        out.println("  " + prop + " = " + value);
-                                    } else {
-                                        out.println("  Not found property: " + prop);
-                                    }
-                                }
-                            }
-                            case "set" -> {
-                                String prop = requireNonBlank(cmd[2]).trim();
-                                if (StringUtils.isNotBlank(prop)) {
-                                    String value = requireNonBlank(cmd[3]);
-                                    String oldValue = generator.getEventProperties().put(prop, value);
-                                    out.println("  "+prop+" = "+oldValue+" -> "+value);
-                                }
-                            }
-                            case "del" -> {
-                                String prop = requireNonBlank(cmd[2]).trim();
-                                if (StringUtils.isNotBlank(prop)) {
-                                    String value = generator.getEventProperties().remove(prop);
-                                    out.println("  UNSET "+prop+" = "+value);
-                                }
-                            }
-                            default ->
-                                    err.println("Unknown property sub-command: "+subCmd);
+                    case "set" -> {
+                        String prop = requireNonBlank(cmd[2]).trim();
+                        if (StringUtils.isNotBlank(prop)) {
+                            String value = requireNonBlank(cmd[3]);
+                            String oldValue = generator.getEventProperties().put(prop, value);
+                            out.println("  "+prop+" = "+oldValue+" -> "+value);
                         }
                     }
-                    case "interval" -> {
-                        if (cmd.length < 2)
-                            out.println("  " + generator.getInterval());
-                        else
-                            generator.setInterval(Long.parseLong(requireNonBlank(cmd[1])));
+                    case "del" -> {
+                        String prop = requireNonBlank(cmd[2]).trim();
+                        if (StringUtils.isNotBlank(prop)) {
+                            String value = generator.getEventProperties().remove(prop);
+                            out.println("  UNSET "+prop+" = "+value);
+                        }
                     }
-                    case "limit" -> {
-                        if (cmd.length < 2)
-                            out.println("  " + generator.getHowMany());
-                        else
-                            generator.setHowMany(Long.parseLong(requireNonBlank(cmd[1])));
-                    }
-                    case "count" ->
-                            out.println("Current count: "+generator.getCountSent());
-                    case "retries" -> {
-                        if (cmd.length < 2)
-                            out.println("  " + generator.getRetriesLimit());
-                        else
-                            generator.setRetriesLimit(Integer.parseInt(requireNonBlank(cmd[1])));
-                    }
-                    case "topic" -> {
-                        if (cmd.length < 2)
-                            out.println("  " + generator.getDestinationName());
-                        else
-                            generator.setDestinationName(requireNonBlank(cmd[1]));
-                    }
-                    case "type" -> {
-                        if (cmd.length < 2)
-                            out.println("  " + generator.getEventType());
-                        else
-                            generator.setEventType(requireNonBlank(cmd[1]));
-                    }
-                    case "list", "topics-list" -> {
-                        client.getDestinationNames(null).forEach(s -> out.println("  "+s));
-                    }
-                    case "client", "client-info" -> {
-                        out.println("Broker Url:       "+client.getBrokerUrl());
-                        out.println("Broker Username:  "+client.getBrokerUsername());
-                        out.println("Client connected: "+client.isConnected());
-                        out.println("Client properties:\n"
-                                + new GsonBuilder().setPrettyPrinting().create()
-                                            .toJson(client.getClientProperties()));
-                    }
-                    case "help", "?" ->
-                            out.println("""
+                    default ->
+                            err.println("Unknown property sub-command: "+subCmd);
+                }
+            }
+            case "interval" -> {
+                if (cmd.length < 2)
+                    out.println("  " + generator.getInterval());
+                else
+                    generator.setInterval(Long.parseLong(requireNonBlank(cmd[1])));
+            }
+            case "limit" -> {
+                if (cmd.length < 2)
+                    out.println("  " + generator.getHowMany());
+                else
+                    generator.setHowMany(Long.parseLong(requireNonBlank(cmd[1])));
+            }
+            case "count" ->
+                    out.println("Current count: "+generator.getCountSent());
+            case "retries" -> {
+                if (cmd.length < 2)
+                    out.println("  " + generator.getRetriesLimit());
+                else
+                    generator.setRetriesLimit(Integer.parseInt(requireNonBlank(cmd[1])));
+            }
+            case "topic" -> {
+                if (cmd.length < 2)
+                    out.println("  " + generator.getDestinationName());
+                else
+                    generator.setDestinationName(requireNonBlank(cmd[1]));
+            }
+            case "type" -> {
+                if (cmd.length < 2)
+                    out.println("  " + generator.getEventType());
+                else
+                    generator.setEventType(requireNonBlank(cmd[1]));
+            }
+            case "list", "topics-list" -> {
+                client.getDestinationNames(null).forEach(s -> out.println("  "+s));
+            }
+            case "client", "client-info" -> {
+                out.println("Broker Url:       "+client.getBrokerUrl());
+                out.println("Broker Username:  "+client.getBrokerUsername());
+                out.println("Client connected: "+client.isConnected());
+                out.println("Client properties:\n"
+                        + new GsonBuilder().setPrettyPrinting().create()
+                        .toJson(client.getClientProperties()));
+            }
+            case "help", "?" ->
+                    out.println("""
                                     Commands + Arguments      Description
                                     --------------------      ----------------------------------------
                                     info                      Print current generator status
@@ -247,17 +277,15 @@ public class EventGeneratorCli {
                                     help, ?                   This help page
                                     exit                      Exit generator CLI
                                     """);
-                    case "exit" ->
-                            keepRunning = false;
-                    default ->
-                            err.println("Unknown command: "+cmd[0]);
-                }
-                out.flush();
-                err.flush();
-            } catch (Exception ex) {
-                ex.printStackTrace(err);
-            }
+            case "exit" ->
+                    keepRunning = false;
+            default ->
+                    err.println("Unknown command: "+cmd[0]);
         }
+        out.flush();
+        err.flush();
+
+        return keepRunning;
     }
 
     private static String requireNonBlank(String s) {

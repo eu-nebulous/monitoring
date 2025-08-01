@@ -23,6 +23,7 @@ import jakarta.jms.*;
 import jakarta.jms.Queue;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.activemq.command.ActiveMQMessage;
+import org.apache.activemq.command.ActiveMQTextMessage;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.lang3.StringUtils;
@@ -36,6 +37,9 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -239,13 +243,83 @@ public class BrokerClientApp {
         // Run generator CLI
         if ("generator-cli".equalsIgnoreCase(command)) {
             String url = processUrlArg( args[aa++] );
-            String topic = args[aa++];
+            String initialTopic = args[aa++];
 
             BrokerClient client = BrokerClient.newClient();
             client.openConnection(url, username, password, true);
 
-            new EventGeneratorCli().runCli(client, topic);
+            new EventGeneratorCli(client, initialTopic).runCli();
             client.closeConnection();
+        } else
+        // Run generator CLI with Remote Control
+        if ("generator-rc".equalsIgnoreCase(command)) {
+            String url = processUrlArg( args[aa++] );
+            String rcTopic = args[aa++];
+
+            BrokerClient.ON_EXCEPTION onException = (args.length>aa && args[aa].startsWith("-OE"))
+                    ? BrokerClient.ON_EXCEPTION.valueOf(args[aa++].substring(3))
+                    : BrokerClient.ON_EXCEPTION.LOG_AND_IGNORE;
+
+            log.debug("BrokerClientApp: Receiving from remote control topic: {}", rcTopic);
+            log.debug("BrokerClientApp: On-exception setting: {}", onException);
+
+            // Connect to message broker
+            BrokerClient client = BrokerClient.newClient(username, password);
+            client.openConnection(url, username, password, true);
+
+            // Initialize Generator CLI and subscribe to remote control topic
+            final Lock lock = new ReentrantLock();
+            final Condition condition = lock.newCondition();
+            EventGeneratorCli cli = new EventGeneratorCli(client, null);
+            MessageListener messageListener = message -> {
+                try {
+                    if (message instanceof ActiveMQTextMessage textMessage) {
+                        String body = textMessage.getText();
+                        if (StringUtils.isNotBlank(body)) {
+                            String remoteCommand = body.trim();
+                            log.info("RC> {}", remoteCommand);
+                            boolean keepRunning = cli.runCommand(remoteCommand);
+                            if (! keepRunning) {
+                                lock.lock();
+                                try {
+                                    condition.signal(); // Wakes up one waiting thread
+                                } finally {
+                                    lock.unlock();
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Remote Control message cause exception: message: {}", message);
+                    log.warn("Remote Control message cause exception: EXCEPTION: ", e);
+                }
+            };
+
+            if (!autoReconnect) {
+                client.subscribe(url, rcTopic, messageListener, onException);
+            } else {
+                client.subscribeWithAutoReconnect(url, rcTopic, messageListener, onException, (exitCode) -> {
+                    log.debug("BrokerClientApp: Exit with code {}", exitCode);
+                    System.exit(exitCode);
+                });
+            }
+            log.info("BrokerClientApp: Running in Remote Control mode");
+
+            // Wait for remote command exit
+            lock.lock();
+            try {
+                condition.await(); // Thread waits here
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt(); // Preserve interrupt status
+            } finally {
+                lock.unlock();
+            }
+
+            // Disconnect
+            client.unsubscribe(messageListener);
+            client.closeConnection();
+            log.debug("BrokerClientApp: Exiting...");
+
         } else
         // Run JS script
         if ("js".equalsIgnoreCase(command)) {
@@ -964,6 +1038,7 @@ public class BrokerClientApp {
         log.info("client playback  [-U<USERNAME> [-P<PASSWORD]] <URL> [-Innn|-Dnnn|-Sd[.d]] [-Mcsv|-Mjson] <REC-FILE> ");
         log.info("client generator [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] <INTERVAL> <HOWMANY> <LOWER-VALUE> <UPPER-VALUE> <LEVEL>  [<PROPERTY>]*");
         log.info("client generator-cli [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC>");
+        log.info("client generator-rc  [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-OE<ON-EXCEPTION-ACTION>]");
         log.info("client js [-E<engine-name>] <JS-file> ");
         log.info("  More Flags: -LL<level> -Q -FD<regex> -FP<regex>=<regex>;... -NPJ");
         log.info("    <URL>: (tcp:|ssl|amqp:)//<ADDRESS>:<PORT>[?[%KAP%][&...additional properties]*]   KAP: Keep-Alive Properties ");
@@ -1033,7 +1108,7 @@ public class BrokerClientApp {
         
               subscribe <FLAGS> <URL> <TOPIC_LIST> [-OE<ON-EXCEPTION-ACTION>]
                 Subscribe to one or more topics. Hit ENTER to exit.
-                Same options as receive.
+                -OE<ON-EXCEPTION-ACTION>: Behaviour if an error occurs. Options: IGNORE, LOG_AND_IGNORE, THROW, LOG_AND_THROW
         
               record <FLAGS> <URL> <TOPIC_LIST> [-Mcsv|-Mjson] [-A|-O] <REC-FILE>
                 Record messages from specified topics to a file.
@@ -1058,6 +1133,10 @@ public class BrokerClientApp {
               generator-cli <FLAGS> <URL> <TOPIC>
                 Start an interactive shell for controlling event generator.
                 Additional help available in the CLI. Type 'help'
+        
+              generator-rc <FLAGS> <URL> <COMMANDS-TOPIC> [-OE<ON-EXCEPTION-ACTION>]
+                Start a remote control session for controlling event generator with messages.
+                -OE<ON-EXCEPTION-ACTION>: Behaviour if an error occurs. Options: IGNORE, LOG_AND_IGNORE, THROW, LOG_AND_THROW
         
               js [-E<engine-name>] <JS-file>
                 Execute a JavaScript file with a specific engine.
