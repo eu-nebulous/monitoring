@@ -26,7 +26,6 @@ import java.util.Map;
 
 @Slf4j
 @Data
-@Component
 public class EventGeneratorCli {
     private final BrokerClient client;
     private EventGenerator generator;
