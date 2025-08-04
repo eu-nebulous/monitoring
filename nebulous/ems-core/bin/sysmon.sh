@@ -18,8 +18,16 @@ echo CurrDateTime: $curr_dt_sec
 echo UpDateTime: $up_dt_sec
 echo Uptime: $uptime_sec
 
-# Report CPU usage (%)
+# Report instant CPU usage (%) -- Using top
 echo CPU: `top -b -n1 | grep "Cpu(s)" | awk '{print $2 + $4}'`
+
+# Report average CPU usage (%) for last 1/5/15 minutes -- Using /proc/loadavg
+echo CPU1: $(echo "$(awk '{print $1}' /proc/loadavg) $(nproc)" | awk '{printf "%.2f", ($1 / $2) * 100}')
+echo CPU5: $(echo "$(awk '{print $2}' /proc/loadavg) $(nproc)" | awk '{printf "%.2f", ($1 / $2) * 100}')
+echo CPU15: $(echo "$(awk '{print $3}' /proc/loadavg) $(nproc)" | awk '{printf "%.2f", ($1 / $2) * 100}')
+#load=$(awk '{print $1}' /proc/loadavg)
+#cores=$(nproc)
+#cpu_usage=$(echo "$load $cores" | awk '{printf "%.2f", ($1 / $2) * 100}')
 
 # Report Memory usage (%)
 FREE_DATA=`free -m | grep Mem`
@@ -32,7 +40,7 @@ echo RAM: $(echo "$CURRENT $TOTAL" | awk '{print 100 * $1 / $2}' )
 echo DISK: `df -lh | awk '{if ($6 == "/") { print 100 * $3 / $2 }}'`
 
 # Report Network RX/TX usage (B/s)
-ARR=($(ls -1 /sys/class/net/ | grep eth))
+ARR=($(ls -1 /sys/class/net/ | grep -E '^(eth|ens)'))
 
 function measure_ifs() {
     local SUMRX=0
@@ -45,10 +53,11 @@ function measure_ifs() {
 }
 
 START=($(measure_ifs))
-sleep 1
+WAIT=1
+sleep $WAIT
 END=($(measure_ifs))
 
-RX=$(( END[0] - START[0] ))
-TX=$(( END[1] - START[1] ))
+RX=$(( (END[0] - START[0]) / WAIT ))
+TX=$(( (END[1] - START[1]) / WAIT ))
 echo RX: $RX
 echo TX: $TX
