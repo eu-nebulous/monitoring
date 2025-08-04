@@ -1371,7 +1371,10 @@ public class CommandExecutor {
         Map<String, Object> clientStats = new HashMap<>();
         if (statsMap!=null) clientStats.putAll(statsMap);
         if (sysMap!=null) clientStats.putAll(sysMap);
-        if (sendStats && out!=null) out.println("-STATS:" + SerializationUtil.serializeToString(statsMap));
+        if (sendStats && out!=null) {
+            log.debug("-STATS: {}", clientStats);
+            out.println("-STATS:" + SerializationUtil.serializeToString(clientStats));
+        }
 
         // Send stats event to local broker
         String destination = baguetteClient.getBaguetteClientProperties().getSendStatisticsDestination();
