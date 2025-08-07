@@ -16,13 +16,13 @@ on:
         required: false
 
 jobs:
-  build-and-push-monitoring:
-    name: Build and push monitoring
-    uses: eu-nebulous/github-actions/.github/workflows/build-and-push-container-image.yml@main
-    with:
-      context: nebulous
-      image-name: monitoring
-    secrets: inherit
+#  build-and-push-monitoring:
+#    name: Build and push monitoring
+#    uses: eu-nebulous/github-actions/.github/workflows/build-and-push-container-image.yml@main
+#    with:
+#      context: nebulous
+#      image-name: monitoring
+#    secrets: inherit
 
   new-build-and-push-monitoring:
     name: New Build and push monitoring
@@ -57,11 +57,11 @@ jobs:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            quay.io/nebulous/ems-server:latest
-            quay.io/nebulous/ems-server:${{ steps.tagfriendly-ref.outputs.ref_name }}
-            quay.io/nebulous/ems-server:${{ github.sha }}
-            quay.io/nebulous/ems-server:${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}
-            quay.io/nebulous/ems-server:${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}-${{ steps.timestamp.outputs.timestamp }}
+            quay.io/nebulous/monitoring:latest
+            quay.io/nebulous/monitoring:${{ steps.tagfriendly-ref.outputs.ref_name }}
+            quay.io/nebulous/monitoring:${{ github.sha }}
+            quay.io/nebulous/monitoring:${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}
+            quay.io/nebulous/monitoring:${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}-${{ steps.timestamp.outputs.timestamp }}
           file: nebulous/Dockerfile-for-Nebulous
           build-args: BUILDKIT_CONTEXT_KEEP_GIT_DIR=1
           target: ems-server-nebulous
