@@ -8,6 +8,13 @@ on:
     branches:
       - main
       - r[1-9]
+  workflow_call:
+    secrets:
+      QUAY_USERNAME:
+        required: false
+      QUAY_PASSWORD:
+        required: false
+
 jobs:
   build-and-push-monitoring:
     name: Build and push monitoring
