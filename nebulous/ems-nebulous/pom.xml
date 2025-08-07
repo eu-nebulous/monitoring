@@ -529,7 +529,7 @@
                                         <from>${docker.image.name}:${docker.image.tag}</from>
                                         <labels>
                                             <artifactId>${project.artifactId}</artifactId>
-                                            <artifactId>${project.groupId}</artifactId>
+                                            <groupId>${project.groupId}</groupId>
                                             <version>${project.version}</version>
                                         </labels>
                                         <env>
