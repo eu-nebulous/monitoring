@@ -28,8 +28,8 @@
         <docker.esperJar>esper-${esper.version}.jar</docker.esperJar>
 
         <docker.image.name>ems-server</docker.image.name>
-        <!--<docker.image.tag>${revision}</docker.image.tag>
-        <build.description></build.description>-->
+        <docker.image.tag>unknown</docker.image.tag>
+        <build.description>-</build.description>
         <docker.user>emsuser</docker.user>
         <docker.user.home>/opt/ems-server</docker.user.home>
 
