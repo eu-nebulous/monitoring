@@ -16,13 +16,13 @@ on:
         required: false
 
 jobs:
-#  build-and-push-monitoring:
-#    name: Build and push monitoring
-#    uses: eu-nebulous/github-actions/.github/workflows/build-and-push-container-image.yml@main
-#    with:
-#      context: nebulous
-#      image-name: monitoring
-#    secrets: inherit
+  build-and-push-monitoring:
+    name: Build and push monitoring
+    uses: eu-nebulous/github-actions/.github/workflows/build-and-push-container-image.yml@main
+    with:
+      context: nebulous
+      image-name: monitoring
+    secrets: inherit
 
   new-build-and-push-monitoring:
     name: New Build and push monitoring
@@ -50,20 +50,45 @@ jobs:
         id: tagfriendly-ref
         run: echo "ref_name=$(echo '${{ github.ref_name }}' | sed 's|/|-|g')" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push container image
+      - name: Set docker properties
+        id: set-docker-properties
+        run: |
+          echo "# Generated on: $(date -Iseconds)" > .dev-local-docker-image-build
+          echo "docker.image.name=quay.io/nebulous/monitoring" >> .dev-local-docker-image-build
+          echo "docker.image.tag=ems-server-${{ steps.tagfriendly-ref.outputs.ref_name }}" >> .dev-local-docker-image-build
+          echo "docker.user=emsuser" >> .dev-local-docker-image-build
+          echo "docker.user.home=/opt/ems-server" >> .dev-local-docker-image-build
+
+      - name: Build and push EMS server container image
         id: build-and-push-container-image
         uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            quay.io/nebulous/monitoring:latest
-            quay.io/nebulous/monitoring:${{ steps.tagfriendly-ref.outputs.ref_name }}
-            quay.io/nebulous/monitoring:${{ github.sha }}
-            quay.io/nebulous/monitoring:${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}
-            quay.io/nebulous/monitoring:${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}-${{ steps.timestamp.outputs.timestamp }}
+            quay.io/nebulous/monitoring:ems-server-${{ steps.tagfriendly-ref.outputs.ref_name }}
+            quay.io/nebulous/monitoring:ems-server-${{ github.sha }}
+            quay.io/nebulous/monitoring:ems-server-${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}
+            quay.io/nebulous/monitoring:ems-server-${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}-${{ steps.timestamp.outputs.timestamp }}
           file: nebulous/Dockerfile-for-Nebulous
           build-args: BUILDKIT_CONTEXT_KEEP_GIT_DIR=1
           target: ems-server-nebulous
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push EMS client container image
+        id: build-and-push-container-image
+        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            quay.io/nebulous/monitoring:ems-client-${{ steps.tagfriendly-ref.outputs.ref_name }}
+            quay.io/nebulous/monitoring:ems-client-${{ github.sha }}
+            quay.io/nebulous/monitoring:ems-client-${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}
+            quay.io/nebulous/monitoring:ems-client-${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}-${{ steps.timestamp.outputs.timestamp }}
+          file: nebulous/Dockerfile-for-Nebulous
+          build-args: BUILDKIT_CONTEXT_KEEP_GIT_DIR=1
+          target: ems-client
           cache-from: type=gha
           cache-to: type=gha,mode=max
