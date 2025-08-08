@@ -337,6 +337,31 @@
                 </configuration>
             </plugin>
 
+            <!-- Read docker image properties from file -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>properties-maven-plugin</artifactId>
+                <version>${properties-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>read-provided-docker-image-properties</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>read-project-properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <files>
+                        <file>${project.parent}/${docker-image-properties-file}</file>
+                        <file>${project.basedir}/${docker-image-properties-file}</file>
+                    </files>
+                    <quiet>true</quiet> <!-- This makes it ignore missing files -->
+                    <outputFile/>
+                    <properties/>
+                </configuration>
+            </plugin>
+
             <plugin>
                 <groupId>org.antlr</groupId>
                 <artifactId>antlr4-maven-plugin</artifactId>
@@ -486,7 +511,6 @@
                             <!--<keyPrefix>dev-</keyPrefix>-->
                             <files>
                                 <file>${project.build.directory}/${docker-image-properties-file}</file>
-                                <file>${project.basedir}/${docker-image-properties-file}</file>
                             </files>
                             <outputFile/>
                             <properties/>
