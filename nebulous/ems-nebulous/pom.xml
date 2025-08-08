@@ -486,6 +486,7 @@
                             <!--<keyPrefix>dev-</keyPrefix>-->
                             <files>
                                 <file>${project.build.directory}/${docker-image-properties-file}</file>
+                                <file>${project.basedir}/${docker-image-properties-file}</file>
                             </files>
                             <outputFile/>
                             <properties/>
