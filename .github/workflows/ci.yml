@@ -53,11 +53,18 @@ jobs:
       - name: Set docker properties
         id: set-docker-properties
         run: |
-          echo "# Generated on: $(date -Iseconds)" > .dev-local-docker-image-build
-          echo "docker.image.name=quay.io/nebulous/monitoring" >> .dev-local-docker-image-build
-          echo "docker.image.tag=ems-server-${{ steps.tagfriendly-ref.outputs.ref_name }}" >> .dev-local-docker-image-build
-          echo "docker.user=emsuser" >> .dev-local-docker-image-build
-          echo "docker.user.home=/opt/ems-server" >> .dev-local-docker-image-build
+          echo "# Generated on: $(date -Iseconds)" > nebulous/docker-image.properties
+          echo "docker.image.name=quay.io/nebulous/monitoring" >> nebulous/docker-image.properties
+          echo "docker.image.tag=ems-server-${{ steps.tagfriendly-ref.outputs.ref_name }}" >> nebulous/docker-image.properties
+          echo "docker.user=emsuser" >> nebulous/docker-image.properties
+          echo "docker.user.home=/opt/ems-server" >> nebulous/docker-image.properties
+
+      - name: Copy docker properties
+        id: copy-docker-properties
+        run: |
+          cp nebulous/docker-image.properties nebulous/ems-core/
+          cp nebulous/docker-image.properties nebulous/ems-nebulous/
+          cat nebulous/docker-image.properties
 
       - name: Build and push EMS server container image
         id: build-and-push-ems-server-container-image
