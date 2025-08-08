@@ -56,7 +56,7 @@ jobs:
           DOCKER_IMAGE_PROPERTIES=nebulous/ems-nebulous/docker-image.properties
           echo "# Generated on: $(date -Iseconds)" > $DOCKER_IMAGE_PROPERTIES
           echo "docker.image.name=quay.io/nebulous/monitoring" >> $DOCKER_IMAGE_PROPERTIES
-          echo "docker.image.tag=${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}" >> $DOCKER_IMAGE_PROPERTIES
+          echo "docker.image.tag-nebulous=${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}" >> $DOCKER_IMAGE_PROPERTIES
           echo "docker.user=emsuser" >> $DOCKER_IMAGE_PROPERTIES
           echo "docker.user.home=/opt/ems-server" >> $DOCKER_IMAGE_PROPERTIES
           cat $DOCKER_IMAGE_PROPERTIES
