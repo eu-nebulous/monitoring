@@ -62,8 +62,8 @@ jobs:
       - name: Copy docker properties
         id: copy-docker-properties
         run: |
-          cp docker-image.properties nebulous/ems-core/
-          cp docker-image.properties nebulous/ems-nebulous/
+          cp nebulous/docker-image.properties nebulous/ems-core/
+          cp nebulous/docker-image.properties nebulous/ems-nebulous/
 
       - name: Build and push EMS server container image
         id: build-and-push-ems-server-container-image
