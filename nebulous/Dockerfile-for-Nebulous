@@ -9,7 +9,7 @@
 
 
 # ----------------- EMS Builder image -----------------
-FROM docker.io/library/maven:3.9.6-eclipse-temurin-21 AS ems-server-builder
+FROM docker.io/library/maven:3.9.6-eclipse-temurin-21 AS ems-builder
 ENV BASEDIR=/app
 WORKDIR ${BASEDIR}
 COPY nebulous/ems-core       ${BASEDIR}/ems-core
@@ -65,9 +65,9 @@ RUN mkdir -p ${PUBLIC_DIR}/resources && \
     wget --progress=dot:giga -O ${PUBLIC_DIR}/resources/${JRE_LINUX_PACKAGE} https://cdn.azul.com/zulu/bin/${JRE_LINUX_PACKAGE}
 
 # Copy resource files to image
-COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-server-builder /app/ems-core/bin              ${BIN_DIR}
-COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-server-builder /app/ems-core/config-files     ${CONFIG_DIR}
-COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-server-builder /app/ems-core/public_resources ${PUBLIC_DIR}
+COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-builder /app/ems-core/bin              ${BIN_DIR}
+COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-builder /app/ems-core/config-files     ${CONFIG_DIR}
+COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-builder /app/ems-core/public_resources ${PUBLIC_DIR}
 
 # Create 'logs', and 'models' directories. Make bin/*.sh scripts executable
 RUN mkdir ${LOGS_DIR} && \
@@ -75,13 +75,13 @@ RUN mkdir ${LOGS_DIR} && \
     mkdir -p ${EMS_HOME}/models
 
 # Copy files from builder container
-COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-server-builder /app/dependencies          ${BASEDIR}
-COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-server-builder /app/spring-boot-loader    ${BASEDIR}
-COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-server-builder /app/snapshot-dependencies ${BASEDIR}
-COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-server-builder /app/application           ${BASEDIR}
+COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-builder /app/dependencies          ${BASEDIR}
+COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-builder /app/spring-boot-loader    ${BASEDIR}
+COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-builder /app/snapshot-dependencies ${BASEDIR}
+COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-builder /app/application           ${BASEDIR}
 
 # Copy ESPER dependencies
-COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-server-builder /app/ems-core/control-service/target/esper*.jar       ${BASEDIR}/BOOT-INF/lib/
+COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-builder /app/ems-core/control-service/target/esper*.jar       ${BASEDIR}/BOOT-INF/lib/
 
 EXPOSE 2222
 EXPOSE 8111
@@ -96,8 +96,8 @@ FROM ems-server-core AS ems-server-nebulous
 
 RUN date > /tmp/BUILD-TIME
 
-COPY --from=ems-server-builder /app/ems-nebulous/target/ems-nebulous-plugin-1.0.0-SNAPSHOT-jar-with-dependencies.jar /plugins/
-#COPY --from=ems-server-builder /app/ems-nebulous/models   ${BASEDIR}/models
+COPY --from=ems-builder /app/ems-nebulous/target/ems-nebulous-plugin-1.0.0-SNAPSHOT-jar-with-dependencies.jar /plugins/
+#COPY --from=ems-builder /app/ems-nebulous/models   ${BASEDIR}/models
 
 ENV EXTRA_LOADER_PATHS=/plugins/*   \
     SCAN_PACKAGES=eu.nebulous.ems   \
@@ -107,22 +107,22 @@ ENV EXTRA_LOADER_PATHS=/plugins/*   \
 ENV SRC_DIR=/app/ems-nebulous/src/main \
     BUILD_DIR=/app/ems-nebulous/target
 
-COPY --from=ems-server-builder ${BUILD_DIR}/banner.txt	                        /tmp/
-COPY --from=ems-server-builder ${BUILD_DIR}/classes/rule-templates.yml	        ${EMS_HOME}/BOOT-INF/classes/
-COPY --from=ems-server-builder ${BUILD_DIR}/classes/metric-model-schematron.xml	${EMS_HOME}/BOOT-INF/classes/
+COPY --from=ems-builder ${BUILD_DIR}/banner.txt	                          /tmp/
+COPY --from=ems-builder ${BUILD_DIR}/classes/rule-templates.yml	          ${EMS_HOME}/BOOT-INF/classes/
+COPY --from=ems-builder ${BUILD_DIR}/classes/metric-model-schematron.xml  ${EMS_HOME}/BOOT-INF/classes/
 
 RUN cat /tmp/banner.txt >> ${EMS_HOME}/BOOT-INF/classes/banner.txt \
 #    && rm /tmp/banner.txt \
     && date -Iseconds > /tmp/build.timestamp
 
-COPY --from=ems-server-builder ${BUILD_DIR}/classes/empty.yml	                ${EMS_HOME}/models/
-COPY --from=ems-server-builder ${BUILD_DIR}/classes/edge.yml		            ${EMS_HOME}/models/
-COPY --from=ems-server-builder ${BUILD_DIR}/classes/extension.yml	            ${EMS_HOME}/models/
+COPY --from=ems-builder ${BUILD_DIR}/classes/empty.yml	                ${EMS_HOME}/models/
+COPY --from=ems-builder ${BUILD_DIR}/classes/edge.yml		            ${EMS_HOME}/models/
+COPY --from=ems-builder ${BUILD_DIR}/classes/extension.yml	            ${EMS_HOME}/models/
 
-COPY --from=ems-server-builder ${SRC_DIR}/resources/helm/app-detection.yml	    ${EMS_HOME}/config/baguette-client-install/helm/
-COPY --from=ems-server-builder ${SRC_DIR}/resources/helm/epm-deploy.yml		    ${EMS_HOME}/config/baguette-client-install/helm/
-COPY --from=ems-server-builder ${SRC_DIR}/resources/helm/netdata-deploy.yml	    ${EMS_HOME}/config/baguette-client-install/helm/
-COPY --from=ems-server-builder ${SRC_DIR}/resources/app-ems-server/values.yaml	${EMS_HOME}/config/app-ems-server/
+COPY --from=ems-builder ${SRC_DIR}/resources/helm/app-detection.yml	    ${EMS_HOME}/config/baguette-client-install/helm/
+COPY --from=ems-builder ${SRC_DIR}/resources/helm/epm-deploy.yml        ${EMS_HOME}/config/baguette-client-install/helm/
+COPY --from=ems-builder ${SRC_DIR}/resources/helm/netdata-deploy.yml    ${EMS_HOME}/config/baguette-client-install/helm/
+COPY --from=ems-builder ${SRC_DIR}/resources/app-ems-server/values.yaml	${EMS_HOME}/config/app-ems-server/
 
 
 # -----------------   EMS-Client Runtime image   -----------------
@@ -151,9 +151,9 @@ ARG PATH=$JAVA_HOME/bin:$PATH
 ARG INSTALLATION_PACKAGE=baguette-client-installation-package.tgz
 
 # Copy Baguette Client files
-COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-server-builder  /app/ems-core/baguette-client/target/$INSTALLATION_PACKAGE  /tmp
+COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-builder  /app/ems-core/baguette-client/target/$INSTALLATION_PACKAGE  /tmp
 RUN tar zxvf /tmp/$INSTALLATION_PACKAGE -C /opt && rm -f /tmp/$INSTALLATION_PACKAGE
-COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-server-builder  /app/ems-core/baguette-client/conf/* ${EMS_HOME}/conf/
+COPY --chown=${EMS_USER}:${EMS_USER} --from=ems-builder  /app/ems-core/baguette-client/conf/* ${EMS_HOME}/conf/
 
 EXPOSE 61610
 EXPOSE 61616
