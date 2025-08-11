@@ -17,8 +17,9 @@ COPY nebulous/ems-nebulous   ${BASEDIR}/ems-nebulous
 COPY nebulous/pom.xml        ${BASEDIR}/pom.xml
 
 RUN --mount=type=bind,source=.git,target=${BASEDIR}/.git  \
-    echo "docker.image.tag=$(git rev-parse --abbrev-ref HEAD)-$(git rev-parse HEAD)" > ${BASEDIR}/ems-core/.dev-local-docker-image-build && \
-    echo "build.description=**********  EMS for NebulOus  **********" >> ${BASEDIR}/ems-core/.dev-local-docker-image-build
+    echo "docker.image.name=" > ${BASEDIR}/ems-core/.dev-local-docker-image-build && \
+    echo "docker.image.tag=Not generated" >> ${BASEDIR}/ems-core/.dev-local-docker-image-build && \
+    echo "build.description=$(git log -1 --pretty=%B)" >> ${BASEDIR}/ems-core/.dev-local-docker-image-build
 
 RUN --mount=type=cache,target=/root/.m2  \
     --mount=type=bind,source=.git,target=${BASEDIR}/.git  \
