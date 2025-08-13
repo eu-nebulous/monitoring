@@ -112,7 +112,7 @@ public class BrokerClientApp {
             String url = processUrlArg( args[aa++] );
             log.info("BrokerClientApp: Listing destinations:");
             BrokerClient client = BrokerClient.newClient(username, password);
-            client.getDestinationNames(url).forEach(d -> log.info("    {}", d));
+            client.getDestinationNames(url).stream().sorted().forEach(d -> log.info("    {}", d));
         } else
         // send an event
         if ("publish".equalsIgnoreCase(command)) {
