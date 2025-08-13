@@ -16,7 +16,9 @@ import gr.iccs.imu.ems.common.collector.CollectorContext;
 import gr.iccs.imu.ems.common.collector.prometheus.IPrometheusCollector;
 import gr.iccs.imu.ems.common.collector.prometheus.OpenMetricsParser;
 import gr.iccs.imu.ems.common.collector.prometheus.PrometheusCollectorProperties;
+import gr.iccs.imu.ems.common.k8s.K8sClient;
 import gr.iccs.imu.ems.util.EventBus;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +34,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledFuture;
+import java.util.stream.Collectors;
 
 /**
  * Collects measurements from a Prometheus exporter endpoint
@@ -131,7 +134,9 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
         log.trace("Collectors::{}: applyNewConfigurations: Starting new scraping tasks: configurations: {}", collectorId, configurations);
         Instant startInstant = Instant.now();
         configurations.forEach(config -> {
+            log.trace("Collectors::{}: applyNewConfigurations: configurations.forEach: BEFORE CHECK: config: {}", collectorId, config);
             if (checkConfig(config)) {
+                log.trace("Collectors::{}: applyNewConfigurations: configurations.forEach: AFTER CHECK: config: {}", collectorId, config);
                 String destination = config.getOrDefault("name", "").toString();
                 String prometheusMetric = getPrometheusMetric(config);
                 String url = getUrlPattern(config);
@@ -140,8 +145,11 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
                 Duration period = getInterval(config);
                 Instant startsAt = startInstant.plus(delay);
 
+                // Prepare pod filter
+                final PodFilter podFilter = getPrometheusPodFilter(config);
+
                 scrapingTasks.add(taskScheduler.scheduleAtFixedRate(
-                        () -> scrapeEndpoint(url, prometheusMetric, allowedTags, destination), startsAt, period));
+                        () -> scrapeEndpoint(url, prometheusMetric, allowedTags, destination, podFilter), startsAt, period));
                 log.info("Collectors::{}: Added monitoring task: prometheus-metric={}, destination={}, url={}, starts-at={}, period={}",
                         collectorId, prometheusMetric, destination, url, startsAt, period);
             } else
@@ -193,6 +201,17 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
             String prometheusMetric = configMap.getOrDefault("metric", "").toString();
             if (StringUtils.isNotBlank(prometheusMetric))
                 return prometheusMetric;
+        }
+        return null;
+    }
+
+    private PodFilter getPrometheusPodFilter(Map<String, Serializable> config) {
+        if (config.get("configuration") instanceof Map configMap) {
+            String podNamePrefix = configMap.getOrDefault("components", "").toString();
+            String podNamespace = configMap.getOrDefault("namespace", "default").toString();
+            final PodFilter podFilter = StringUtils.isAllBlank(podNamePrefix, podNamespace)
+                    ? null : new PodFilter(podNamePrefix, podNamespace);
+            return podFilter;
         }
         return null;
     }
@@ -280,9 +299,9 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
         this.openMetricsParser = new OpenMetricsParser();
     }
 
-    private void scrapeEndpoint(String urlPattern, String prometheusMetric, Map<String, Set<String>> allowedTags, String destination) {
-        log.debug("Collectors::{}: scrapeEndpoint: BEGIN: Scraping Prometheus endpoints for sensor: url-pattern={}, prometheusMetric={}, destination={}",
-                collectorId, urlPattern, prometheusMetric, destination);
+    private void scrapeEndpoint(String urlPattern, String prometheusMetric, Map<String, Set<String>> allowedTags, String destination, PodFilter podFilter) {
+        log.debug("Collectors::{}: scrapeEndpoint: BEGIN: Scraping Prometheus endpoints for sensor: url-pattern={}, prometheusMetric={}, destination={}, podFilter={}",
+                collectorId, urlPattern, prometheusMetric, destination, podFilter);
 
         // Get nodes/pods to scrape
         Set<Serializable> nodes = collectorContext.getNodesWithoutClient();
@@ -291,6 +310,23 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
             log.debug("Collectors::{}: scrapeEndpoint: END: No nodes to scrape: url-pattern={}, prometheusMetric={}, destination={}",
                     collectorId, urlPattern, prometheusMetric, destination);
             return;
+        }
+
+        // Filter pods to scrape
+        Set<Serializable> pods = collectorContext.getPodInfoSet();
+        log.trace("Collectors::{}: scrapeEndpoint: podFilter: {}, pods={}", collectorId, podFilter, pods);
+        if (podFilter!=null && pods!=null && ! pods.isEmpty()) {
+            log.trace("Collectors::{}: scrapeEndpoint: BEFORE POD FILTERING: nodes={}", collectorId, nodes);
+            nodes = pods.stream()
+                    .peek(o -> log.trace("Collectors::{}: scrapeEndpoint: --------> {} - {}", collectorId, o.getClass(), o))
+                    .filter(o -> o instanceof K8sClient.PodEntry)
+                    .map(K8sClient.PodEntry.class::cast)
+                    .filter(podFilter::matches)
+                    .peek(o -> log.trace("Collectors::{}: scrapeEndpoint: --------> MATCHED: {} - {}", collectorId, o.getClass(), o))
+                    .map(K8sClient.PodEntry::podIP)
+                    .peek(o -> log.trace("Collectors::{}: scrapeEndpoint: --------> IP ADDR: {}", collectorId, o))
+                    .collect(Collectors.toSet());
+            log.trace("Collectors::{}: scrapeEndpoint: AFTER POD FILTERING: nodes={}", collectorId, nodes);
         }
 
         // Scrape nodes and process responses
@@ -388,5 +424,22 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
         eventPublishThread.setName(collectorId + "-event-publish-thread");
         eventPublishThread.setDaemon(true);
         eventPublishThread.start();
+    }
+
+    @Data
+    private static class PodFilter {
+        private final String namePrefix;
+        private final String namespace;
+
+        public boolean matches(K8sClient.PodEntry p) {
+            if (StringUtils.isNotBlank(namePrefix) && ! StringUtils.startsWith(p.podName(), namePrefix))
+                return false;
+            if (StringUtils.isNotBlank(namePrefix)) {
+                String rest = StringUtils.removeStart(p.podName(), namePrefix);
+            }
+            if (StringUtils.isNotBlank(namespace) && ! StringUtils.equals(p.podNamespace(), namespace))
+                return false;
+            return true;
+        }
     }
 }
