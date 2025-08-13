@@ -23,6 +23,7 @@ public interface CollectorContext<P extends SshClientProperties> {
 
     List<ClientConfiguration> getNodeConfigurations();
     Set<Serializable> getNodesWithoutClient();
+    Set<Serializable> getPodInfoSet();
     boolean isAggregator();
     PUBLISH_RESULT sendEvent(String connectionString, String destinationName, EventMap event, boolean createDestination);
     default SshClient<P> getSshClient() { return null; }

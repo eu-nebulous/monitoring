@@ -772,6 +772,7 @@ public class CommandExecutor {
                     log.trace("Copied collector-configs from old client config.: \n{}", oldConfig.getCollectorConfigurations());
                 }
                 config.setNodesWithoutClient(new LinkedHashSet<>( config.getNodesWithoutClient() ));
+                config.setPodInfo(new LinkedHashSet<>( config.getPodInfo()!=null ? config.getPodInfo() : Set.of() ));
                 clientConfiguration = config;
             }
             log.debug("New client config.: {}", config);
