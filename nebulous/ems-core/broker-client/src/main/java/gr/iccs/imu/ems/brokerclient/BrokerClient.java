@@ -46,6 +46,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -165,6 +166,10 @@ public class BrokerClient {
     }
 
     // ------------------------------------------------------------------------
+
+    public synchronized List<String> getDestinationNamesSorted(String connectionString) throws JMSException {
+        return getDestinationNames(connectionString).stream().sorted().collect(Collectors.toList());
+    }
 
     public synchronized Set<String> getDestinationNames(String connectionString) throws JMSException {
         // open or reuse connection
