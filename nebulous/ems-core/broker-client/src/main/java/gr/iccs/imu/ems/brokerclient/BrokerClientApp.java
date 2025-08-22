@@ -28,10 +28,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.lang3.StringUtils;
 
-import javax.script.Bindings;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
+import javax.script.*;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -42,6 +39,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 public class BrokerClientApp {
@@ -321,41 +319,81 @@ public class BrokerClientApp {
             log.debug("BrokerClientApp: Exiting...");
 
         } else
-        // Run JS script
-        if ("js".equalsIgnoreCase(command)) {
+        // Run script
+        if ("run".equalsIgnoreCase(command)) {
             ScriptEngineManager manager = new ScriptEngineManager();
-            String engineName = "nashorn";
+
+            // Manually register Jython because Rhino seems to clear the ScriptEngineManager registry
+            ScriptEngineFactory jythonEngineFactory = new org.python.jsr223.PyScriptEngineFactory();
+            manager.registerEngineName("python", jythonEngineFactory);
+            manager.registerEngineName("jython", jythonEngineFactory);
+            manager.registerEngineExtension("py", jythonEngineFactory);
+            manager.registerEngineMimeType("text/python", jythonEngineFactory);
+            manager.registerEngineMimeType("application/python", jythonEngineFactory);
+            manager.registerEngineMimeType("text/x-python", jythonEngineFactory);
+            manager.registerEngineMimeType("application/x-python", jythonEngineFactory);
+
+            String engineName = null;
+            boolean skipEval = false;
             if (aa<args.length && args[aa].startsWith("-E")) {
                 String tmp = args[aa].substring(2).trim();
                 if (StringUtils.isNotBlank(tmp)) engineName = tmp;
                 else {
                     log.info("Available Script engines:");
-                    manager.getEngineFactories().forEach(s->{
+                    Stream.concat(manager.getEngineFactories().stream(), Stream.of(jythonEngineFactory)).forEach(s->{
                         log.info("  Engine: {} {}, {}, Language: {} {}, Mime: {}, Ext: {}",
                             s.getEngineName(), s.getEngineVersion(), s.getNames(),
                             s.getLanguageName(), s.getLanguageVersion(),
                             s.getMimeTypes(), s.getExtensions());
                     });
+                    skipEval = true;
                 }
                 aa++;
             }
 
-            ScriptEngine engine = manager.getEngineByName(engineName);
-            Bindings bindings = engine.createBindings();
-            String scriptFile = args[aa++];
+            if (! skipEval) {
+                String scriptFile = args[aa++];
+                ScriptEngine engine = StringUtils.isNotBlank(engineName)
+                        ? manager.getEngineByName(engineName)
+                        : manager.getEngineByExtension(StringUtils.substringAfterLast(scriptFile, "."));
+                Bindings bindings = engine.createBindings();
+                log.info("Using {} engine to run script: {}", engine.getFactory().getEngineName(), scriptFile);
 
-            ArrayList<String> jsArgs = new ArrayList<>();
-            for (; aa<args.length; aa++) jsArgs.add(args[aa]);
-            bindings.put("args", jsArgs);
+                ArrayList<String> jsArgs = new ArrayList<>();
+                for (; aa < args.length; aa++) jsArgs.add(args[aa]);
+                bindings.put("args", jsArgs);
+                bindings.put("argsArray", jsArgs.toArray(new String[0]));
 
-            engine.eval("""
-                            var BrokerClient = Java.type('gr.iccs.imu.ems.brokerclient.BrokerClient');
-                            var EventMap = Java.type('event.gr.iccs.imu.ems.brokerclient.EventMap');
-                            var System = Java.type('java.lang.System');
-                            load('%s')",
-                            """.formatted(scriptFile),
-                    bindings
-            );
+                /*engine.eval("""
+                                var BrokerClient = Java.type('gr.iccs.imu.ems.brokerclient.BrokerClient');
+                                var EventMap = Java.type('event.gr.iccs.imu.ems.brokerclient.EventMap');
+                                var System = Java.type('java.lang.System');
+                                load('%s')",
+                                """.formatted(scriptFile),
+                        bindings
+                );*/
+
+                ScriptContext context = new SimpleScriptContext();
+                context.setReader(new InputStreamReader(System.in));
+                context.setWriter(new PrintWriter(System.out));
+                context.setErrorWriter(new PrintWriter(System.err));
+                context.setBindings(bindings, ScriptContext.ENGINE_SCOPE);
+                context.setAttribute(".script", scriptFile, ScriptContext.ENGINE_SCOPE);
+                context.setAttribute(".engine-name", engine.getFactory().getEngineName(), ScriptContext.ENGINE_SCOPE);
+                context.setAttribute(".engine-version", engine.getFactory().getEngineVersion(), ScriptContext.ENGINE_SCOPE);
+
+                if (log.isDebugEnabled()) {
+                    log.debug("Initial Script bindings:\n{}", context.getBindings(ScriptContext.ENGINE_SCOPE)
+                            .entrySet().stream().map(e -> "  %s = %s".formatted(e.getKey(), e.getValue())).collect(Collectors.joining("\n"))
+                    );
+                    engine.eval(new FileReader(scriptFile), context);
+                    log.debug("Final Script bindings:\n{}", context.getBindings(ScriptContext.ENGINE_SCOPE)
+                            .entrySet().stream().map(e -> "  %s = %s".formatted(e.getKey(), e.getValue())).collect(Collectors.joining("\n"))
+                    );
+                } else {
+                    engine.eval(new FileReader(scriptFile), context);
+                }
+            }
 
         } else
         // error
@@ -400,14 +438,14 @@ public class BrokerClientApp {
         return url;
     }
 
-    private static void sendEvent(String url, String username, String password, String topic, String type, Serializable payload, Map<String,String> properties) throws JMSException, IOException {
+    public static void sendEvent(String url, String username, String password, String topic, String type, Serializable payload, Map<String,String> properties) throws JMSException, IOException {
         log.info("BrokerClientApp: Publishing event: {}", payload);
         BrokerClient client = BrokerClient.newClient(username, password);
         client.publishEvent(url, topic, type, payload, properties);
         log.debug("BrokerClientApp: Event payload: {}", payload);
     }
 
-    private static MessageListener getMessageListener(String destinationFiltersStr, String propertyFiltersStr) {
+    public static MessageListener getMessageListener(String destinationFiltersStr, String propertyFiltersStr) {
         final List<Pattern> destinationPatterns;
         if (StringUtils.isNotBlank(destinationFiltersStr)) {
             destinationPatterns = Arrays.stream(destinationFiltersStr.split(";"))
@@ -1039,7 +1077,7 @@ public class BrokerClientApp {
         log.info("client generator [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-T<MSG-TYPE>] <INTERVAL> <HOWMANY> <LOWER-VALUE> <UPPER-VALUE> <LEVEL>  [<PROPERTY>]*");
         log.info("client generator-cli [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC>");
         log.info("client generator-rc  [-U<USERNAME> [-P<PASSWORD]] <URL> <TOPIC> [-OE<ON-EXCEPTION-ACTION>]");
-        log.info("client js [-E<engine-name>] <JS-file> ");
+        log.info("client run [-E<engine-name>] <script-file> ");
         log.info("  More Flags: -LL<level> -Q -FD<regex> -FP<regex>=<regex>;... -NPJ");
         log.info("    <URL>: (tcp:|ssl|amqp:)//<ADDRESS>:<PORT>[?[%KAP%][&...additional properties]*]   KAP: Keep-Alive Properties ");
         log.info("    <TOPIC_LIST>: <TOPIC>[,<TOPIC>]*");
@@ -1053,7 +1091,7 @@ public class BrokerClientApp {
               client help
               client <COMMAND> <FLAGS> <URL>
               client <COMMAND> <FLAGS> <URL> <TOPIC> <PARAMETERS>
-              client js <PARAMETERS>
+              client run <PARAMETERS>
             
             Arguments:
               <COMMAND>: The action to be performed (e.g., publish, subscribe, record).
@@ -1138,8 +1176,8 @@ public class BrokerClientApp {
                 Start a remote control session for controlling event generator with messages.
                 -OE<ON-EXCEPTION-ACTION>: Behaviour if an error occurs. Options: IGNORE, LOG_AND_IGNORE, THROW, LOG_AND_THROW
         
-              js [-E<engine-name>] <JS-file>
-                Execute a JavaScript file with a specific engine.
+              run [-E<engine-name>] <script-file>
+                Execute a JavaScript or Python v2 file with a specific engine.
             """);
     }
 }
