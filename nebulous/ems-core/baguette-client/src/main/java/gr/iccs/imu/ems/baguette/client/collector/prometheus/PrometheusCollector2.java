@@ -209,6 +209,8 @@ public class PrometheusCollector2 extends AbstractEndpointCollector<String> impl
         if (config.get("configuration") instanceof Map configMap) {
             String podNamePrefix = configMap.getOrDefault("components", "").toString();
             String podNamespace = configMap.getOrDefault("namespace", "default").toString();
+            if (StringUtils.isAllBlank(podNamePrefix, podNamespace))
+                return null;
             final PodFilter podFilter = StringUtils.isAllBlank(podNamePrefix, podNamespace)
                     ? null : new PodFilter(podNamePrefix, podNamespace);
             return podFilter;
