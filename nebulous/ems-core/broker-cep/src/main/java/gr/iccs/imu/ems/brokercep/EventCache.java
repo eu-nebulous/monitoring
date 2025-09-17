@@ -61,7 +61,7 @@ public class EventCache implements InitializingBean {
     public synchronized void clearCache(boolean resetCounter) {
         if (!enabled) return;
         messageCache.clear();
-        cacheCounter.set(0);
+        if (resetCounter) cacheCounter.set(0);
     }
 
     public void excludeDestination(String destination) {
@@ -75,7 +75,7 @@ public class EventCache implements InitializingBean {
     }
 
     public void cacheEvent(EventMap eventMap, String destination) {
-        cacheEvent(eventMap, eventMap.getEventProperties(), destination);
+        cacheEvent(eventMap, /*eventMap.getEventProperties()*/ null, destination);
     }
 
     public void cacheEvent(Object event, Map<String,Object> properties, String destination) {
