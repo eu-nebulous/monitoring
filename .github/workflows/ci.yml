@@ -77,6 +77,7 @@ jobs:
           tags: |
             quay.io/nebulous/monitoring:${{ steps.tagfriendly-ref.outputs.ref_name }}
             quay.io/nebulous/monitoring:${{ github.sha }}
+            quay.io/nebulous/monitoring:latest
             quay.io/nebulous/monitoring:${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}
             quay.io/nebulous/monitoring:${{ steps.tagfriendly-ref.outputs.ref_name }}-${{ github.sha }}-${{ steps.timestamp.outputs.timestamp }}
           file: nebulous/Dockerfile
