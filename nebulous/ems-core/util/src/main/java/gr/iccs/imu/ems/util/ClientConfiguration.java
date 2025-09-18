@@ -25,5 +25,6 @@ import java.util.Set;
 @AllArgsConstructor
 public class ClientConfiguration implements Serializable {
     @NonNull private Set<Serializable> nodesWithoutClient;
+    private Set<Serializable> podInfo;
     private Map<String, List<Map<String,Serializable>>> collectorConfigurations;  // Collector Type - List of sensors' configuration Maps
 }

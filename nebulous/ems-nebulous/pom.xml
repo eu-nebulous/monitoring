@@ -30,18 +30,21 @@
         <ems.version>7.0.0-SNAPSHOT</ems.version>
 
         <!-- Spring Boot versions -->
-        <spring.version>6.2.6</spring.version>
-        <spring-boot.version>3.4.5</spring-boot.version>
+        <spring.version>6.2.9</spring.version>
+        <spring-boot.version>3.4.8</spring-boot.version>
         <jackson.version>2.18.2</jackson.version>
         <snakeyaml.version>2.3</snakeyaml.version>
         <lombok.version>1.18.36</lombok.version>
 
         <!-- Nebulous-EMS extension dependency versions -->
         <json-path.version>2.9.0</json-path.version>
+        <net.minidev.json-smart>2.5.2</net.minidev.json-smart>
         <thymeleaf.version>3.1.2.RELEASE</thymeleaf.version>
         <schematron.version>8.0.1</schematron.version>
 
         <exn-connector.version>1.0-SNAPSHOT</exn-connector.version>
+        <org.apache.qpid.protonj2-client.version>1.0.0-M23</org.apache.qpid.protonj2-client.version>
+        <guava.version>33.4.8-jre</guava.version>
 
         <!-- io.fabricat8 docker-maven-plugin properties -->
         <docker-maven-plugin.version>0.44.0</docker-maven-plugin.version>
@@ -133,6 +136,26 @@
             <groupId>eu.nebulouscloud</groupId>
             <artifactId>exn-connector-java</artifactId>
             <version>${exn-connector.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.qpid</groupId>
+                    <artifactId>protonj2-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.guava</groupId>
+                    <artifactId>guava</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.qpid</groupId>
+            <artifactId>protonj2-client</artifactId>
+            <version>${org.apache.qpid.protonj2-client.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
         </dependency>
 
         <!-- ===================================================================== -->
@@ -142,6 +165,17 @@
             <groupId>com.jayway.jsonpath</groupId>
             <artifactId>json-path</artifactId>
             <version>${json-path.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>net.minidev</groupId>
+                    <artifactId>json-smart</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>net.minidev</groupId>
+            <artifactId>json-smart</artifactId>
+            <version>${net.minidev.json-smart}</version>
         </dependency>
 
         <dependency>
@@ -300,6 +334,31 @@
                     <generateGitPropertiesFilename>${project.build.directory}/git.properties</generateGitPropertiesFilename>
                     <commitIdGenerationMode>full</commitIdGenerationMode>
                     <failOnNoGitDirectory>false</failOnNoGitDirectory>
+                </configuration>
+            </plugin>
+
+            <!-- Read docker image properties from file -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>properties-maven-plugin</artifactId>
+                <version>${properties-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>read-provided-docker-image-properties</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>read-project-properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <files>
+                        <file>${project.parent}/${docker-image-properties-file}</file>
+                        <file>${project.basedir}/${docker-image-properties-file}</file>
+                    </files>
+                    <quiet>true</quiet> <!-- This makes it ignore missing files -->
+                    <outputFile/>
+                    <properties/>
                 </configuration>
             </plugin>
 
@@ -495,7 +554,7 @@
                                         <from>${docker.image.name}:${docker.image.tag}</from>
                                         <labels>
                                             <artifactId>${project.artifactId}</artifactId>
-                                            <artifactId>${project.groupId}</artifactId>
+                                            <groupId>${project.groupId}</groupId>
                                             <version>${project.version}</version>
                                         </labels>
                                         <env>
@@ -531,6 +590,10 @@
 
                                                     <file>
                                                         <source>${project.build.directory}/classes/empty.yml</source>
+                                                        <outputDirectory>${docker.user.home}/models</outputDirectory>
+                                                    </file>
+                                                    <file>
+                                                        <source>${project.build.directory}/classes/edge.yml</source>
                                                         <outputDirectory>${docker.user.home}/models</outputDirectory>
                                                     </file>
                                                     <file>

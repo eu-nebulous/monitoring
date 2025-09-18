@@ -67,7 +67,7 @@ public class ExternalBrokerConnectionInfoService implements InitializingBean {
 				}
 
 			} catch (IOException e) {
-				log.warn("NebulousInstallationContextProcessorPlugin: EXCEPTION while querying Kubernetes API server: ", e);
+				log.warn("ExternalBrokerConnectionInfoService: EXCEPTION while querying Kubernetes API server: ", e);
 			}
 		}
 		log.debug("ExternalBrokerConnectionInfoService: collectExternalBrokerConnectionInfo: END: mode={}, address={}, port={}",

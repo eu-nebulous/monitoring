@@ -23,3 +23,207 @@ spec:
       metrics:
         - name: serverless_{{RANDOM}}_workqueue_length
           sensor: 'prometheus workqueue_length'
+  scopes:
+    - name: anomaly_detection_scope
+      requirements:
+      metrics:
+        # Metrics to collect
+        # ------------------
+        # ipv4.packets ; ipv4.errors ; ipv6.packets ; ipv6.errors
+        # net.packets ; net.net ; net.fifo
+        # net.events ; net.errors ; net.drops
+        # k8s.cgroup.net_packets ; k8s.cgroup.net_net
+        # k8s.cgroup.net_events ; k8s.cgroup.net_fifo
+        # k8s.cgroup.net_errors ; k8s.cgroup.net_drops
+
+        # Metric: ipv4.packets
+        - name: adt_ipv4_packets
+          busy-status: true
+          sensor:
+            type: netdata
+            config:
+              scope_contexts: ipv4.packets
+              namespace: ''
+              components: ''
+              after: -60
+          output: 'all 60 sec'
+
+        # Metric: ipv4.errors
+        - name: adt_ipv4_errors
+          busy-status: true
+          sensor:
+            type: netdata
+            config:
+              scope_contexts: ipv4.errors
+              namespace: ''
+              components: ''
+              after: -60
+          output: 'all 60 sec'
+
+        # Metric: ipv6.packets
+        - name: adt_ipv6_packets
+          busy-status: true
+          sensor:
+            type: netdata
+            config:
+              scope_contexts: ipv6.packets
+              namespace: ''
+              components: ''
+              after: -60
+          output: 'all 60 sec'
+
+        # Metric: ipv6.errors
+        - name: adt_ipv6_errors
+          busy-status: true
+          sensor:
+            type: netdata
+            config:
+              scope_contexts: ipv6.errors
+              namespace: ''
+              components: ''
+              after: -60
+          output: 'all 60 sec'
+
+        # Metric: net.packets
+        - name: adt_net_packets
+          busy-status: true
+          sensor:
+            type: netdata
+            config:
+              scope_contexts: net.packets
+              namespace: ''
+              components: ''
+              after: -60
+          output: 'all 60 sec'
+
+        # Metric: net.net
+        - name: adt_net_net
+          busy-status: true
+          sensor:
+            type: netdata
+            config:
+              scope_contexts: net.net
+              namespace: ''
+              components: ''
+              after: -60
+          output: 'all 60 sec'
+
+        # Metric: net.fifo
+        - name: adt_net_fifo
+          busy-status: true
+          sensor:
+            type: netdata
+            config:
+              scope_contexts: net.fifo
+              namespace: ''
+              components: ''
+              after: -60
+          output: 'all 60 sec'
+
+        # Metric: net.events
+        - name: adt_net_events
+          busy-status: true
+          sensor:
+            type: netdata
+            config:
+              scope_contexts: net.events
+              namespace: ''
+              components: ''
+              after: -60
+          output: 'all 60 sec'
+
+        # Metric: net.errors
+        - name: adt_net_errors
+          busy-status: true
+          sensor:
+            type: netdata
+            config:
+              scope_contexts: net.errors
+              namespace: ''
+              components: ''
+              after: -60
+          output: 'all 60 sec'
+
+        # Metric: net.drops
+        - name: adt_net_drops
+          busy-status: true
+          sensor:
+            type: netdata
+            config:
+              scope_contexts: net.drops
+              namespace: ''
+              components: ''
+              after: -60
+          output: 'all 60 sec'
+
+        # Metric: k8s.cgroup.net_packets
+        - name: adt_k8s_cgroup_net_packets
+          busy-status: true
+          sensor:
+            type: netdata
+            config:
+              scope_contexts: k8s.cgroup.net_packets
+              namespace: ''
+              components: ''
+              after: -60
+          output: 'all 60 sec'
+
+        # Metric: k8s.cgroup.net_net
+        - name: adt_k8s_cgroup_net_net
+          busy-status: true
+          sensor:
+            type: netdata
+            config:
+              scope_contexts: k8s.cgroup.net_net
+              namespace: ''
+              components: ''
+              after: -60
+          output: 'all 60 sec'
+
+        # Metric: k8s.cgroup.net_events
+        - name: adt_k8s_cgroup_net_events
+          busy-status: true
+          sensor:
+            type: netdata
+            config:
+              scope_contexts: k8s.cgroup.net_events
+              namespace: ''
+              components: ''
+              after: -60
+          output: 'all 60 sec'
+
+        # Metric: k8s.cgroup.net_fifo
+        - name: adt_k8s_cgroup_net_fifo
+          busy-status: true
+          sensor:
+            type: netdata
+            config:
+              scope_contexts: k8s.cgroup.net_fifo
+              namespace: ''
+              components: ''
+              after: -60
+          output: 'all 60 sec'
+
+        # Metric: k8s.cgroup.net_errors
+        - name: adt_k8s_cgroup_net_errors
+          busy-status: true
+          sensor:
+            type: netdata
+            config:
+              scope_contexts: k8s.cgroup.net_errors
+              namespace: ''
+              components: ''
+              after: -60
+          output: 'all 60 sec'
+
+        # Metric: k8s.cgroup.net_drops
+        - name: adt_k8s_cgroup_net_drops
+          busy-status: true
+          sensor:
+            type: netdata
+            config:
+              scope_contexts: k8s.cgroup.net_drops
+              namespace: ''
+              components: ''
+              after: -60
+          output: 'all 60 sec'

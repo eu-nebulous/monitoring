@@ -15,6 +15,7 @@ import gr.iccs.imu.ems.brokerclient.event.EventMap;
 import gr.iccs.imu.ems.brokerclient.properties.BrokerClientProperties;
 import gr.iccs.imu.ems.util.PasswordUtil;
 import jakarta.jms.*;
+import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.activemq.ActiveMQConnection;
@@ -45,6 +46,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -64,6 +66,11 @@ public class BrokerClient {
     private Future<?> receiveEventsWithAutoReconnectFuture;
 
     private static TaskScheduler defaultTaskScheduler;
+
+    @Getter
+    private String brokerUrl;
+    @Getter
+    private String brokerUsername;
 
     public BrokerClient() {
     }
@@ -160,6 +167,10 @@ public class BrokerClient {
 
     // ------------------------------------------------------------------------
 
+    public synchronized List<String> getDestinationNamesSorted(String connectionString) throws JMSException {
+        return getDestinationNames(connectionString).stream().sorted().collect(Collectors.toList());
+    }
+
     public synchronized Set<String> getDestinationNames(String connectionString) throws JMSException {
         // open or reuse connection
         checkProperties();
@@ -206,12 +217,20 @@ public class BrokerClient {
         _publishEvent(connectionString, destinationName, MESSAGE_TYPE.TEXT, new EventMap(eventMap), propertiesMap);
     }
 
+    public synchronized void publishEvent(String connectionString, String destinationName, MESSAGE_TYPE messageType, Map<String, Object> eventMap, Map<String,String> propertiesMap) throws JMSException {
+        _publishEvent(connectionString, destinationName, messageType, new EventMap(eventMap), propertiesMap);
+    }
+
     public synchronized void publishEvent(String connectionString, String destinationName, String eventContents) throws JMSException {
         _publishEvent(connectionString, destinationName, MESSAGE_TYPE.TEXT, eventContents, null);
     }
 
     public synchronized void publishEvent(String connectionString, String destinationName, String eventContents, Map<String,String> propertiesMap) throws JMSException {
         _publishEvent(connectionString, destinationName, MESSAGE_TYPE.TEXT, eventContents, propertiesMap);
+    }
+
+    public synchronized void publishEvent(String connectionString, String destinationName, MESSAGE_TYPE messageType, String eventContents, Map<String,String> propertiesMap) throws JMSException {
+        _publishEvent(connectionString, destinationName, messageType, eventContents, propertiesMap);
     }
 
     public synchronized void publishEvent(String connectionString, String destinationName, String type, Serializable eventContents, Map<String,String> propertiesMap) throws JMSException {
@@ -229,12 +248,20 @@ public class BrokerClient {
         _publishEvent(connectionString, username, password, destinationName, MESSAGE_TYPE.TEXT, new EventMap(eventMap), propertiesMap);
     }
 
+    public synchronized void publishEventWithCredentials(String connectionString, String username, String password, String destinationName, MESSAGE_TYPE messageType, Map<String, Object> eventMap, Map<String,String> propertiesMap) throws JMSException {
+        _publishEvent(connectionString, username, password, destinationName, messageType, new EventMap(eventMap), propertiesMap);
+    }
+
     public synchronized void publishEventWithCredentials(String connectionString, String username, String password, String destinationName, String eventContents) throws JMSException {
         _publishEvent(connectionString, username, password, destinationName, MESSAGE_TYPE.TEXT, eventContents, null);
     }
 
     public synchronized void publishEventWithCredentials(String connectionString, String username, String password, String destinationName, String eventContents, Map<String,String> propertiesMap) throws JMSException {
         _publishEvent(connectionString, username, password, destinationName, MESSAGE_TYPE.TEXT, eventContents, propertiesMap);
+    }
+
+    public synchronized void publishEventWithCredentials(String connectionString, String username, String password, String destinationName, MESSAGE_TYPE messageType, String eventContents, Map<String,String> propertiesMap) throws JMSException {
+        _publishEvent(connectionString, username, password, destinationName, messageType, eventContents, propertiesMap);
     }
 
     public synchronized void publishEventWithCredentials(String connectionString, String username, String password, String destinationName, String type, Serializable eventContents, Map<String,String> propertiesMap) throws JMSException {
@@ -540,6 +567,8 @@ public class BrokerClient {
     // ------------------------------------------------------------------------
 
     public ConnectionFactory createConnectionFactory(String brokerUrl, String username, String password) {
+        this.brokerUrl = brokerUrl;
+        this.brokerUsername = username;
         if (StringUtils.startsWithIgnoreCase(brokerUrl, "amqp:"))
             return createQpidConnectionFactory(brokerUrl, username, password);
         return createActiveMQConnectionFactory(brokerUrl, username, password);
@@ -637,5 +666,13 @@ public class BrokerClient {
             connection.close();
         session = null;
         connection = null;
+    }
+
+    public boolean isConnected() {
+        if (connection instanceof org.apache.activemq.ActiveMQConnection activeMQConn)
+            return ! activeMQConn.isClosed() && ! activeMQConn.isTransportFailed();
+        if (connection instanceof org.apache.qpid.jms.JmsConnection jmsConnection)
+            return jmsConnection.isConnected();
+        return session!=null;
     }
 }

@@ -132,6 +132,8 @@ public class K8sPodWatcher implements InitializingBean {
                 Set<Serializable> newPodSet = otherPods.stream().map(K8sClient.PodEntry::podIP).collect(Collectors.toSet());
                 log.info("K8sPodWatcher: EMS client: {} @{} -- Old pod set: {} -- New pod set: {}", clientId, hostIp, oldPodSet, newPodSet);
                 csc.getClientConfiguration().setNodesWithoutClient(newPodSet);
+                csc.getClientConfiguration().setPodInfo(new HashSet<>(otherPods));
+
                 log.trace("K8sPodWatcher: EMS client: {} @{} -- Sending configuration to EMS client", clientId, hostIp);
                 csc.sendClientConfiguration();
             });

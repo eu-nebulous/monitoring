@@ -772,6 +772,7 @@ public class CommandExecutor {
                     log.trace("Copied collector-configs from old client config.: \n{}", oldConfig.getCollectorConfigurations());
                 }
                 config.setNodesWithoutClient(new LinkedHashSet<>( config.getNodesWithoutClient() ));
+                config.setPodInfo(new LinkedHashSet<>( config.getPodInfo()!=null ? config.getPodInfo() : Set.of() ));
                 clientConfiguration = config;
             }
             log.debug("New client config.: {}", config);
@@ -1371,7 +1372,10 @@ public class CommandExecutor {
         Map<String, Object> clientStats = new HashMap<>();
         if (statsMap!=null) clientStats.putAll(statsMap);
         if (sysMap!=null) clientStats.putAll(sysMap);
-        if (sendStats && out!=null) out.println("-STATS:" + SerializationUtil.serializeToString(statsMap));
+        if (sendStats && out!=null) {
+            log.debug("-STATS: {}", clientStats);
+            out.println("-STATS:" + SerializationUtil.serializeToString(clientStats));
+        }
 
         // Send stats event to local broker
         String destination = baguetteClient.getBaguetteClientProperties().getSendStatisticsDestination();

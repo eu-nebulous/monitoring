@@ -700,9 +700,17 @@ public class ControlServiceCoordinator implements InitializingBean {
                 log.debug("ControlServiceCoordinator.configureBrokerCep(): Broker-CEP: Initializing...ok");
             }
 
+            // Get deployAllGroupings setting
+            boolean deployAllGroupings = properties.isDeployAllGroupings();
+            log.debug("ControlServiceCoordinator.configureBrokerCep(): Broker-CEP: deployAllGroupings: {}", deployAllGroupings);
+
             // Get event types for GLOBAL grouping (i.e. that of Upperware)
             log.debug("ControlServiceCoordinator.configureBrokerCep(): Broker-CEP: Upperware grouping: {}", upperwareGrouping);
-            Set<String> eventTypeNames = _TC.getG2T().get(upperwareGrouping);
+            Set<String> eventTypeNames = deployAllGroupings
+                    ? _TC.getG2T().values().stream()
+                                           .flatMap(Set::stream)
+                                           .collect(Collectors.toSet())
+                    : _TC.getG2T().get(upperwareGrouping);
             log.debug("ControlServiceCoordinator.configureBrokerCep(): Broker-CEP: Configuration of Event Types: {}", eventTypeNames);
             if (eventTypeNames == null || eventTypeNames.isEmpty())
                 throw new RuntimeException("Broker-CEP: No event types for GLOBAL grouping");
@@ -717,7 +725,15 @@ public class ControlServiceCoordinator implements InitializingBean {
             log.debug("ControlServiceCoordinator.configureBrokerCep(): Broker-CEP: Function definitions: {}", _TC.getFunctionDefinitions());
             brokerCep.addFunctionDefinitions(_TC.getFunctionDefinitions());
 
-            Map<String, Set<String>> ruleStatements = _TC.getG2R().get(upperwareGrouping);
+            Map<String, Set<String>> ruleStatements = deployAllGroupings
+                    ? _TC.getG2R().values().stream()
+                                           .flatMap(m -> m.entrySet().stream())
+                                           .collect(Collectors.toMap(
+                                                    Map.Entry::getKey,
+                                                    e -> new HashSet<>(e.getValue()),
+                                                    (set1, set2) -> { set1.addAll(set2); return set1; }
+                                           ))
+                    : _TC.getG2R().get(upperwareGrouping);
             log.debug("ControlServiceCoordinator.configureBrokerCep(): Broker-CEP: Configuration of EPL statements: {}", ruleStatements);
             if (ruleStatements != null) {
                 int cnt = 0;
