@@ -11,10 +11,7 @@ package gr.iccs.imu.ems.brokercep;
 
 import gr.iccs.imu.ems.brokercep.event.EventMap;
 import gr.iccs.imu.ems.brokercep.properties.BrokerCepProperties;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.InitializingBean;
@@ -74,11 +71,11 @@ public class EventCache implements InitializingBean {
         excludeDestinations.remove(destination.trim());
     }
 
-    public void cacheEvent(EventMap eventMap, String destination) {
+    public void cacheEvent(@NonNull EventMap eventMap, String destination) {
         cacheEvent(eventMap, /*eventMap.getEventProperties()*/ null, destination);
     }
 
-    public void cacheEvent(Object event, Map<String,Object> properties, String destination) {
+    public void cacheEvent(@NonNull Object event, Map<String,Object> properties, String destination) {
         if (!enabled) return;
         if (excludeDestinations.contains(destination)) return;
         CacheEntry entry;
@@ -100,9 +97,11 @@ public class EventCache implements InitializingBean {
             }
         }
         entry.payload = event;
-        entry.properties = properties.entrySet().stream().collect(Collectors.toMap(
-                Map.Entry::getKey, p -> p.getValue()!=null ? p.getValue().toString() : ""
-        ));
+        entry.properties = properties!=null
+                ? properties.entrySet().stream().collect(Collectors.toMap(
+                        Map.Entry::getKey, p -> p.getValue()!=null ? p.getValue().toString() : ""
+                  ))
+                : Collections.emptyMap();
     }
 
     @ToString
