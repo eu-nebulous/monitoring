@@ -74,16 +74,6 @@ public class EventCache implements InitializingBean {
         excludeDestinations.remove(destination.trim());
     }
 
-    public void excludeDestination(String destination) {
-        if (StringUtils.isBlank(destination)) return;
-        excludeDestinations.add(destination.trim());
-    }
-
-    public void includeDestination(String destination) {
-        if (StringUtils.isBlank(destination)) return;
-        excludeDestinations.remove(destination.trim());
-    }
-
     public void cacheEvent(EventMap eventMap, String destination) {
         cacheEvent(eventMap, /*eventMap.getEventProperties()*/ null, destination);
     }
