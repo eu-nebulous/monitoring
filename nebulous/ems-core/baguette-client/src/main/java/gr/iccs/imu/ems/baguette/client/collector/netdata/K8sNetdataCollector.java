@@ -509,7 +509,8 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
                     Map dimensions = (Map) view.get("dimensions");
                     List<String> ids = (List<String>) dimensions.get("ids");
                     List<String> units = (List<String>) dimensions.get("units");
-                    List<Number> values = (List<Number>) ((Map) dimensions.get("sts")).get("avg");
+                    Map stsMap = (Map) dimensions.get("sts");
+                    List<Number> values = stsMap==null ? null : (List<Number>) stsMap.get("avg");
                     log.trace("K8sNetdataCollector: collectDataFromNode():    ids={}", ids);
                     log.trace("K8sNetdataCollector: collectDataFromNode():  units={}", units);
                     log.trace("K8sNetdataCollector: collectDataFromNode(): values={}", values);
@@ -580,7 +581,9 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
         }
 
         // Check if applicable components are provided
-        if (cfgCtx.components==null || cfgCtx.components.isEmpty()) {
+        if (cfgCtx.components==null || cfgCtx.components.isEmpty()
+                || cfgCtx.components.size()==1 && StringUtils.isBlank(cfgCtx.components.iterator().next()))
+        {
             // No applicable components specified. Assuming all pods are accepted
             if (nsPrefix.isEmpty()) {
                 // No namespace specified. Assuming all pods of all namespaces are accepted
@@ -631,7 +634,7 @@ public class K8sNetdataCollector implements IClientCollector, INetdataCollector,
             boolean result = matchDeployment || matchDaemonSet;
             if (result) {
                 // Applicable component matched the 'id'
-                log.debug("K8sNetdataCollector: includeResult(): END: pod={}, ns={}: result={}", componentName, cfgCtx.namespace, result);
+                log.debug("K8sNetdataCollector: includeResult(): END: pod={}, ns={}, result={}", componentName, cfgCtx.namespace, result);
                 return result;
             }
         }

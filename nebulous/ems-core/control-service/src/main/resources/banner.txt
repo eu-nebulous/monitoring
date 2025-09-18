@@ -12,6 +12,7 @@ ${AnsiColor.046} :: Spring Boot :: ${AnsiColor.87}                      ${spring
 ${AnsiColor.046} :: Java (TM)   :: ${AnsiColor.87}                       (${java.version})
 ${AnsiColor.046} :: Build Num.  :: ${AnsiColor.226}@buildNumber@
 ${AnsiColor.046} :: Build Date  :: ${AnsiColor.226}@timestamp@
-${AnsiColor.046} :: SCM Branch  :: ${AnsiColor.226}@git.branch@,   at Repos.: @git.remote.origin.url@
+${AnsiColor.046} :: SCM Branch  :: ${AnsiColor.226}@git.branch@,   commit: @git.commit.id@
+${AnsiColor.046} :: SCM Repos.  :: ${AnsiColor.226}@git.remote.origin.url@
 ${AnsiColor.046} :: Image Tag   :: ${AnsiColor.226}@docker.image.name@:@docker.image.tag@
 ${AnsiColor.046} :: Description :: ${AnsiColor.226}@build.description@ ${AnsiColor.DEFAULT}${AnsiStyle.NORMAL}

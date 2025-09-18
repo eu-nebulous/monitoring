@@ -63,6 +63,8 @@ public class ControlServiceProperties {
     private boolean skipMetasolver;
     private boolean skipNotification;
 
+    private boolean deployAllGroupings;
+
     private String tcLoadFile;
     private String tcSaveFile;
 

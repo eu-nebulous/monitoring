@@ -24,10 +24,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringSubstitutor;
 import org.springframework.util.StreamUtils;
 
-import java.io.ByteArrayInputStream;
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -319,10 +316,11 @@ public class K8sClient implements Closeable {
     }
 
     @Data
-    public static class PodEntry {
+    public static class PodEntry implements Serializable {
         private final String podUid;
         private final String podIP;
         private final String podName;
+        private final String podNamespace;
         private final String hostIP;
         private final Map<String, String> labels;
 
@@ -330,6 +328,7 @@ public class K8sClient implements Closeable {
             podUid = pod.getMetadata().getUid();
             podIP = pod.getStatus().getPodIP();
             podName = pod.getMetadata().getName();
+            podNamespace = pod.getMetadata().getNamespace();
             hostIP = pod.getStatus().getHostIP();
             labels = Collections.unmodifiableMap(pod.getMetadata().getLabels());
         }

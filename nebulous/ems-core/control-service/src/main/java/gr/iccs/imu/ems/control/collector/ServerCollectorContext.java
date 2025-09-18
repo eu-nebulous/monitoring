@@ -51,6 +51,11 @@ public class ServerCollectorContext implements CollectorContext {
     }
 
     @Override
+    public Set<Serializable> getPodInfoSet() {
+        return Collections.emptySet();
+    }
+
+    @Override
     public boolean isAggregator() {
         return true;
     }

@@ -16,6 +16,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
 import org.apache.sshd.common.PropertyResolverUtils;
 import org.apache.sshd.common.config.keys.KeyUtils;
@@ -85,7 +86,19 @@ public class Sshd {
 
         // Setup server's shell factory (for custom Shell commands)
         sshd.setShellFactory(channelSession -> {
+            String username = channelSession.getSession().getUsername();
+            //or String username = channelSession.getServerSession().getUsername();
+            //or String username = channelSession.getSessionContext().getUsername();
+            log.debug("SSH server: Shell Factory: Username from session: {}", username);
+            boolean isHealthCheck = StringUtils.isNoneBlank(configuration.getHealthCheckUser(), username)
+                    && configuration.getHealthCheckUser().equals(username.trim());
+            log.debug("SSH server: Shell Factory: Is healthcheck Username? {}", isHealthCheck);
+
             ClientShellCommand csc = new ClientShellCommand(coordinator, configuration.isClientAddressOverrideAllowed(), eventBus, nodeRegistry);
+            if (isHealthCheck) {
+                csc.setCloseConnection(true);
+                csc.setCloseConnectionMessage(configuration.getHealthCheckMessage());
+            }
             //csc.setId( "#-"+System.currentTimeMillis() );
             log.debug("SSH server: Shell Factory: create invoked : New ClientShellCommand id: {}", csc.getId());
             return csc;
@@ -94,6 +107,8 @@ public class Sshd {
         // Setup password authenticator
         sshd.setPasswordAuthenticator((username, password, session) -> {
             //public boolean authenticate(String username, String password, ServerSession session)
+            if (! configuration.getHealthCheckUser().isBlank() && configuration.getHealthCheckUser().equals(username.trim()))
+                return true;
             String pwd = Optional.ofNullable(configuration.getCredentials().get(username.trim())).orElse("");
             return pwd.equals(password);
         });

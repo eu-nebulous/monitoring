@@ -100,6 +100,8 @@ public class ClientShellCommand implements Command, Runnable, ServerSessionAware
     private ServerSession session;
     @Getter @Setter
     private boolean closeConnection = false;
+    @Getter @Setter
+    private String closeConnectionMessage;
 
     private final Map<String,Object> inputsMap = new HashMap<>();
     private final EventBus<String,Object,Object> eventBus;
@@ -214,11 +216,15 @@ public class ClientShellCommand implements Command, Runnable, ServerSessionAware
     public void run() {
         // Check if session has been marked for immediate close
         if (closeConnection) {
-            log.warn("{}--> Exiting immediately because 'closeConnection' flag is set", id);
+            log.warn("{}--> Exiting immediately because 'closeConnection' flag is set {}", id, closeConnectionMessage!=null?closeConnectionMessage:"");
             eventBus.send("BAGUETTE_SERVER_CLIENT_SESSION_CLOSING_IMMEDIATELY", this);
             coordinator.unregister(this);
             if (this.session!=null && this.session.isOpen()) {
                 try {
+                    if (! closeConnectionMessage.isEmpty()) {
+                        this.out.println(closeConnectionMessage);
+                        this.out.flush();
+                    }
                     this.session.close();
                 } catch (IOException e) {
                     log.warn("Closing session caused on exception: ", e);

@@ -32,6 +32,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
@@ -229,7 +230,7 @@ public class EmsBootInitializer extends AbstractExternalBrokerService implements
 		// Call control-service to process model, also pass a callback to get the result
 		applicationContext.getBean(ControlServiceCoordinator.class).processAppModel(modelFile, null,
 				ControlServiceRequestInfo.create(appId, null, null, null,
-						Map.of("required-metrics", requiredMetricsList),
+						new LinkedHashMap<>(Map.of("required-metrics", requiredMetricsList)),
 						(result) -> {
 							// Send message with the processing result
 							log.info("Metric model processing result: {}", result);

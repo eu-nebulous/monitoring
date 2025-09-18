@@ -49,6 +49,12 @@ public class ClientCollectorContext implements CollectorContext<BaguetteClientPr
     }
 
     @Override
+    public Set<Serializable> getPodInfoSet() {
+        return commandExecutor.getClientConfiguration()!=null
+                ? commandExecutor.getClientConfiguration().getPodInfo() : null;
+    }
+
+    @Override
     public boolean isAggregator() {
         return commandExecutor.isAggregator();
     }

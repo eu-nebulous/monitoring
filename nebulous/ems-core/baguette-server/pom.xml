@@ -67,12 +67,21 @@
 					<groupId>org.eclipse.jgit</groupId>
 					<artifactId>org.eclipse.jgit</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.apache.mina</groupId>
+					<artifactId>mina-core</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.sshd</groupId>
 			<artifactId>sshd-scp</artifactId>
 			<version>${apache-sshd.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.mina</groupId>
+			<artifactId>mina-core</artifactId>
+			<version>${mina-core.version}</version>
 		</dependency>
 
 		<!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
