@@ -67,8 +67,9 @@ fi
 #JAVA_OPTS="${JAVA_OPTS} -Djavax.net.ssl.trustStorePassword=melodic -Djavax.net.ssl.trustStoreType=pkcs12"
 #JAVA_OPTS="-Djavax.net.debug=all ${JAVA_OPTS}"
 #JAVA_OPTS="-Dlogging.level.gr.iccs.imu.ems=TRACE ${JAVA_OPTS}"
+#JAVA_OPTS="${JAVA_OPTS} -Xms1g -Xmx8g"
 JAVA_OPTS="${JAVA_OPTS} -Djasypt.encryptor.password=$JASYPT_PASSWORD"
-JAVA_OPTS="${JAVA_OPTS} --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED"
+JAVA_OPTS="${JAVA_OPTS} --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED"
 
 # Print settings
 echo "" | tee -a ${LOG_FILE}
