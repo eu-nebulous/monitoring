@@ -67,6 +67,11 @@
             <artifactId>activemq-stomp</artifactId>
             <version>${activemq.version}</version>
         </dependency>
+        <dependency>    <!-- Required by ActiveMQ-STOMP -->
+            <groupId>com.thoughtworks.xstream</groupId>
+            <artifactId>xstream</artifactId>
+            <version>${xstream.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.activemq</groupId>
             <artifactId>activemq-amqp</artifactId>
