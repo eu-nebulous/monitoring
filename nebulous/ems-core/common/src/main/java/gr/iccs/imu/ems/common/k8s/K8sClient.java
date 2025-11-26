@@ -22,6 +22,7 @@ import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringSubstitutor;
+import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.util.StreamUtils;
 
 import java.io.*;
@@ -45,6 +46,8 @@ import java.util.concurrent.TimeUnit;
 public class K8sClient implements Closeable {
     private static final String K8S_SERVICE_ACCOUNT_SECRETS_PATH_DEFAULT = "/var/run/secrets/kubernetes.io/serviceaccount";
     private static final int K8S_CLIENT_TIMEOUT_DEFAULT = 10;
+
+    private static final DefaultResourceLoader resourceLoader = new DefaultResourceLoader();
 
     private KubernetesClient client;
     private String namespace;
@@ -174,6 +177,103 @@ public class K8sClient implements Closeable {
             }
         } else {
             log.warn("K8sClient.createDaemonSet: ERROR: DaemonSet spec is empty");
+        }
+        return this;
+    }
+
+    private InputStream getResourceAsStream(String location) throws IOException {
+        org.springframework.core.io.Resource resource;
+
+        if (location.startsWith("classpath:") || location.startsWith("file:")) {
+            resource = resourceLoader.getResource(location);
+        } else {
+            resource = resourceLoader.getResource("classpath:" + location);
+            if (!resource.exists()) {
+                resource = resourceLoader.getResource("file:" + location);
+            }
+        }
+
+        if (!resource.exists()) {
+            throw new IOException("Resource not found: " + location);
+        }
+
+        return resource.getInputStream();
+    }
+
+    public K8sClient applyManifest(String resourceName, Map<String,String> replacementValuesMap) throws IOException {
+        log.debug("K8sClient.applyManifest: BEGIN: dry-run={}, manifest={}", dryRun, resourceName);
+
+        String spec;
+        try (InputStream inputStream = getResourceAsStream(resourceName)) {
+            spec = StreamUtils.copyToString(inputStream, Charset.defaultCharset());
+            log.trace("K8sClient.applyManifest: Manifest spec BEFORE:\n{}", spec);
+            spec = StringSubstitutor.replace(spec, replacementValuesMap);
+            log.trace("K8sClient.createDaemonSet: Manifest spec AFTER :\n{}", spec);
+        }
+
+        return applyManifest(spec);
+    }
+
+    public K8sClient applyManifest(String spec) throws IOException{
+        log.debug("K8sClient.applyManifest: BEGIN: dry-run={}, mainfest={}", dryRun, spec);
+
+        if (StringUtils.isNotBlank(spec)) {
+            try (InputStream stream = new ByteArrayInputStream(spec.getBytes(StandardCharsets.UTF_8))) {
+                // Load a resources from manifest and apply them
+                List<HasMetadata> list = client.load(stream).get();
+                for (HasMetadata resource : list) {
+                    log.debug("K8sClient.createDaemonSet: Resource to apply: {} {} :: {}",
+                            resource.getKind(), resource.hashCode(), resource.getMetadata().getName());
+                    if (!dryRun) {
+                        HasMetadata hm = client.resource(resource).serverSideApply();
+                        log.debug("K8sClient.applyManifest:   Resource applied: {} {} :: {}",
+                                resource.getKind(), resource.hashCode(), resource.getMetadata().getName());
+                    } else {
+                        log.warn("K8sClient.applyManifest: DRY-RUN: Didn't apply resource: {}", resource.getMetadata().getName());
+                    }
+                }
+            }
+        } else {
+            log.warn("K8sClient.applyManifest: ERROR: Manifest spec is empty");
+        }
+        return this;
+    }
+
+    public K8sClient deleteManifestResources(String resourceName, Map<String,String> replacementValuesMap) throws IOException {
+        log.debug("K8sClient.deleteManifestResources: BEGIN: dry-run={}, manifest={}", dryRun, resourceName);
+
+        String spec;
+        try (InputStream inputStream = getResourceAsStream(resourceName)) {
+            spec = StreamUtils.copyToString(inputStream, Charset.defaultCharset());
+            log.trace("K8sClient.deleteManifestResources: Manifest spec BEFORE:\n{}", spec);
+            spec = StringSubstitutor.replace(spec, replacementValuesMap);
+            log.trace("K8sClient.deleteManifestResources: Manifest spec AFTER :\n{}", spec);
+        }
+
+        return deleteManifestResources(spec);
+    }
+
+    public K8sClient deleteManifestResources(String spec) throws IOException {
+        log.debug("K8sClient.deleteManifestResources: BEGIN: dry-run={}, mainfest={}", dryRun, spec);
+
+        if (StringUtils.isNotBlank(spec)) {
+            try (InputStream stream = new ByteArrayInputStream(spec.getBytes(StandardCharsets.UTF_8))) {
+                // Load a resources from manifest and Delete them
+                List<HasMetadata> list = client.load(stream).get();
+                for (HasMetadata resource : list) {
+                    log.debug("K8sClient.deleteManifestResources: Resource to delete: {} {} :: {}",
+                            resource.getKind(), resource.hashCode(), resource.getMetadata().getName());
+                    if (!dryRun) {
+                        List<StatusDetails> statusDetails = client.resource(resource).delete();
+                        log.debug("K8sClient.deleteManifestResources:   Resource deleted: {} {} :: {}",
+                                resource.getKind(), resource.hashCode(), resource.getMetadata().getName());
+                    } else {
+                        log.warn("K8sClient.deleteManifestResources: DRY-RUN: Didn't delete resource: {}", resource.getMetadata().getName());
+                    }
+                }
+            }
+        } else {
+            log.warn("K8sClient.deleteManifestResources: ERROR: Manifest spec is empty");
         }
         return this;
     }
