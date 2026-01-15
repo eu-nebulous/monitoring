@@ -8,9 +8,9 @@
 #
 
 ARG BUILDER_IMAGE=eclipse-temurin
-ARG BUILDER_IMAGE_TAG=21.0.7_6-jre
+ARG BUILDER_IMAGE_TAG=21.0.8_9-jre-noble
 ARG RUN_IMAGE=eclipse-temurin
-ARG RUN_IMAGE_TAG=21.0.7_6-jre
+ARG RUN_IMAGE_TAG=21.0.8_9-jre-noble
 
 # ----------------- Builder image -----------------
 FROM $BUILDER_IMAGE:$BUILDER_IMAGE_TAG as ems-server-builder
@@ -26,9 +26,9 @@ FROM $RUN_IMAGE:$RUN_IMAGE_TAG
 RUN wget --progress=dot:giga -O /usr/local/bin/dumb-init \
           https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_x86_64 && \
     chmod +x /usr/local/bin/dumb-init
-RUN apt-get update \
-    && apt-get install -y netcat-openbsd vim iputils-ping \
-    && rm -rf /var/lib/apt/lists/*
+#RUN apt-get update \
+#    && apt-get install -y netcat-openbsd vim iputils-ping \
+#    && rm -rf /var/lib/apt/lists/*
 
 # Add an EMS user
 ARG EMS_USER=emsuser

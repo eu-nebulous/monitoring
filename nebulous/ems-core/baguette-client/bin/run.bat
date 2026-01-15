@@ -38,7 +38,7 @@ if exist pom.xml (
 ::set JAVA_OPTS=-Djavax.net.debug=all %JAVA_OPTS%
 ::set JAVA_OPTS=-Dlogging.level.gr.iccs.imu.ems=TRACE %JAVA_OPTS%
 set JAVA_OPTS=%JAVA_OPTS% -Djasypt.encryptor.password=%JASYPT_PASSWORD%
-set JAVA_OPTS=%JAVA_OPTS% --add-opens=java.base/java.lang=ALL-UNNAMED  --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
+set JAVA_OPTS=%JAVA_OPTS% --add-opens=java.base/java.lang=ALL-UNNAMED  --add-opens=java.base/java.util=ALL-UNNAMED  --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
 
 :: Print settings
 echo Starting baguette client...

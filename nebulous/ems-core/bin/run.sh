@@ -58,6 +58,7 @@ mkdir -p ${BASEDIR}/models
 
 # Run EMS server
 # Uncomment next line to set JAVA runtime options
+#JAVA_OPTS=-Xms1g -Xmx8g
 #JAVA_OPTS=-Djavax.net.debug=all
 #JAVA_OPTS=-agentlib:native-image-agent=config-output-dir=/mnt/ems/control-service/src/main/resources/META-INF/native-image
 #JAVA_OPTS=-agentlib:native-image-agent=config-merge-dir=/mnt/ems/control-service/src/main/resources/META-INF/native-image
